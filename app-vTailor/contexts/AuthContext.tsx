@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export type UserRole = 'customer' | 'tailor' | null;
 
@@ -19,6 +20,8 @@ type AuthContextType = {
   login: (phone: string, role: UserRole) => void;
   user?: UserProfile | null;
   updateProfile: (profile: UserProfile) => void;
+  isProfileCompleted: boolean;
+  markProfileCompleted: () => void;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -28,6 +31,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [userPhone, setUserPhone] = useState<string | null>(null);
   const [userRole, setUserRole] = useState<UserRole>(null);
   const [user, setUser] = useState<UserProfile | null>(null);
+  const [isProfileCompleted, setIsProfileCompleted] = useState(false);
+
+  useEffect(() => {
+    const loadProfileStatus = async () => {
+      try {
+        const completed = await AsyncStorage.getItem('profileCompleted');
+        if (completed === 'true') {
+          setIsProfileCompleted(true);
+        }
+      } catch (error) {
+        console.error('Error loading profile status:', error);
+      }
+    };
+    loadProfileStatus();
+  }, []);
 
   const acceptTerms = () => setAcceptedTerms(true);
 
@@ -40,8 +58,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser((prev) => ({ ...(prev || {}), ...profile }));
   };
 
+  const markProfileCompleted = async () => {
+    setIsProfileCompleted(true);
+    try {
+      await AsyncStorage.setItem('profileCompleted', 'true');
+    } catch (error) {
+      console.error('Error saving profile status:', error);
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ acceptedTerms, acceptTerms, userPhone, userRole, login, user, updateProfile }}>
+    <AuthContext.Provider value={{ acceptedTerms, acceptTerms, userPhone, userRole, login, user, updateProfile, isProfileCompleted, markProfileCompleted }}>
       {children}
     </AuthContext.Provider>
   );

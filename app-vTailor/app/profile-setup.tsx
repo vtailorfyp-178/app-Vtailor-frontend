@@ -9,7 +9,7 @@ const logo = require('../assets/images/vTailorlogo.jpeg');
 
 export default function ProfileSetup() {
   const router = useRouter();
-  const { user, updateProfile, userRole } = useAuth();
+  const { user, updateProfile, userRole, markProfileCompleted } = useAuth();
   const [formData, setFormData] = useState({
     name: user?.name ?? '',
     email: user?.email ?? '',
@@ -37,7 +37,7 @@ export default function ProfileSetup() {
     }));
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     updateProfile({
       name: formData.name,
       email: formData.email,
@@ -46,6 +46,9 @@ export default function ProfileSetup() {
       specialization: formData.specialization,
       description: formData.description,
     });
+    
+    await markProfileCompleted();
+    
     // navigate to role-based home
     if (userRole === 'tailor') (router as any).replace('/tailor');
     else (router as any).replace('/customer');
