@@ -5,25 +5,53 @@
 
 import { Platform } from 'react-native';
 
-const tintColorLight = '#0a7ea4';
+// Accent for light theme (soft rose)
+const tintColorLight = '#ec4899';
 const tintColorDark = '#fff';
 
 export const Colors = {
   light: {
-    text: '#11181C',
-    background: '#fff',
+    text: '#0f172a',
+    // white app background for most screens
+    background: '#ffffff',
     tint: tintColorLight,
+    // muted / secondary text
+    muted: '#6b7280',
+    // card and input backgrounds
+    card: '#fff',
+    inputBorder: '#f3d1de',
+    // button gradient (start, end)
+    buttonStart: '#fda4af',
+    buttonEnd: '#fb7185',
     icon: '#687076',
     tabIconDefault: '#687076',
     tabIconSelected: tintColorLight,
+    // circular icon background used for list cards
+    iconBg: '#ffd9e6',
+    // alternate accent (yellowish-orange) and its icon background
+    accentAlt: '#f59e0b',
+    iconBgAlt: '#fff4e6',
   },
   dark: {
     text: '#ECEDEE',
     background: '#151718',
     tint: tintColorDark,
+    // muted / secondary text
+    muted: '#9BA1A6',
+    // card and input backgrounds
+    card: '#0f172a',
+    inputBorder: '#2b2f31',
+    // button gradient (start, end)
+    buttonStart: '#3b3b3b',
+    buttonEnd: '#5a5a5a',
     icon: '#9BA1A6',
     tabIconDefault: '#9BA1A6',
     tabIconSelected: tintColorDark,
+    // circular icon background used for list cards
+    iconBg: '#2a2a2a',
+    // alternate accent (yellowish-orange) and its icon background
+    accentAlt: '#f59e0b',
+    iconBgAlt: '#2a2a2a',
   },
 };
 

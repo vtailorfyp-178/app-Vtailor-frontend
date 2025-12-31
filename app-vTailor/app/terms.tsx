@@ -1,118 +1,137 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, Image, ScrollView, Pressable } from 'react-native';
+import { ScrollView, StyleSheet, View, Image, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { useThemeColor } from '@/hooks/use-theme-color';
 import { useAuth } from '@/contexts/AuthContext';
 
 const logo = require('../assets/images/vTailorlogo.jpeg');
 
-const sections = [
-  {
-    title: 'Service Agreement',
-    content:
-      'By using V Tailor, you agree to connect with tailors for custom clothing services. All orders are subject to availability and pricing set by individual tailors.',
-  },
-  {
-    title: 'Privacy & Data',
-    content:
-      'We collect and protect your personal information including measurements, contact details, and order history. Your data is encrypted and never shared without consent.',
-  },
-  {
-    title: 'User Conduct',
-    content:
-      'Both customers and tailors must maintain respectful communication. Fraudulent activities, spam, or harassment will result in account termination.',
-  },
-  {
-    title: 'Payment & Penalties',
-    content:
-      'Tailors must maintain a wallet balance to accept orders. Late deliveries incur a 5% daily penalty. Customers can request refunds for cancelled orders.',
-  },
-];
-
-export default function TermsPage() {
+export default function Terms() {
   const router = useRouter();
   const { acceptTerms } = useAuth();
   const [agreed, setAgreed] = useState(false);
 
+  const tint = useThemeColor({}, 'tint');
+  const muted = useThemeColor({}, 'muted');
+  const cardBg = useThemeColor({}, 'card');
+  const iconBg = useThemeColor({}, 'iconBg');
+  const buttonStart = useThemeColor({}, 'buttonStart');
+
+  const sections = [
+    {
+      title: 'Service Agreement',
+      content:
+        'By using V Tailor, you agree to connect with tailors for custom clothing services. All orders are subject to availability and pricing set by individual tailors.',
+      icon: '📄',
+    },
+    {
+      title: 'Privacy & Data',
+      content:
+        'We collect and protect your personal information including measurements, contact details, and order history. Your data is encrypted and never shared without consent.',
+      icon: '🔒',
+    },
+    {
+      title: 'User Conduct',
+      content:
+        'Both customers and tailors must maintain respectful communication. Fraudulent activities, spam, or harassment will result in account termination.',
+      icon: '👥',
+    },
+    {
+      title: 'Payment & Penalties',
+      content:
+        'Tailors must maintain a wallet balance to accept orders. Late deliveries may incur penalties. Customers can request refunds for cancelled orders.',
+      icon: '💳',
+    },
+  ];
+
   const handleAccept = () => {
-    if (agreed) {
-      acceptTerms();
-      router.replace('/auth');
-    }
+    if (!agreed) return;
+    if (acceptTerms) acceptTerms();
+    router.replace('/auth');
   };
 
   return (
-    <ThemedView style={styles.container}>
-      <View style={styles.header}>
-        <Image source={logo} style={styles.logo} />
-        <ThemedText type="title">Terms & Conditions</ThemedText>
-        <ThemedText style={styles.subtitle}>Please read and accept to continue</ThemedText>
-      </View>
+    <ThemedView style={styles.screen}>
+      <ScrollView contentContainerStyle={styles.container}>
+        <View style={styles.header}>
+          <Image source={logo} style={styles.logo} />
+          <ThemedText type="title">Terms & Conditions</ThemedText>
+          <ThemedText style={[styles.subtitle, { color: muted }]}>Please read and accept to continue</ThemedText>
+        </View>
 
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
         {sections.map((s) => (
-          <View key={s.title} style={styles.section}>
-            <ThemedText type="defaultSemiBold" style={styles.sectionTitle}>
-              {s.title}
-            </ThemedText>
-            <ThemedText style={styles.sectionBody}>{s.content}</ThemedText>
-          </View>
+          <ThemedView key={s.title} style={styles.card}>
+            <View style={[styles.iconBox, { backgroundColor: iconBg }]}>
+              <ThemedText style={[styles.icon, { color: tint }]}>{s.icon}</ThemedText>
+            </View>
+            <View style={styles.cardContent}>
+              <ThemedText style={styles.cardTitle}>{s.title}</ThemedText>
+              <ThemedText style={[styles.cardDesc, { color: muted }]}>{s.content}</ThemedText>
+            </View>
+          </ThemedView>
         ))}
 
-        <View style={styles.additional}>
-          <ThemedText type="defaultSemiBold" style={{ marginBottom: 8 }}>
-            Additional Terms
-          </ThemedText>
-          <ThemedText>• Orders cannot be cancelled after cutting begins</ThemedText>
-          <ThemedText>• Measurements must be accurate; alterations may incur extra charges</ThemedText>
-          <ThemedText>• Direct chat is for order-related communication only</ThemedText>
-          <ThemedText>• Ratings and reviews must be honest and constructive</ThemedText>
-          <ThemedText>• V Tailor reserves the right to update these terms</ThemedText>
-        </View>
+        <ThemedView style={[styles.additionalBox, { backgroundColor: '#fff7f9', borderColor: '#fae3ea' }]}>
+          <ThemedText type="defaultSemiBold" style={styles.additionalTitle}>Additional Terms</ThemedText>
+          <ThemedText style={[styles.bullet, { color: muted }]}>• Orders cannot be cancelled after cutting begins</ThemedText>
+          <ThemedText style={[styles.bullet, { color: muted }]}>• Measurements must be accurate; alterations may incur extra charges</ThemedText>
+          <ThemedText style={[styles.bullet, { color: muted }]}>• Direct chat is for order-related communication only</ThemedText>
+          <ThemedText style={[styles.bullet, { color: muted }]}>• Ratings and reviews must be honest and constructive</ThemedText>
+          <ThemedText style={[styles.bullet, { color: muted }]}>• V Tailor reserves the right to update these terms</ThemedText>
+        </ThemedView>
+
+        <ThemedView style={styles.footerSpacer} />
       </ScrollView>
 
-      <View style={styles.footer}>
-        <View style={styles.checkboxRow}>
+      <ThemedView style={styles.footer}>
+        <View style={styles.checkboxRow as any}>
           <Pressable
             onPress={() => setAgreed((v) => !v)}
-            style={[styles.checkbox, agreed && styles.checkboxChecked]}
+            style={[styles.checkbox, agreed && { backgroundColor: tint, borderColor: tint }]}
             accessibilityLabel="I agree to terms"
           />
-          <ThemedText style={styles.checkboxLabel}>
-            I have read and agree to the <ThemedText style={{ color: '#0ea5a4' }}>Terms & Conditions</ThemedText> and <ThemedText style={{ color: '#0ea5a4' }}>Privacy Policy</ThemedText> of V Tailor.
-          </ThemedText>
+          <ThemedText style={[styles.checkboxLabel, { color: muted }]}>I have read and agree to the <ThemedText style={{ color: tint }}>Terms & Conditions</ThemedText> and <ThemedText style={{ color: tint }}>Privacy Policy</ThemedText> of V Tailor.</ThemedText>
         </View>
-
         <Pressable
           onPress={handleAccept}
-          style={[styles.button, !agreed && styles.buttonDisabled]}
+          style={[
+            styles.button,
+            { backgroundColor: agreed ? tint : buttonStart, borderColor: agreed ? tint : '#f6d6de' },
+            !agreed && styles.buttonDisabled,
+          ]}
           disabled={!agreed}
         >
           <ThemedText style={styles.buttonText}>Accept & Continue</ThemedText>
         </Pressable>
-      </View>
+      </ThemedView>
     </ThemedView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  header: { paddingTop: 32, paddingHorizontal: 24, alignItems: 'center' },
-  logo: { width: 80, height: 80, marginBottom: 8 },
-  subtitle: { fontSize: 14, marginTop: 6, color: '#6b7280' },
-  scroll: { flex: 1, marginTop: 12 },
-  scrollContent: { paddingHorizontal: 20, paddingBottom: 20 },
-  section: { marginBottom: 14, padding: 12, borderRadius: 14, backgroundColor: 'rgba(0,0,0,0.03)' },
-  sectionTitle: { marginBottom: 6 },
-  sectionBody: { color: '#6b7280' },
-  additional: { marginTop: 8, padding: 12, borderRadius: 12, backgroundColor: 'rgba(245,158,11,0.08)' },
-  footer: { padding: 20, borderTopWidth: 1, borderColor: 'rgba(0,0,0,0.06)' },
-  checkboxRow: { flexDirection: 'row', gap: 12, alignItems: 'center' } as any,
-  checkbox: { width: 20, height: 20, borderRadius: 4, borderWidth: 1, borderColor: '#cbd5e1' },
-  checkboxChecked: { backgroundColor: '#0ea5a4', borderColor: '#0ea5a4' },
-  checkboxLabel: { flex: 1, marginLeft: 8, color: '#6b7280' },
-  button: { marginTop: 12, backgroundColor: '#0ea5a4', paddingVertical: 14, borderRadius: 10, alignItems: 'center' },
-  buttonDisabled: { backgroundColor: 'rgba(0,0,0,0.1)' },
+  screen: { flex: 1 },
+  container: { padding: 20, paddingBottom: 120 },
+  header: { paddingTop: 24, paddingBottom: 12, alignItems: 'center' },
+  logo: { width: 80, height: 80, marginBottom: 8, resizeMode: 'contain' },
+  subtitle: { fontSize: 14, marginTop: 6 },
+  card: { flexDirection: 'row', padding: 16, borderRadius: 12, marginBottom: 14, borderWidth: 1, backgroundColor: '#f8fafc', borderColor: '#eef2f6' },
+  iconBox: { width: 44, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
+  icon: { fontSize: 20 },
+  cardContent: { flex: 1 },
+  cardTitle: { fontSize: 16, fontWeight: '700', marginBottom: 6 },
+  cardDesc: { fontSize: 14, lineHeight: 20 },
+  additional: { marginTop: 8, padding: 12, borderRadius: 12 },
+  additionalBox: { marginTop: 8, padding: 18, borderRadius: 12, borderWidth: 1 },
+  additionalTitle: { fontSize: 18, fontWeight: '700', marginBottom: 10 },
+  bullet: { fontSize: 14, lineHeight: 22, marginBottom: 8 },
+  footerSpacer: { height: 8 },
+  footer: { padding: 16, borderTopWidth: 1, borderColor: '#eef2f6', backgroundColor: '#f8fafc' },
+  checkboxRow: { flexDirection: 'row', gap: 12, alignItems: 'center' },
+  checkbox: { width: 20, height: 20, borderRadius: 4, borderWidth: 1, borderColor: '#e6e7eb' },
+  checkboxLabel: { flex: 1, marginLeft: 8 },
+  button: { marginTop: 12, paddingVertical: 14, borderRadius: 10, alignItems: 'center', borderWidth: 1 },
+  buttonDisabled: { opacity: 0.7 },
   buttonText: { color: '#fff', fontWeight: '600' },
 });
