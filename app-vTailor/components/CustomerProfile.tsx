@@ -3,10 +3,16 @@ import { View, ScrollView, Pressable, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
 import { ThemedText } from './themed-text';
+import { useThemeColor } from '@/hooks/use-theme-color';
 
 const CustomerProfile = () => {
   const { user } = useAuth();
   const router = useRouter();
+  const background = useThemeColor({}, 'background');
+  const tint = useThemeColor({}, 'tint');
+  const card = useThemeColor({}, 'card');
+  const inputBorder = useThemeColor({}, 'inputBorder');
+  const muted = useThemeColor({}, 'muted');
 
   const menuItems = [
     { icon: '⚙️', label: 'Settings' },
@@ -18,16 +24,16 @@ const CustomerProfile = () => {
   };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.headerSection}>
-        <ThemedText style={styles.headerTitle}>Profile</ThemedText>
-        <View style={styles.profileCard}>
-          <View style={styles.profileAvatar}><ThemedText style={styles.avatarEmoji}>👤</ThemedText></View>
+    <View style={[styles.container, { backgroundColor: background }]}> 
+      <View style={[styles.headerSection, { backgroundColor: tint }] }>
+        <ThemedText style={[styles.headerTitle, { color: '#fff' }]}>Profile</ThemedText>
+        <View style={[styles.profileCard, { backgroundColor: card }] }>
+          <View style={[styles.profileAvatar, { backgroundColor: useThemeColor({}, 'iconBg') }]}><ThemedText style={styles.avatarEmoji}>👤</ThemedText></View>
           <View style={styles.profileInfo}>
             <ThemedText style={styles.profileName}>{user?.name || 'Customer Name'}</ThemedText>
-            <ThemedText style={styles.profilePhone}>{user?.email || '+92 300 1234567'}</ThemedText>
+            <ThemedText style={[styles.profilePhone, { color: muted }]}>{user?.email || '+92 300 1234567'}</ThemedText>
           </View>
-          <Pressable style={styles.editBtn}><ThemedText style={styles.editIcon}>✏️</ThemedText></Pressable>
+          <Pressable style={[styles.editBtn, { backgroundColor: card }]}><ThemedText style={styles.editIcon}>✏️</ThemedText></Pressable>
         </View>
       </View>
 
@@ -82,36 +88,36 @@ const CustomerProfile = () => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#ffffff' },
-  headerSection: { paddingHorizontal: 16, paddingTop: 40, paddingBottom: 20, backgroundColor: '#0ea5a4', borderBottomLeftRadius: 24, borderBottomRightRadius: 24 },
-  headerTitle: { fontSize: 22, fontWeight: '700', color: '#ffffff', marginBottom: 16 },
-  profileCard: { flexDirection: 'row', alignItems: 'center', padding: 12, backgroundColor: '#ffffff', borderRadius: 16 },
-  profileAvatar: { width: 56, height: 56, borderRadius: 28, backgroundColor: '#f3f4f6', justifyContent: 'center', alignItems: 'center', marginRight: 12 },
+  headerSection: { paddingHorizontal: 16, paddingTop: 40, paddingBottom: 20, borderBottomLeftRadius: 24, borderBottomRightRadius: 24 },
+  headerTitle: { fontSize: 22, fontWeight: '700', marginBottom: 16 },
+  profileCard: { flexDirection: 'row', alignItems: 'center', padding: 12, borderRadius: 16 },
+  profileAvatar: { width: 56, height: 56, borderRadius: 28, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
   avatarEmoji: { fontSize: 28 },
   profileInfo: { flex: 1 },
   profileName: { fontSize: 15, fontWeight: '600', marginBottom: 2 },
   profilePhone: { fontSize: 12, color: '#6b7280' },
-  editBtn: { width: 40, height: 40, borderRadius: 8, backgroundColor: '#f3f4f6', justifyContent: 'center', alignItems: 'center' },
+  editBtn: { width: 40, height: 40, borderRadius: 8, justifyContent: 'center', alignItems: 'center' },
   editIcon: { fontSize: 18 },
   scrollView: { flex: 1 },
   section: { paddingHorizontal: 16, paddingTop: 24 },
   sectionLabel: { fontSize: 11, color: '#6b7280', textTransform: 'uppercase', fontWeight: '600', letterSpacing: 0.5, marginBottom: 12 },
-  infoCard: { backgroundColor: '#f9fafb', borderRadius: 12, borderWidth: 1, borderColor: '#e5e7eb', overflow: 'hidden' },
+  infoCard: { borderRadius: 12, borderWidth: 1, overflow: 'hidden' },
   infoItem: { flexDirection: 'row', alignItems: 'center', padding: 14 },
   infoIconBox: { width: 40, height: 40, borderRadius: 10, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
   infoIcon: { fontSize: 18 },
   infoContent: { flex: 1 },
-  infoLabel: { fontSize: 11, color: '#6b7280', marginBottom: 2 },
+  infoLabel: { fontSize: 11, marginBottom: 2 },
   infoValue: { fontSize: 13, fontWeight: '500' },
-  divider: { height: 1, backgroundColor: '#e5e7eb' },
-  menuItem: { flexDirection: 'row', alignItems: 'center', padding: 14, backgroundColor: '#f9fafb', borderRadius: 12, borderWidth: 1, borderColor: '#e5e7eb', marginBottom: 10 },
-  menuIconBox: { width: 40, height: 40, borderRadius: 10, backgroundColor: '#f3f4f6', justifyContent: 'center', alignItems: 'center', marginRight: 12 },
+  divider: { height: 1 },
+  menuItem: { flexDirection: 'row', alignItems: 'center', padding: 14, borderRadius: 12, borderWidth: 1, marginBottom: 10 },
+  menuIconBox: { width: 40, height: 40, borderRadius: 10, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
   menuIcon: { fontSize: 18 },
   menuLabel: { flex: 1, fontSize: 14, fontWeight: '500' },
   menuArrow: { fontSize: 16, color: '#6b7280' },
   logoutSection: { paddingHorizontal: 16, paddingTop: 16, marginTop: 8 },
-  logoutBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 14, backgroundColor: '#fee2e2', borderRadius: 12, borderWidth: 1, borderColor: '#fecaca' },
+  logoutBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 14, borderRadius: 12, borderWidth: 1 },
   logoutIcon: { fontSize: 18, marginRight: 8 },
-  logoutText: { fontSize: 16, fontWeight: '600', color: '#dc2626' },
+  logoutText: { fontSize: 16, fontWeight: '600' },
   bottomPadding: { height: 100 },
 });
 

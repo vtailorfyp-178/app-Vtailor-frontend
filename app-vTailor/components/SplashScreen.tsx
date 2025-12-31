@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Animated, Image, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useThemeColor } from '@/hooks/use-theme-color';
 
 const logo = require('../assets/images/vTailorlogo.jpeg');
 
@@ -8,6 +9,8 @@ export default function SplashScreen() {
   const router = useRouter();
   const scale = useRef(new Animated.Value(1)).current;
   const opacity = useRef(new Animated.Value(1)).current;
+  const tint = useThemeColor({}, 'tint');
+  const bg = useThemeColor({}, 'background');
 
   useEffect(() => {
     Animated.sequence([
@@ -40,7 +43,7 @@ export default function SplashScreen() {
   }, [router, scale, opacity]);
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: bg }]}> 
       <Animated.Image
         source={logo}
         style={[styles.logo, { transform: [{ scale }], opacity }]}
@@ -50,9 +53,9 @@ export default function SplashScreen() {
       <Animated.View style={[styles.taglineWrap, { opacity }]}>
         <Text style={styles.tagline}>Stitch Your Style</Text>
         <View style={styles.dots}>
-          <Animated.View style={[styles.dot, { backgroundColor: '#0ea5a4' }]} />
+          <Animated.View style={[styles.dot, { backgroundColor: tint }]} />
           <Animated.View style={[styles.dot, { backgroundColor: '#f59e0b' }]} />
-          <Animated.View style={[styles.dot, { backgroundColor: '#6366f1' }]} />
+          <Animated.View style={[styles.dot, { backgroundColor: tint }]} />
         </View>
       </Animated.View>
     </View>

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, Pressable } from 'react-native';
 import { ThemedText } from './themed-text';
+import { useThemeColor } from '@/hooks/use-theme-color';
 
 interface BottomTabBarProps {
   basePath: 'customer' | 'tailor';
@@ -36,17 +37,17 @@ const BottomTabBar = ({ basePath, onTabChange }: BottomTabBarProps) => {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: useThemeColor({}, 'card'), borderTopColor: useThemeColor({}, 'inputBorder') }]}>
       {tabs.map((tab) => (
         <Pressable
           key={tab.id}
-          style={[styles.tab, activeTab === tab.id && styles.activeTab]}
+          style={[styles.tab, activeTab === tab.id && { backgroundColor: useThemeColor({}, 'iconBg'), borderRadius: 12, marginHorizontal: 2 }]}
           onPress={() => handleTabPress(tab.id)}
         >
           <ThemedText style={[styles.icon, activeTab === tab.id && styles.activeIcon]}>
             {tab.icon}
           </ThemedText>
-          <ThemedText style={[styles.label, activeTab === tab.id && styles.activeLabel]}>
+          <ThemedText style={[styles.label, activeTab === tab.id && { color: useThemeColor({}, 'tint'), fontWeight: '600' }]}>
             {tab.label}
           </ThemedText>
         </Pressable>
@@ -61,9 +62,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-around',
     alignItems: 'center',
     borderTopWidth: 1,
-    borderTopColor: '#e5e7eb',
+    
     paddingVertical: 8,
-    backgroundColor: '#ffffff',
+    
     paddingBottom: 24,
   },
   tab: {
@@ -72,9 +73,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   activeTab: {
-    backgroundColor: '#f0fdfa',
-    borderRadius: 12,
-    marginHorizontal: 2,
+    
   },
   icon: {
     fontSize: 24,
@@ -90,7 +89,6 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   activeLabel: {
-    color: '#0ea5a4',
     fontWeight: '600',
   },
 });

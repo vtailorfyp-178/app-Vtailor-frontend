@@ -3,6 +3,7 @@ import { View, StyleSheet, Image, Pressable, TextInput, Keyboard, Platform } fro
 import { useRouter } from 'expo-router';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { useThemeColor } from '@/hooks/use-theme-color';
 import { useAuth, UserRole } from '@/contexts/AuthContext';
 
 const logo = require('../assets/images/vTailorlogo.jpeg');
@@ -15,13 +16,23 @@ export default function AuthScreen() {
   const [step, setStep] = useState<AuthStep>('role');
   const [role, setRole] = useState<UserRole>(null);
   const [phone, setPhone] = useState('');
+  const [phoneFocused, setPhoneFocused] = useState(false);
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
 
   const otpRefs = useRef<Array<TextInput | null>>(Array(6).fill(null));
 
+  const tint = useThemeColor({}, 'tint');
+  const buttonStart = useThemeColor({}, 'buttonStart');
+  const [otpFocusedIndex, setOtpFocusedIndex] = useState<number | null>(null);
+  const accentAlt = useThemeColor({}, 'accentAlt');
+  const iconBg = useThemeColor({}, 'iconBg');
+  const iconBgAlt = useThemeColor({}, 'iconBgAlt');
+
+  // when a role is selected, show the pink outline briefly then proceed
   const handleRoleSelect = (selectedRole: UserRole) => {
     setRole(selectedRole);
-    setStep('phone');
+    // show outline, then advance so user sees selection highlight
+    setTimeout(() => setStep('phone'), 220);
   };
 
   const handlePhoneSubmit = () => {
@@ -78,9 +89,19 @@ export default function AuthScreen() {
       <View style={styles.content}>
         {step === 'role' && (
           <View style={styles.roleList}>
-            <Pressable onPress={() => handleRoleSelect('customer')} style={styles.roleCard}>
+            <Pressable
+              onPress={() => handleRoleSelect('customer')}
+              style={[
+                styles.roleCard,
+                // show a light pink outline by default for the customer card
+                { borderColor: role === 'customer' ? tint : '#fae3ea' },
+                role === 'customer' && { borderWidth: 2 },
+              ]}
+            >
               <View style={styles.roleInner}>
-                <View style={styles.roleIcon}><ThemedText>👤</ThemedText></View>
+                <View style={[styles.roleIcon, { backgroundColor: role === 'customer' ? tint : iconBg }]}>
+                  <ThemedText style={{ color: role === 'customer' ? '#fff' : tint }}>👤</ThemedText>
+                </View>
                 <View style={{ flex: 1 }}>
                   <ThemedText type="defaultSemiBold">I'm a Customer</ThemedText>
                   <ThemedText style={styles.small}>Get custom clothes from expert tailors</ThemedText>
@@ -88,9 +109,11 @@ export default function AuthScreen() {
               </View>
             </Pressable>
 
-            <Pressable onPress={() => handleRoleSelect('tailor')} style={[styles.roleCard, styles.roleCardAlt]}>
+            <Pressable onPress={() => handleRoleSelect('tailor')} style={[styles.roleCard, styles.roleCardAlt, role === 'tailor' && { borderColor: accentAlt, borderWidth: 2 }]}>
               <View style={styles.roleInner}>
-                <View style={styles.roleIcon}><ThemedText>✂️</ThemedText></View>
+                <View style={[styles.roleIcon, { backgroundColor: role === 'tailor' ? accentAlt : iconBgAlt }]}>
+                  <ThemedText style={{ color: role === 'tailor' ? '#fff' : accentAlt }}>✂️</ThemedText>
+                </View>
                 <View style={{ flex: 1 }}>
                   <ThemedText type="defaultSemiBold">I'm a Tailor</ThemedText>
                   <ThemedText style={styles.small}>Offer your tailoring services</ThemedText>
@@ -108,14 +131,24 @@ export default function AuthScreen() {
             <View style={styles.phoneRow}>
               <ThemedText style={styles.cc}>+92</ThemedText>
               <TextInput
-                style={styles.phoneInput}
+                style={[styles.phoneInput, { borderColor: phoneFocused ? tint : '#e6e7eb' }]}
                 keyboardType="phone-pad"
                 value={phone}
+                onFocus={() => setPhoneFocused(true)}
+                onBlur={() => setPhoneFocused(false)}
                 onChangeText={(t) => setPhone(t.replace(/\D/g, '').slice(0, 10))}
                 placeholder="3XX XXXXXXX"
               />
             </View>
-            <Pressable onPress={handlePhoneSubmit} style={[styles.button, phone.length < 10 && styles.buttonDisabled]} disabled={phone.length < 10}>
+            <Pressable
+              onPress={handlePhoneSubmit}
+              style={[
+                styles.button,
+                phone.length < 10 && styles.buttonDisabled,
+                { backgroundColor: phone.length >= 10 ? tint : buttonStart, borderColor: phone.length >= 10 ? tint : '#f6d6de' },
+              ]}
+              disabled={phone.length < 10}
+            >
               <ThemedText style={styles.buttonText}>Send OTP →</ThemedText>
             </Pressable>
           </View>
@@ -129,15 +162,25 @@ export default function AuthScreen() {
                 <TextInput
                   key={i}
                   ref={(ref) => { otpRefs.current[i] = ref; }}
-                  style={styles.otpInput}
+                  style={[styles.otpInput, { borderColor: d ? tint : (otpFocusedIndex === i ? tint : '#e6e7eb') }]}
                   keyboardType="number-pad"
                   maxLength={1}
                   value={d}
+                  onFocus={() => setOtpFocusedIndex(i)}
+                  onBlur={() => setOtpFocusedIndex((cur) => (cur === i ? null : cur))}
                   onChangeText={(val) => handleOtpChange(i, val)}
                 />
               ))}
             </View>
-            <Pressable onPress={handleVerifyOtp} style={[styles.button, otp.join('').length < 6 && styles.buttonDisabled]} disabled={otp.join('').length < 6}>
+            <Pressable
+              onPress={handleVerifyOtp}
+              style={[
+                styles.button,
+                otp.join('').length < 6 && styles.buttonDisabled,
+                { backgroundColor: otp.join('').length === 6 ? tint : buttonStart, borderColor: otp.join('').length === 6 ? tint : '#f6d6de' },
+              ]}
+              disabled={otp.join('').length < 6}
+            >
               <ThemedText style={styles.buttonText}>Verify & Continue</ThemedText>
             </Pressable>
           </View>
@@ -165,7 +208,7 @@ const styles = StyleSheet.create({
   phoneRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
   cc: { marginRight: 10 },
   phoneInput: { flex: 1, borderWidth: 1, borderRadius: 12, padding: 12, height: 48 },
-  button: { marginTop: 12, backgroundColor: '#0ea5a4', paddingVertical: 14, borderRadius: 10, alignItems: 'center' },
+  button: { marginTop: 12, paddingVertical: 14, borderRadius: 10, alignItems: 'center' },
   buttonDisabled: { backgroundColor: 'rgba(0,0,0,0.1)' },
   buttonText: { color: '#fff', fontWeight: '600' },
   otpRow: { flexDirection: 'row', justifyContent: 'center', gap: 8, marginBottom: 12 },

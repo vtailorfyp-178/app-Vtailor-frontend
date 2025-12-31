@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, ScrollView, Pressable, StyleSheet } from 'react-native';
 import { ThemedText } from './themed-text';
+import { useThemeColor } from '@/hooks/use-theme-color';
 
 const CustomerWallet = () => {
   const transactions = [
@@ -10,19 +11,24 @@ const CustomerWallet = () => {
     { id: 4, type: 'credit', description: 'Refund - Order Cancelled', amount: 5000, date: '10 Dec' },
   ];
 
+  const background = useThemeColor({}, 'background');
+  const tint = useThemeColor({}, 'tint');
+  const card = useThemeColor({}, 'card');
+  const inputBorder = useThemeColor({}, 'inputBorder');
+
   return (
-    <View style={styles.container}>
-      <View style={styles.headerSection}>
-        <ThemedText style={styles.headerTitle}>My Wallet</ThemedText>
-        <View style={styles.balanceCard}>
+    <View style={[styles.container, { backgroundColor: background }]}> 
+      <View style={[styles.headerSection, { backgroundColor: tint }] }>
+        <ThemedText style={[styles.headerTitle, { color: '#fff' }]}>My Wallet</ThemedText>
+        <View style={[styles.balanceCard, { backgroundColor: card }] }>
           <View style={styles.balanceTop}>
-            <View style={styles.walletIcon}><ThemedText style={styles.walletEmoji}>💰</ThemedText></View>
+            <View style={[styles.walletIcon, { backgroundColor: '#fbbf24' }]}><ThemedText style={styles.walletEmoji}>💰</ThemedText></View>
             <View>
               <ThemedText style={styles.balanceLabel}>Available Balance</ThemedText>
               <ThemedText style={styles.balanceAmount}>Rs. 15,500</ThemedText>
             </View>
           </View>
-          <Pressable style={styles.addMoneyBtn}>
+          <Pressable style={[styles.addMoneyBtn, { backgroundColor: tint }]}>
             <ThemedText style={styles.addMoneyText}>+ Add Money</ThemedText>
           </Pressable>
         </View>
@@ -59,15 +65,15 @@ const CustomerWallet = () => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#ffffff' },
-  headerSection: { paddingHorizontal: 16, paddingTop: 40, paddingBottom: 20, backgroundColor: '#0ea5a4', borderBottomLeftRadius: 24, borderBottomRightRadius: 24 },
-  headerTitle: { fontSize: 22, fontWeight: '700', color: '#ffffff', marginBottom: 20 },
-  balanceCard: { backgroundColor: '#ffffff', borderRadius: 16, padding: 16 },
+  headerSection: { paddingHorizontal: 16, paddingTop: 40, paddingBottom: 20, borderBottomLeftRadius: 24, borderBottomRightRadius: 24 },
+  headerTitle: { fontSize: 22, fontWeight: '700', marginBottom: 20 },
+  balanceCard: { borderRadius: 16, padding: 16 },
   balanceTop: { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
   walletIcon: { width: 48, height: 48, borderRadius: 12, backgroundColor: '#fbbf24', justifyContent: 'center', alignItems: 'center', marginRight: 12 },
   walletEmoji: { fontSize: 24 },
   balanceLabel: { fontSize: 12, color: '#6b7280', marginBottom: 4 },
   balanceAmount: { fontSize: 24, fontWeight: '700', color: '#000000' },
-  addMoneyBtn: { paddingVertical: 12, paddingHorizontal: 16, backgroundColor: '#0ea5a4', borderRadius: 12, alignItems: 'center' },
+  addMoneyBtn: { paddingVertical: 12, paddingHorizontal: 16, borderRadius: 12, alignItems: 'center' },
   addMoneyText: { color: '#ffffff', fontWeight: '600', fontSize: 14 },
   scrollView: { flex: 1 },
   transactionSection: { paddingHorizontal: 16, paddingTop: 24 },
