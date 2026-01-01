@@ -4,22 +4,8 @@ import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { ThemedText } from '@/components/themed-text';
 import { useRouter } from 'expo-router';
 
-export default function TailorMeasurementsIndex() {
-  const router = useRouter();
-  return (
-    <ProtectedRoute requiredRole="tailor">
-      <ScrollView contentContainerStyle={styles.wrapper}>
-        <ThemedText style={styles.title}>Measurement Forms</ThemedText>
-        <View style={styles.card}>
-          <Text style={styles.small}>View and edit customer measurement forms.</Text>
-          <Pressable style={styles.button} onPress={() => router.push('/tailor')}>
-            <Text style={styles.buttonText}>Back to Home</Text>
-          </Pressable>
-        </View>
-      </ScrollView>
-    </ProtectedRoute>
-  );
-}
+// Placeholder: route moved to ../measurements.tsx
+export const TailorMeasurementsIndexPlaceholder = true;
 
 const styles = StyleSheet.create({
   wrapper: { padding: 16, paddingBottom: 120 },

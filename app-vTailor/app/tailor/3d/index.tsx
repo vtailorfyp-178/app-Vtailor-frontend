@@ -4,22 +4,8 @@ import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { ThemedText } from '@/components/themed-text';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 
-export default function Tailor3DIndex() {
-  const router = useRouter();
-  return (
-    <ProtectedRoute requiredRole="tailor">
-      <ScrollView contentContainerStyle={styles.wrapper}>
-        <ThemedText style={styles.title}>3D Model Reviews</ThemedText>
-        <View style={styles.card}>
-          <Text style={styles.small}>Select a customer model to preview and approve.</Text>
-          <Pressable style={styles.button} onPress={() => router.push('/tailor')}>
-            <Text style={styles.buttonText}>Back to Home</Text>
-          </Pressable>
-        </View>
-      </ScrollView>
-    </ProtectedRoute>
-  );
-}
+// Placeholder: route moved to ../3d.tsx
+export const Tailor3DIndexPlaceholder = true;
 
 const styles = StyleSheet.create({
   wrapper: { padding: 16, paddingBottom: 120 },
