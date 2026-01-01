@@ -101,13 +101,13 @@ const CustomerHome = () => {
           <ThemedText style={styles.arrow}>→</ThemedText>
         </Pressable>
 
-        <View style={[styles.tipsCard, { backgroundColor: card, borderColor: inputBorder }]}> 
+        <Pressable onPress={() => (router as any).push('/customer/chat')} style={[styles.tipsCard, { backgroundColor: card, borderColor: inputBorder }]}> 
           <Text style={styles.tipsIcon}>💬</Text>
           <View>
             <ThemedText style={styles.tipsTitle}>Need Assistance?</ThemedText>
             <ThemedText style={[styles.tipsDesc, { color: muted }]}>Use direct chat with your tailor</ThemedText>
           </View>
-        </View>
+        </Pressable>
 
         <View style={styles.bottomPadding} />
       </ScrollView>

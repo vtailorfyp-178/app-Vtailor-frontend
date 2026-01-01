@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, Pressable } from 'react-native';
+import { View, StyleSheet, Pressable, Platform } from 'react-native';
 import { ThemedText } from './themed-text';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { useRouter } from 'expo-router';
@@ -8,6 +8,8 @@ interface BottomTabBarProps {
   basePath: 'customer' | 'tailor';
   onTabChange?: (tab: string) => void;
 }
+
+export const TAB_BAR_HEIGHT = Platform.select({ ios: 90, android: 80, default: 80 });
 
 const BottomTabBar = ({ basePath, onTabChange }: BottomTabBarProps) => {
   const [activeTab, setActiveTab] = useState('home');
@@ -51,7 +53,7 @@ const BottomTabBar = ({ basePath, onTabChange }: BottomTabBarProps) => {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: useThemeColor({}, 'card'), borderTopColor: useThemeColor({}, 'inputBorder') }]}>
+    <View style={[styles.container, { backgroundColor: useThemeColor({}, 'card'), borderTopColor: useThemeColor({}, 'inputBorder') }]} pointerEvents="box-none">
       {tabs.map((tab) => (
         <Pressable
           key={tab.id}
@@ -72,14 +74,18 @@ const BottomTabBar = ({ basePath, onTabChange }: BottomTabBarProps) => {
 
 const styles = StyleSheet.create({
   container: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: TAB_BAR_HEIGHT,
     flexDirection: 'row',
     justifyContent: 'space-around',
     alignItems: 'center',
     borderTopWidth: 1,
-    
-    paddingVertical: 8,
-    
-    paddingBottom: 24,
+    paddingTop: 8,
+    paddingBottom: Platform.select({ ios: 20, android: 12, default: 12 }),
+    zIndex: 50,
   },
   tab: {
     alignItems: 'center',

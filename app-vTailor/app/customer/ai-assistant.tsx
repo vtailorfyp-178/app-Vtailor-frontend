@@ -131,13 +131,13 @@ export default function AIStyleAssistant() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: { paddingTop: Platform.select({ ios: 44, android: 24, default: 24 }), padding: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  header: { paddingTop: Platform.select({ ios: 84, android: 48, default: 48 }), padding: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   backBtn: { width: 56 },
   headerCenter: { flexDirection: 'row', alignItems: 'center', flex: 1, gap: 12 },
   botIcon: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', marginRight: 8 },
   title: { color: '#fff', fontWeight: '700', fontSize: 16 },
   online: { fontSize: 12, opacity: 0.9 },
-  messages: { padding: 12, paddingBottom: 24 },
+  messages: { padding: 12, paddingBottom: 24, paddingTop: 16 },
   messageRow: { flexDirection: 'row', alignItems: 'flex-end', marginBottom: 12 },
   messageRowAi: { justifyContent: 'flex-start' },
   messageRowUser: { justifyContent: 'flex-end' },

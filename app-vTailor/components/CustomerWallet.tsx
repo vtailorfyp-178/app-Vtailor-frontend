@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, ScrollView, Pressable, StyleSheet } from 'react-native';
 import { ThemedText } from './themed-text';
 import { useThemeColor } from '@/hooks/use-theme-color';
@@ -16,6 +16,8 @@ const CustomerWallet = () => {
   const card = useThemeColor({}, 'card');
   const inputBorder = useThemeColor({}, 'inputBorder');
 
+  const [mode, setMode] = useState<'add' | 'withdraw'>('add');
+
   return (
     <View style={[styles.container, { backgroundColor: background }]}> 
       <View style={[styles.headerSection, { backgroundColor: tint }] }>
@@ -28,9 +30,27 @@ const CustomerWallet = () => {
               <ThemedText style={styles.balanceAmount}>Rs. 15,500</ThemedText>
             </View>
           </View>
-          <Pressable style={[styles.addMoneyBtn, { backgroundColor: tint }]}>
-            <ThemedText style={styles.addMoneyText}>+ Add Money</ThemedText>
-          </Pressable>
+          <View style={styles.actionRow}>
+            <Pressable
+              onPress={() => setMode('withdraw')}
+              style={[
+                styles.tabBtn,
+                { backgroundColor: mode === 'withdraw' ? tint : 'transparent', borderWidth: mode === 'withdraw' ? 0 : 1, borderColor: inputBorder },
+              ]}
+            >
+              <ThemedText style={[styles.tabBtnText, mode === 'withdraw' ? { color: '#fff' } : { color: tint }]}>- Withdraw</ThemedText>
+            </Pressable>
+
+            <Pressable
+              onPress={() => setMode('add')}
+              style={[
+                styles.tabBtn,
+                { backgroundColor: mode === 'add' ? tint : 'transparent', borderWidth: mode === 'add' ? 0 : 1, borderColor: inputBorder },
+              ]}
+            >
+              <ThemedText style={[styles.tabBtnText, mode === 'add' ? { color: '#fff' } : { color: tint }]}>+ Add Money</ThemedText>
+            </Pressable>
+          </View>
         </View>
       </View>
 
@@ -75,6 +95,9 @@ const styles = StyleSheet.create({
   balanceAmount: { fontSize: 24, fontWeight: '700', color: '#000000' },
   addMoneyBtn: { paddingVertical: 12, paddingHorizontal: 16, borderRadius: 12, alignItems: 'center' },
   addMoneyText: { color: '#ffffff', fontWeight: '600', fontSize: 14 },
+  actionRow: { flexDirection: 'row', gap: 8, marginTop: 8 },
+  tabBtn: { flex: 1, paddingVertical: 12, paddingHorizontal: 16, borderRadius: 12, alignItems: 'center' },
+  tabBtnText: { fontWeight: '600', fontSize: 14 },
   scrollView: { flex: 1 },
   transactionSection: { paddingHorizontal: 16, paddingTop: 24 },
   transactionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },

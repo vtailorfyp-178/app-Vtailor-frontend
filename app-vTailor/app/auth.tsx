@@ -36,7 +36,7 @@ export default function AuthScreen() {
   };
 
   const handlePhoneSubmit = () => {
-    if (phone.length >= 11) setStep('otp');
+    if (phone.length >= 10) setStep('otp');
   };
 
   const handleOtpChange = (index: number, value: string) => {
@@ -136,7 +136,7 @@ export default function AuthScreen() {
                 value={phone}
                 onFocus={() => setPhoneFocused(true)}
                 onBlur={() => setPhoneFocused(false)}
-                onChangeText={(t) => setPhone(t.replace(/\D/g, '').slice(0, 11))}
+                onChangeText={(t) => setPhone(t.replace(/\D/g, '').slice(0, 10))}
                 placeholder="3XX XXXXXXX"
               />
             </View>
@@ -144,10 +144,10 @@ export default function AuthScreen() {
               onPress={handlePhoneSubmit}
               style={[
                 styles.button,
-                phone.length < 11 && styles.buttonDisabled,
-                { backgroundColor: phone.length >= 11 ? tint : buttonStart, borderColor: phone.length >= 11 ? tint : '#f6d6de' },
+                phone.length < 10 && styles.buttonDisabled,
+                { backgroundColor: phone.length >= 10 ? tint : buttonStart, borderColor: phone.length >= 10 ? tint : '#f6d6de' },
               ]}
-              disabled={phone.length < 11}
+              disabled={phone.length < 10}
             >
               <ThemedText style={styles.buttonText}>Send OTP →</ThemedText>
             </Pressable>

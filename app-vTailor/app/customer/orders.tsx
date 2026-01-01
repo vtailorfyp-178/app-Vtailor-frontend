@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Platform } from 'react-native';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import NotificationBell from '@/components/NotificationBell';
 import { ThemedText } from '@/components/themed-text';
@@ -89,7 +89,7 @@ export default function CustomerOrders() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: { paddingHorizontal: 16, paddingTop: 20, paddingBottom: 12, borderBottomWidth: 1, borderColor: '#eee' },
+  header: { paddingHorizontal: 16, paddingTop: Platform.select({ ios: 64, android: 36, default: 36 }), paddingBottom: 12, borderBottomWidth: 1, borderColor: '#eee' },
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
   title: { fontSize: 20, fontWeight: '700' },
   statsRow: { flexDirection: 'row', justifyContent: 'space-between' },
