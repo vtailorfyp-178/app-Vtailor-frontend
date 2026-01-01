@@ -17,9 +17,9 @@ const CustomerHome = () => {
   const textColor = useThemeColor({}, 'text');
 
   const quickActions = [
-    { label: 'Customize', icon: '🎨' },
-    { label: 'Measurements', icon: '📏' },
-    { label: 'Find Tailors', icon: '🔍' },
+    { label: 'Customize', icon: '🎨', route: '/customer/customize3d' },
+    { label: 'Measurements', icon: '📏', route: '/customer/measurements' },
+    { label: 'Find Tailors', icon: '🔍', route: '/customer/find-tailors' },
   ];
 
   const currentOrders = [
@@ -58,7 +58,7 @@ const CustomerHome = () => {
           <ThemedText style={styles.sectionTitle}>Quick Actions</ThemedText>
           <View style={styles.quickActionsGrid}>
             {quickActions.map((action) => (
-              <Pressable key={action.label} style={styles.actionButton}>
+              <Pressable key={action.label} style={styles.actionButton} onPress={() => (router as any).push(action.route)}>
                 <Text style={styles.actionIcon}>{action.icon}</Text>
                 <ThemedText style={styles.actionLabel}>{action.label}</ThemedText>
               </Pressable>
@@ -92,7 +92,7 @@ const CustomerHome = () => {
           </View>
         </View>
 
-        <Pressable style={[styles.aiCard, { backgroundColor: card, borderColor: inputBorder }]}> 
+        <Pressable onPress={() => (router as any).push('/customer/ai-assistant')} style={[styles.aiCard, { backgroundColor: card, borderColor: inputBorder }]}> 
           <Text style={styles.aiIcon}>🤖</Text>
           <View style={styles.aiContent}>
             <ThemedText style={styles.aiTitle}>AI Style Assistant</ThemedText>

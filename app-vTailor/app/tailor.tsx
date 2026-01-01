@@ -38,4 +38,6 @@ const styles = StyleSheet.create({
   },
 });
 
+// Do not default-export this component to avoid creating an automatic route.
+// This file remains for reference; the actual route is `app/tailor/index.tsx`.
 export default TailorDashboard;

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, StyleSheet, Pressable } from 'react-native';
 import { ThemedText } from './themed-text';
 import { useThemeColor } from '@/hooks/use-theme-color';
+import { useRouter } from 'expo-router';
 
 interface BottomTabBarProps {
   basePath: 'customer' | 'tailor';
@@ -36,13 +37,26 @@ const BottomTabBar = ({ basePath, onTabChange }: BottomTabBarProps) => {
     }
   };
 
+  const router = useRouter();
+
+  const handleNavigate = (tabId: string) => {
+    setActiveTab(tabId);
+    if (onTabChange) onTabChange(tabId);
+    try {
+      const target = tabId === 'home' ? `/${basePath}` : `/${basePath}/${tabId}`;
+      (router as any).push(target);
+    } catch (e) {
+      // fallback: no-op
+    }
+  };
+
   return (
     <View style={[styles.container, { backgroundColor: useThemeColor({}, 'card'), borderTopColor: useThemeColor({}, 'inputBorder') }]}>
       {tabs.map((tab) => (
         <Pressable
           key={tab.id}
           style={[styles.tab, activeTab === tab.id && { backgroundColor: useThemeColor({}, 'iconBg'), borderRadius: 12, marginHorizontal: 2 }]}
-          onPress={() => handleTabPress(tab.id)}
+          onPress={() => handleNavigate(tab.id)}
         >
           <ThemedText style={[styles.icon, activeTab === tab.id && styles.activeIcon]}>
             {tab.icon}
