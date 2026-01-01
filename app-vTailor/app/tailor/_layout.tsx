@@ -1,6 +1,6 @@
 import React from 'react';
 import { Slot } from 'expo-router';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, Platform } from 'react-native';
 import BottomTabBar, { TAB_BAR_HEIGHT } from '@/components/BottomTabBar';
 
 export default function TailorLayout() {
@@ -13,5 +13,5 @@ export default function TailorLayout() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
+  container: { flex: 1, paddingTop: Platform.select({ ios: 64, android: 36, default: 36 }) },
 });

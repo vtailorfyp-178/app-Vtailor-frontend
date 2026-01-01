@@ -45,8 +45,12 @@ const BottomTabBar = ({ basePath, onTabChange }: BottomTabBarProps) => {
     setActiveTab(tabId);
     if (onTabChange) onTabChange(tabId);
     try {
-      const target = tabId === 'home' ? `/${basePath}` : `/${basePath}/${tabId}`;
-      (router as any).push(target);
+      // If a parent provided `onTabChange`, assume in-dashboard controlled tabs
+      // and avoid router navigation so the BottomTabBar stays fixed.
+      if (!onTabChange) {
+        const target = tabId === 'home' ? `/${basePath}` : `/${basePath}/${tabId}`;
+        (router as any).push(target);
+      }
     } catch (e) {
       // fallback: no-op
     }

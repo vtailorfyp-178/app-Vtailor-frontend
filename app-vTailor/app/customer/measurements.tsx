@@ -8,18 +8,18 @@ import { useThemeColor } from '@/hooks/use-theme-color';
 type Step = 'shirt' | 'trouser';
 
 const shirtFields = [
-  { id: 'arm', label: 'Arm' },
-  { id: 'chest', label: 'Chest' },
-  { id: 'neck', label: 'Neck' },
-  { id: 'length', label: 'Length' },
-  { id: 'shoulder', label: 'Shoulder' },
-  { id: 'waist', label: 'Waist' },
+  { id: 'arm', label: 'Arm', icon: '💪' },
+  { id: 'chest', label: 'Chest', icon: '👕' },
+  { id: 'neck', label: 'Neck', icon: '🧣' },
+  { id: 'length', label: 'Length', icon: '📏' },
+  { id: 'shoulder', label: 'Shoulder', icon: '🤵' },
+  { id: 'waist', label: 'Waist', icon: '🎽' },
 ];
 
 const trouserFields = [
-  { id: 'waist', label: 'Waist' },
-  { id: 'length', label: 'Length' },
-  { id: 'phuncha', label: 'Phuncha' },
+  { id: 'waist', label: 'Waist', icon: '🎽' },
+  { id: 'length', label: 'Length', icon: '📏' },
+  { id: 'phuncha', label: 'Phuncha', icon: '🩳' },
 ];
 
 export default function MeasurementForm() {
@@ -36,6 +36,8 @@ export default function MeasurementForm() {
 
   const shirtProgress = Object.values(shirt).filter(Boolean).length;
   const trouserProgress = Object.values(trouser).filter(Boolean).length;
+  const shirtComplete = shirtProgress === shirtFields.length;
+  const trouserComplete = trouserProgress === trouserFields.length;
 
   return (
     <ThemedView style={styles.container}>
@@ -64,7 +66,7 @@ export default function MeasurementForm() {
             <ThemedText style={styles.sectionTitle}>Shirt Measurements</ThemedText>
             {shirtFields.map((f) => (
               <View key={f.id} style={styles.fieldRow}>
-                <ThemedText>{f.label}</ThemedText>
+                <ThemedText>{f.icon} {f.label}</ThemedText>
                 <TextInput
                   keyboardType="numeric"
                   value={shirt[f.id] || ''}
@@ -82,7 +84,7 @@ export default function MeasurementForm() {
             <ThemedText style={styles.sectionTitle}>Trouser Measurements</ThemedText>
             {trouserFields.map((f) => (
               <View key={f.id} style={styles.fieldRow}>
-                <ThemedText>{f.label}</ThemedText>
+                <ThemedText>{f.icon} {f.label}</ThemedText>
                 <TextInput
                   keyboardType="numeric"
                   value={trouser[f.id] || ''}
@@ -100,12 +102,12 @@ export default function MeasurementForm() {
 
       <View style={[styles.footer, { borderTopColor: inputBorder, backgroundColor: card }]}> 
         {step === 'shirt' ? (
-          <Pressable onPress={() => setStep('trouser')} disabled={shirtProgress < 3} style={[styles.proceed, { backgroundColor: shirtProgress >= 3 ? tint : '#f3f4f6' }]}>
-            <ThemedText style={{ color: shirtProgress >= 3 ? '#fff' : '#999' }}>Continue to Trouser</ThemedText>
+          <Pressable onPress={() => setStep('trouser')} disabled={!shirtComplete} style={[styles.proceed, { backgroundColor: shirtComplete ? tint : '#f3f4f6' }]}>
+            <ThemedText style={{ color: shirtComplete ? '#fff' : '#999' }}>Continue to Trouser</ThemedText>
           </Pressable>
         ) : (
-          <Pressable onPress={() => (router as any).replace('/customer')} disabled={trouserProgress < 2} style={[styles.proceed, { backgroundColor: trouserProgress >= 2 ? tint : '#f3f4f6' }]}>
-            <ThemedText style={{ color: trouserProgress >= 2 ? '#fff' : '#999' }}>Save Measurements</ThemedText>
+          <Pressable onPress={() => (router as any).replace('/customer')} disabled={!trouserComplete} style={[styles.proceed, { backgroundColor: trouserComplete ? tint : '#f3f4f6' }]}>
+            <ThemedText style={{ color: trouserComplete ? '#fff' : '#999' }}>Save Measurements</ThemedText>
           </Pressable>
         )}
       </View>
