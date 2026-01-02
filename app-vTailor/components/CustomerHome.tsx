@@ -1,9 +1,9 @@
-import React from 'react';
-import { View, ScrollView, TextInput, Text, Pressable, StyleSheet } from 'react-native';
-import { useRouter } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
-import { ThemedText } from './themed-text';
 import { useThemeColor } from '@/hooks/use-theme-color';
+import { useRouter } from 'expo-router';
+import React from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ThemedText } from './themed-text';
 
 const CustomerHome = () => {
   const router = useRouter();
@@ -97,6 +97,15 @@ const CustomerHome = () => {
           <View style={styles.aiContent}>
             <ThemedText style={styles.aiTitle}>AI Style Assistant</ThemedText>
             <ThemedText style={[styles.aiDesc, { color: muted }]}>Get personalized suggestions</ThemedText>
+          </View>
+          <ThemedText style={styles.arrow}>→</ThemedText>
+        </Pressable>
+
+        <Pressable onPress={() => (router as any).push('/customer/order-timeline')} style={[styles.aiCard, { backgroundColor: card, borderColor: inputBorder }]}> 
+          <Text style={styles.aiIcon}>📊</Text>
+          <View style={styles.aiContent}>
+            <ThemedText style={styles.aiTitle}>Order Timeline</ThemedText>
+            <ThemedText style={[styles.aiDesc, { color: muted }]}>Track your order progress</ThemedText>
           </View>
           <ThemedText style={styles.arrow}>→</ThemedText>
         </Pressable>
