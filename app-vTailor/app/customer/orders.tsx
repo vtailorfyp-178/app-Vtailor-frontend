@@ -1,9 +1,11 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, Platform } from 'react-native';
-import { ProtectedRoute } from '@/components/ProtectedRoute';
 import NotificationBell from '@/components/NotificationBell';
+import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { ThemedText } from '@/components/themed-text';
 import { useThemeColor } from '@/hooks/use-theme-color';
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import React from 'react';
+import { Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 const stats = [
   { emoji: '🎁', label: 'Total', value: 8, bg: '#fff0f6', tint: '#ec4899' },
@@ -36,6 +38,7 @@ const getStatusColors = (status: string) => {
 export default function CustomerOrders() {
   const bg = useThemeColor({}, 'background');
   const card = useThemeColor({}, 'card');
+  const router = useRouter();
 
   return (
     <ProtectedRoute requiredRole="customer">
@@ -63,9 +66,14 @@ export default function CustomerOrders() {
           {orders.map((order) => {
             const statusStyle = getStatusColors(order.status);
             return (
-              <View key={order.id} style={[styles.card, { backgroundColor: card }]}> 
+              <TouchableOpacity 
+                key={order.id} 
+                style={[styles.card, { backgroundColor: card }]}
+                onPress={() => router.push('/customer/order-timeline')}
+                activeOpacity={0.7}
+              > 
                 <View style={styles.cardTop}>
-                  <View>
+                  <View style={{ flex: 1 }}>
                     <Text style={styles.orderName}>{order.name}</Text>
                     <Text style={styles.tailorName}>{order.tailor}</Text>
                   </View>
@@ -75,10 +83,18 @@ export default function CustomerOrders() {
                 </View>
 
                 <View style={styles.cardBottom}>
-                  <Text style={styles.dateText}>{order.date}</Text>
-                  <Text style={styles.priceText}>Rs. {order.price.toLocaleString()}</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.dateText}>{order.date}</Text>
+                    <Text style={styles.priceText}>Rs. {order.price.toLocaleString()}</Text>
+                  </View>
+                  <TouchableOpacity 
+                    style={styles.viewButton}
+                    onPress={() => router.push('/customer/order-timeline')}
+                  >
+                    <Ionicons name="arrow-forward" size={18} color="#3b82f6" />
+                  </TouchableOpacity>
                 </View>
-              </View>
+              </TouchableOpacity>
             );
           })}
         </ScrollView>
@@ -108,4 +124,5 @@ const styles = StyleSheet.create({
   cardBottom: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   dateText: { color: '#6b7280' },
   priceText: { fontWeight: '800' },
+  viewButton: { padding: 8, borderRadius: 8, backgroundColor: '#eff6ff', marginLeft: 8 },
 });
