@@ -1,10 +1,10 @@
 import { useThemeColor } from '@/hooks/use-theme-color';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import React, { useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View, Text } from 'react-native';
-import { ThemedText } from './themed-text';
-import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useRouter } from 'expo-router';
+import React, { useEffect, useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ThemedText } from './themed-text';
 
 const CustomerWallet = () => {
   const transactions = [
@@ -83,7 +83,7 @@ const CustomerWallet = () => {
         <View style={styles.deliverySection}>
           <Pressable 
             style={[styles.deliveryStatusCard, { backgroundColor: card }]}
-            onPress={() => router.push('/customer/order-timeline')}
+            onPress={() => router.push('/customer/delivery-penalty-details')}
           >
             <View style={styles.deliveryStatusIcon}>
               <Ionicons name="cube-outline" size={26} color="#3b82f6" />
