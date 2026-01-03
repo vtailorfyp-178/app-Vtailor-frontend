@@ -35,35 +35,18 @@ export default function TailorHome() {
         </View>
       </View>
 
-      {/* Delivery & Penalty Overview */}
+      {/* Delivery & Penalty */}
       <View style={styles.section}>
         <Pressable 
           style={[styles.deliveryPenaltyCard, { backgroundColor: card }]}
-          onPress={() => router.push('/tailor/delivery-penalty')}
-        >
-          <View style={styles.deliveryPenaltyIcon}>
-            <Ionicons name="time-outline" size={28} color="#ef4444" />
-          </View>
-          <View style={{ flex: 1, marginLeft: 14 }}>
-            <Text style={styles.deliveryPenaltyTitle}>Delivery & Penalty Overview</Text>
-            <Text style={styles.deliveryPenaltySubtitle}>Track deadlines, late orders & penalties</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={22} color="#9ca3af" />
-        </Pressable>
-      </View>
-
-      {/* Delivery & Penalty Management */}
-      <View style={styles.section}>
-        <Pressable 
-          style={[styles.managementCard, { backgroundColor: card }]}
           onPress={() => router.push('/tailor/customer-delivery-list')}
         >
-          <View style={styles.managementIcon}>
-            <Ionicons name="people-outline" size={28} color="#10b981" />
+          <View style={styles.deliveryPenaltyIcon}>
+            <Ionicons name="warning-outline" size={28} color="#ef4444" />
           </View>
           <View style={{ flex: 1, marginLeft: 14 }}>
-            <Text style={styles.managementTitle}>Delivery & Penalty Management</Text>
-            <Text style={styles.managementSubtitle}>Monitor customers & manage deliveries</Text>
+            <Text style={styles.deliveryPenaltyTitle}>Delivery & Penalty</Text>
+            <Text style={styles.deliveryPenaltySubtitle}>Track delivery deadlines & penalties</Text>
           </View>
           <Ionicons name="chevron-forward" size={22} color="#9ca3af" />
         </Pressable>
@@ -134,33 +117,6 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   deliveryPenaltySubtitle: {
-    fontSize: 12,
-    color: '#6b7280',
-  },
-  managementCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#d1fae5',
-    backgroundColor: '#ecfdf5',
-  },
-  managementIcon: {
-    width: 52,
-    height: 52,
-    borderRadius: 12,
-    backgroundColor: '#d1fae5',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  managementTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#111827',
-    marginBottom: 4,
-  },
-  managementSubtitle: {
     fontSize: 12,
     color: '#6b7280',
   },
