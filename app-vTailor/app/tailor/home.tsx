@@ -96,11 +96,12 @@ export default function TailorHome() {
 
       {orders.slice(0, 2).map((order) => {
         const statusStyle = getStatusStyle(order.status);
+        console.log('Order data:', { id: order.id, customer: order.customer, status: order.status });
         return (
           <Pressable key={order.id} style={[styles.orderCard, { backgroundColor: card, borderColor: order.urgent ? '#fca5a5' : inputBorder, shadowColor: '#000' }]}> 
             <View style={styles.orderRow}>
               <View style={styles.customerInfo}>
-                <Text style={styles.customer}>{order.customer}</Text>
+                <Text style={styles.customer}>{String(order.customer)}</Text>
                 <Text style={styles.orderMeta}>{order.id}</Text>
               </View>
 
@@ -235,8 +236,9 @@ const styles = StyleSheet.create({
   customerInfo: { 
     flex: 1,
     minWidth: 100,
+    maxWidth: '60%',
   },
-  customer: { fontSize: 15, fontWeight: '800', color: '#111827' },
+  customer: { fontSize: 16, fontWeight: '900', color: '#111827', letterSpacing: 0.3 },
   orderMeta: { color: '#6b7280', fontSize: 11, marginTop: 2 },
   statusPill: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999, minWidth: 80, alignItems: 'center' },
   statusText: { fontWeight: '700', fontSize: 11, textTransform: 'capitalize' },

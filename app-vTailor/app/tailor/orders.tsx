@@ -99,11 +99,12 @@ export default function TailorOrders() {
 
         {filtered.map((order) => {
           const statusStyle = getStatusStyle(order.status);
+          console.log('Orders page - Order:', { id: order.id, customer: order.customer });
           return (
             <View key={order.id} style={[styles.card, { backgroundColor: card, borderColor: inputBorder }]}>
               <View style={styles.cardRow}>
                 <View style={styles.cardLeft}>
-                  <Text style={styles.cardTitle}>{order.customer}</Text>
+                  <Text style={styles.cardTitle}>{String(order.customer)}</Text>
                   <Text style={styles.small}>{order.id}</Text>
                 </View>
                 <View style={[styles.statusPill, { backgroundColor: statusStyle.backgroundColor }]}>
@@ -161,7 +162,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   cardLeft: { flex: 1 },
-  cardTitle: { fontSize: 15, fontWeight: '800', color: '#111827', marginBottom: 4 },
+  cardTitle: { fontSize: 16, fontWeight: '900', color: '#111827', marginBottom: 4, letterSpacing: 0.3 },
   detailsRow: { flexDirection: 'row', gap: 12, justifyContent: 'space-between' },
   label: { color: '#6b7280', fontSize: 10, fontWeight: '600', marginBottom: 2 },
   amount: { fontWeight: '800', fontSize: 14, color: '#111827' },
