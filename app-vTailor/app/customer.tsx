@@ -5,8 +5,8 @@ import CustomerOrders from '@/components/CustomerOrders';
 import CustomerProfile from '@/components/CustomerProfile';
 import CustomerWallet from '@/components/CustomerWallet';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
-import { useLocalSearchParams } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import { useFocusEffect, useLocalSearchParams } from 'expo-router';
+import React, { useCallback, useEffect, useState } from 'react';
 import { View } from 'react-native';
 
 const CustomerDashboard = () => {
@@ -19,6 +19,14 @@ const CustomerDashboard = () => {
       setActiveTab(params.tab);
     }
   }, [params?.tab]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (typeof params?.tab === 'string') {
+        setActiveTab(params.tab);
+      }
+    }, [params?.tab])
+  );
 
   const renderTab = () => {
     switch (activeTab) {

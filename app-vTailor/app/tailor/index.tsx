@@ -1,7 +1,7 @@
 import BottomTabBar, { TAB_BAR_HEIGHT } from '@/components/BottomTabBar';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
-import { useLocalSearchParams } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import { useFocusEffect, useLocalSearchParams } from 'expo-router';
+import React, { useCallback, useEffect, useState } from 'react';
 import { View } from 'react-native';
 import TailorHome from './home';
 import TailorWallet from './wallet';
@@ -16,6 +16,14 @@ const TailorDashboard = () => {
       setActiveTab(params.tab);
     }
   }, [params?.tab]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (typeof params?.tab === 'string') {
+        setActiveTab(params.tab);
+      }
+    }, [params?.tab])
+  );
 
   const renderTab = () => {
     switch (activeTab) {
