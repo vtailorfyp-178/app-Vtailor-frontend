@@ -191,21 +191,21 @@ penaltyPercent = daysLate * 2;
           </View>
 
           {/* Total Payable Card */}
-          <View style={styles.payableCard}>
-            <View style={styles.payableRow}>
-              <Text style={styles.payableLabel}>Original Stitching Total</Text>
-              <Text style={styles.payableValue}>Rs {totalOriginal.toLocaleString()}</Text>
+          <View style={[styles.savingsCard, { marginBottom: 16 }]}>
+            <View style={[styles.savingsHeader, { marginBottom: 16 }]}>
+              <Text style={styles.paymentLabel}>Original Stitching Total</Text>
+              <Text style={styles.tailorAmount}>Rs {totalOriginal.toLocaleString()}</Text>
             </View>
-            <View style={styles.payableRow}>
-              <Text style={[styles.payableLabel, { color: "#ef4444" }]}>Late Penalties (Savings)</Text>
-              <Text style={[styles.payableValue, { color: "#ef4444" }]}>- Rs {totalSavings.toFixed(0)}</Text>
+            <View style={[styles.savingsHeader, { marginBottom: 16 }]}>
+              <Text style={[styles.paymentLabel, { color: "#ef4444" }]}>Late Penalties (Savings)</Text>
+              <Text style={[styles.tailorAmount, { color: "#ef4444" }]}>- Rs {totalSavings.toFixed(0)}</Text>
             </View>
-            <View style={styles.payableDivider} />
-            <View style={styles.payableRow}>
-              <Text style={[styles.payableLabel, { color: "#10b981", fontWeight: "700" }]}>Final Amount You Pay</Text>
-              <Text style={[styles.payableValue, { color: "#10b981", fontWeight: "700" }]}>Rs {totalPayable.toFixed(0)}</Text>
+            <View style={styles.divider} />
+            <View style={[styles.savingsHeader, { marginTop: 16 }]}>
+              <Text style={[styles.paymentLabel, { color: "#10b981", fontWeight: "700" }]}>Final Amount You Pay</Text>
+              <Text style={[styles.customerSaving]}>Rs {totalPayable.toFixed(0)}</Text>
             </View>
-            <Text style={styles.payableHint}>Values refresh automatically from stitching timeline & delivery status.</Text>
+            <Text style={[styles.savingsNoteText, { marginTop: 12 }]}>Values refresh automatically from stitching timeline & delivery status.</Text>
           </View>
 
           {/* Penalty Policy */}

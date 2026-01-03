@@ -131,7 +131,7 @@ const MeasurementGuidanceScreen = () => {
             <View style={styles.guidanceCard}>
               <View style={styles.guidanceHeader}>
                 <View style={styles.guidanceIconBox}>
-                  <Ionicons name={currentMeasurement.icon} size={28} color="#3b82f6" />
+                  <Ionicons name={currentMeasurement.icon as any} size={28} color="#3b82f6" />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.guidanceName}>{currentMeasurement.name}</Text>
@@ -179,7 +179,7 @@ const MeasurementGuidanceScreen = () => {
                       ]}
                     >
                       <Ionicons
-                        name={measurement.icon}
+                        name={measurement.icon as any}
                         size={20}
                         color={isSelected ? "#fff" : "#3b82f6"}
                       />

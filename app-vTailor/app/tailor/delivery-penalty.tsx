@@ -109,7 +109,8 @@ const DeliveryPenaltyScreen = () => {
     setWalletBalance(SAMPLE_ORDERS[0].initialWallet - totalPenaltyAmount);
   };
 
-  const getStatusColor = (status: string) => {
+  const getStatusColor = (status: string | undefined): string => {
+    if (!status) return "#10b981";
     if (status.includes("Late")) return "#ef4444";
     if (status === "Due Today") return "#f59e0b";
     return "#10b981";
@@ -161,8 +162,8 @@ const DeliveryPenaltyScreen = () => {
                   <Text style={styles.orderType}>{order.orderType}</Text>
                   <Text style={styles.customerName}>👤 {order.customerName}</Text>
                 </View>
-                <View style={[styles.statusBadge, { backgroundColor: getStatusColor(order.status) + "20" }]}>
-                  <Text style={[styles.statusText, { color: getStatusColor(order.status) }]}>
+                <View style={[styles.statusBadge, { backgroundColor: (getStatusColor(order.status || "") || "#10b981") + "20" }]}>
+                  <Text style={[styles.statusText, { color: getStatusColor(order.status || "") || "#10b981" }]}>
                     {order.status}
                   </Text>
                 </View>
@@ -185,11 +186,11 @@ const DeliveryPenaltyScreen = () => {
               <View style={styles.detailsGrid}>
                 <View style={styles.detailItem}>
                   <Text style={styles.detailLabel}>Days Left</Text>
-                  <Text style={[styles.detailValue, { color: order.daysLeft < 0 ? "#ef4444" : "#10b981" }]}>
-                    {order.daysLeft < 0 ? "Overdue" : `${order.daysLeft} days`}
+                  <Text style={[styles.detailValue, { color: (order.daysLeft ?? 0) < 0 ? "#ef4444" : "#10b981" }]}>
+                    {(order.daysLeft ?? 0) < 0 ? "Overdue" : `${order.daysLeft} days`}
                   </Text>
                 </View>
-                {order.lateDays > 0 && (
+                {(order.lateDays ?? 0) > 0 && (
                   <View style={styles.detailItem}>
                     <Text style={styles.detailLabel}>Late Days</Text>
                     <Text style={[styles.detailValue, { color: "#ef4444" }]}>
@@ -200,21 +201,21 @@ const DeliveryPenaltyScreen = () => {
               </View>
 
               {/* Penalty Section */}
-              {order.penalty > 0 && (
+              {(order.penalty ?? 0) > 0 && (
                 <View style={styles.penaltySection}>
                   <View style={styles.penaltyRow}>
                     <Ionicons name="warning" size={18} color="#ef4444" />
                     <Text style={styles.penaltyLabel}>Penalty Applied (1% per day)</Text>
                   </View>
-                  <Text style={styles.penaltyAmount}>- Rs {order.penalty.toFixed(0)}</Text>
+                  <Text style={styles.penaltyAmount}>- Rs {(order.penalty ?? 0).toFixed(0)}</Text>
                   <Text style={styles.penaltyNote}>
-                    {order.lateDays}% of Rs {order.orderPrice.toLocaleString()} = Rs {order.penalty.toFixed(0)}
+                    {order.lateDays}% of Rs {order.orderPrice.toLocaleString()} = Rs {(order.penalty ?? 0).toFixed(0)}
                   </Text>
                 </View>
               )}
 
               {/* Warning for upcoming deadline */}
-              {order.daysLeft > 0 && order.daysLeft <= 2 && (
+              {(order.daysLeft ?? 0) > 0 && (order.daysLeft ?? 0) <= 2 && (
                 <View style={styles.warningBox}>
                   <Ionicons name="time-outline" size={18} color="#f59e0b" />
                   <Text style={styles.warningText}>

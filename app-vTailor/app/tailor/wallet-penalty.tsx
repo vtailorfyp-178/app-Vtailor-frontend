@@ -100,6 +100,7 @@ const TailorWalletPenaltyScreen = () => {
       const diffTime = order.deliveryDate.getTime() - today.getTime();
       const remainingDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
+      let notifiedReminder = order.notifiedReminder || false;
       // 🔔 LAST 2 DAYS - SET FLAG
       if ((remainingDays === 2 || remainingDays === 1) && !order.notifiedReminder) {
         notifiedReminder = true;
@@ -111,7 +112,6 @@ const TailorWalletPenaltyScreen = () => {
       let status = "On Time";
       let receivableAmount = order.orderAmount;
       let notifiedLate = order.notifiedLate;
-      let notifiedReminder = order.notifiedReminder || false;
 
       if (remainingDays < 0) {
         lateDays = Math.abs(remainingDays);
@@ -222,18 +222,18 @@ const TailorWalletPenaltyScreen = () => {
               </View>
             </View>
 
-            <View style={styles.walletStatsAlt}>
-              <View style={styles.walletStatItemAlt}>
+            <View style={[styles.walletStats, { flexDirection: "column", borderTopWidth: 1, borderTopColor: "#e5e7eb", paddingTop: 16, marginTop: 16, gap: 16 }]}>
+              <View>
                 <Text style={styles.walletStatLabel}>Original Stitching Total</Text>
                 <Text style={styles.walletStatValue}>Rs {totalOriginal.toLocaleString()}</Text>
               </View>
-              <View style={styles.walletStatItemAlt}>
+              <View>
                 <Text style={[styles.walletStatLabel, { color: "#ef4444" }]}>Total Penalty Deducted</Text>
                 <Text style={[styles.walletStatValue, { color: "#ef4444", fontWeight: "700" }]}>
                   Rs {totalPenalty.toFixed(0)}
                 </Text>
               </View>
-              <View style={styles.walletStatItemAlt}>
+              <View>
                 <Text style={[styles.walletStatLabel, { color: "#10b981", fontWeight: "700" }]}>Final Credited</Text>
                 <Text style={[styles.walletStatValue, { color: "#10b981", fontWeight: "700" }]}>
                   Rs {(initialWallet - totalPenalty).toFixed(0)}
@@ -379,7 +379,7 @@ const TailorWalletPenaltyScreen = () => {
                           Rs {order.receivableAmount.toFixed(0)}
                         </Text>
                       </View>
-                      <Text style={styles.autoNote}>Auto-updates daily from stitching timeline and delivery status.</Text>
+                        <Text style={[styles.detailLabel, { marginTop: 8 }]}>Auto-updates daily from stitching timeline and delivery status.</Text>
                     </View>
                   </>
                 )}
