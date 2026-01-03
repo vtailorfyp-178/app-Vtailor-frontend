@@ -32,10 +32,7 @@ const BottomTabBar = ({ basePath, onTabChange, activeTab }: BottomTabBarProps) =
 
   const tailorTabs = [
     { label: 'Home', icon: '🏠', id: 'home' },
-    { label: 'Orders', icon: '📦', id: 'orders' },
-    { label: 'Chat', icon: '💬', id: 'chat' },
     { label: 'Wallet', icon: '💰', id: 'wallet' },
-    { label: 'Profile', icon: '👤', id: 'profile' },
   ];
 
   const tabs = basePath === 'customer' ? customerTabs : tailorTabs;

@@ -63,7 +63,7 @@ export default function TailorHome() {
 }
 
 const styles = StyleSheet.create({
-  container: { paddingBottom: 120 },
+  container: { paddingBottom: 80 },
   header: { paddingTop: 40, padding: 16 },
   welcome: { color: '#fff', opacity: 0.9 },
   name: { color: '#fff', fontWeight: '700', fontSize: 20 },

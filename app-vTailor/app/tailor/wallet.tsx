@@ -1,4 +1,3 @@
-import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { ThemedText } from '@/components/themed-text';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { useRouter } from 'expo-router';
@@ -20,7 +19,6 @@ export default function TailorWallet() {
   const router = useRouter();
 
   return (
-    <ProtectedRoute requiredRole="tailor">
       <View style={[styles.container, { backgroundColor: bg }]}> 
         <View style={styles.headerGradient}>
           <ThemedText style={styles.headerTitle}>My Wallet</ThemedText>
@@ -80,7 +78,6 @@ export default function TailorWallet() {
           ))}
         </ScrollView>
       </View>
-    </ProtectedRoute>
   );
 }
 
