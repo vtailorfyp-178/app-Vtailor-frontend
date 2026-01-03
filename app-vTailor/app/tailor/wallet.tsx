@@ -1,6 +1,7 @@
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { ThemedText } from '@/components/themed-text';
 import { useThemeColor } from '@/hooks/use-theme-color';
+import { useRouter } from 'expo-router';
 import React from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
@@ -16,6 +17,7 @@ export default function TailorWallet() {
   const bg = useThemeColor({}, 'background');
   const cardBg = useThemeColor({}, 'card');
   const tint = useThemeColor({}, 'tint');
+  const router = useRouter();
 
   return (
     <ProtectedRoute requiredRole="tailor">
@@ -40,10 +42,16 @@ export default function TailorWallet() {
             </View>
 
             <View style={styles.actionsRow}>
-              <Pressable style={[styles.actionButton, styles.primaryButton]} onPress={() => {}}>
+              <Pressable
+                style={[styles.actionButton, styles.primaryButton]}
+                onPress={() => router.push({ pathname: '/wallet-payment-method', params: { transactionType: 'withdraw', role: 'tailor' } })}
+              >
                 <Text style={styles.primaryButtonText}>Withdraw</Text>
               </Pressable>
-              <Pressable style={[styles.actionButton, styles.outlineButton]} onPress={() => {}}>
+              <Pressable
+                style={[styles.actionButton, styles.outlineButton]}
+                onPress={() => router.push({ pathname: '/wallet-payment-method', params: { transactionType: 'add', role: 'tailor' } })}
+              >
                 <Text style={styles.outlineButtonText}>Add Money</Text>
               </Pressable>
             </View>

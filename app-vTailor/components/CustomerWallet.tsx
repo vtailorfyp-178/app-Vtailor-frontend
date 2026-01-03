@@ -56,7 +56,10 @@ const CustomerWallet = () => {
           </View>
           <View style={styles.actionRow}>
             <Pressable
-              onPress={() => setMode('withdraw')}
+              onPress={() => {
+                setMode('withdraw');
+                router.push({ pathname: '/wallet-payment-method', params: { transactionType: 'withdraw', role: 'customer' } });
+              }}
               style={[
                 styles.tabBtn,
                 { backgroundColor: mode === 'withdraw' ? tint : 'transparent', borderWidth: mode === 'withdraw' ? 0 : 1, borderColor: inputBorder },
@@ -66,7 +69,10 @@ const CustomerWallet = () => {
             </Pressable>
 
             <Pressable
-              onPress={() => setMode('add')}
+              onPress={() => {
+                setMode('add');
+                router.push({ pathname: '/wallet-payment-method', params: { transactionType: 'add', role: 'customer' } });
+              }}
               style={[
                 styles.tabBtn,
                 { backgroundColor: mode === 'add' ? tint : 'transparent', borderWidth: mode === 'add' ? 0 : 1, borderColor: inputBorder },

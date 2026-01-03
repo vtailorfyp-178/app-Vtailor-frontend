@@ -1,18 +1,26 @@
-import React, { useState } from 'react';
-import { View, StyleSheet, Pressable, Platform } from 'react-native';
-import { ThemedText } from './themed-text';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { useRouter } from 'expo-router';
+import React, { useState } from 'react';
+import { Platform, Pressable, StyleSheet, View } from 'react-native';
+import { ThemedText } from './themed-text';
 
 interface BottomTabBarProps {
   basePath: 'customer' | 'tailor';
   onTabChange?: (tab: string) => void;
+  activeTab?: string; // optional controlled active tab
 }
 
 export const TAB_BAR_HEIGHT = Platform.select({ ios: 90, android: 80, default: 80 });
 
-const BottomTabBar = ({ basePath, onTabChange }: BottomTabBarProps) => {
-  const [activeTab, setActiveTab] = useState('home');
+const BottomTabBar = ({ basePath, onTabChange, activeTab }: BottomTabBarProps) => {
+  const [internalTab, setInternalTab] = useState(activeTab || 'home');
+
+  // sync internal state when a controlled activeTab is provided
+  React.useEffect(() => {
+    if (activeTab) {
+      setInternalTab(activeTab);
+    }
+  }, [activeTab]);
 
   const customerTabs = [
     { label: 'Home', icon: '🏠', id: 'home' },
@@ -33,7 +41,7 @@ const BottomTabBar = ({ basePath, onTabChange }: BottomTabBarProps) => {
   const tabs = basePath === 'customer' ? customerTabs : tailorTabs;
 
   const handleTabPress = (tabId: string) => {
-    setActiveTab(tabId);
+    setInternalTab(tabId);
     if (onTabChange) {
       onTabChange(tabId);
     }
@@ -42,7 +50,7 @@ const BottomTabBar = ({ basePath, onTabChange }: BottomTabBarProps) => {
   const router = useRouter();
 
   const handleNavigate = (tabId: string) => {
-    setActiveTab(tabId);
+    setInternalTab(tabId);
     if (onTabChange) onTabChange(tabId);
     try {
       // If a parent provided `onTabChange`, assume in-dashboard controlled tabs
@@ -61,13 +69,13 @@ const BottomTabBar = ({ basePath, onTabChange }: BottomTabBarProps) => {
       {tabs.map((tab) => (
         <Pressable
           key={tab.id}
-          style={[styles.tab, activeTab === tab.id && { backgroundColor: useThemeColor({}, 'iconBg'), borderRadius: 12, marginHorizontal: 2 }]}
+          style={[styles.tab, internalTab === tab.id && { backgroundColor: useThemeColor({}, 'iconBg'), borderRadius: 12, marginHorizontal: 2 }]}
           onPress={() => handleNavigate(tab.id)}
         >
-          <ThemedText style={[styles.icon, activeTab === tab.id && styles.activeIcon]}>
+          <ThemedText style={[styles.icon, internalTab === tab.id && styles.activeIcon]}>
             {tab.icon}
           </ThemedText>
-          <ThemedText style={[styles.label, activeTab === tab.id && { color: useThemeColor({}, 'tint'), fontWeight: '600' }]}>
+          <ThemedText style={[styles.label, internalTab === tab.id && { color: useThemeColor({}, 'tint'), fontWeight: '600' }]}>
             {tab.label}
           </ThemedText>
         </Pressable>
