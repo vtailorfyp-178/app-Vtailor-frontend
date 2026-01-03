@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, ScrollView, Pressable, StyleSheet } from 'react-native';
 import { ThemedText } from './themed-text';
 import { useThemeColor } from '@/hooks/use-theme-color';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const CustomerWallet = () => {
   const transactions = [
@@ -10,6 +11,26 @@ const CustomerWallet = () => {
     { id: 3, type: 'debit', description: 'Payment to Classic Stitches', amount: 3500, date: '15 Dec' },
     { id: 4, type: 'credit', description: 'Refund - Order Cancelled', amount: 5000, date: '10 Dec' },
   ];
+
+  const [penalties, setPenalties] = useState<any[]>([]);
+
+  // Load penalty data from AsyncStorage
+  useEffect(() => {
+    const loadPenalties = async () => {
+      try {
+        const data = await AsyncStorage.getItem('vtailor_penalty_orders');
+        if (data) {
+          const orders = JSON.parse(data);
+          // Filter only late orders with penalties
+          const penaltyOrders = orders.filter((o: any) => o.lateDays && o.lateDays > 0);
+          setPenalties(penaltyOrders);
+        }
+      } catch (error) {
+        // fail silently
+      }
+    };
+    loadPenalties();
+  }, []);
 
   const background = useThemeColor({}, 'background');
   const tint = useThemeColor({}, 'tint');
@@ -55,7 +76,62 @@ const CustomerWallet = () => {
       </View>
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        <View style={styles.transactionSection}>
+        {/* Penalty Module */}
+        {penalties.length > 0 && (
+          <View style={styles.penaltySection}>
+            <View style={styles.penaltySectionHeader}>
+              <ThemedText style={styles.penaltySectionTitle}>⏰ Tailor Penalty Updates</ThemedText>
+              <ThemedText style={styles.penaltySubtitle}>2% deduction per day late</ThemedText>
+            </View>
+            
+            {penalties.map((order: any) => (
+              <View key={order.id} style={styles.penaltyCard}>
+                {/* Order Info */}
+                <View style={styles.penaltyCardHeader}>
+                  <View style={{ flex: 1 }}>
+                    <ThemedText style={styles.penaltyOrderId}>{order.id}</ThemedText>
+                    <ThemedText style={styles.penaltyTailorName}>{order.customerName}</ThemedText>
+                  </View>
+                  <View style={[styles.lateDaysBadge, { backgroundColor: '#fee2e2' }]}>
+                    <ThemedText style={styles.lateDaysText}>{order.lateDays || 0} Days Late</ThemedText>
+                  </View>
+                </View>
+
+                {/* Original Amount */}
+                <View style={styles.penaltyDetailRow}>
+                  <ThemedText style={styles.penaltyLabel}>Original Amount</ThemedText>
+                  <ThemedText style={styles.penaltyAmount}>Rs {order.orderAmount?.toLocaleString() || 0}</ThemedText>
+                </View>
+
+                {/* Per Day Deduction */}
+                <View style={styles.penaltyDetailRow}>
+                  <ThemedText style={styles.penaltyLabel}>Deduction (2% × {order.lateDays || 0} days)</ThemedText>
+                  <ThemedText style={[styles.penaltyAmount, { color: '#ef4444' }]}>
+                    - Rs {((order.orderAmount || 0) * ((order.lateDays || 0) * 2)) / 100}
+                  </ThemedText>
+                </View>
+
+                {/* Updated Amount (What tailor gets) */}
+                <View style={styles.penaltyDivider} />
+                <View style={styles.penaltyDetailRow}>
+                  <ThemedText style={[styles.penaltyLabel, { fontWeight: '700', color: '#111827' }]}>Tailor Updated Amount</ThemedText>
+                  <ThemedText style={[styles.penaltyAmount, { color: '#f59e0b', fontWeight: '700', fontSize: 16 }]}>
+                    Rs {(order.orderAmount || 0) - (((order.orderAmount || 0) * ((order.lateDays || 0) * 2)) / 100)}
+                  </ThemedText>
+                </View>
+
+                {/* Breakdown Info */}
+                <View style={styles.penaltyBreakdown}>
+                  <ThemedText style={styles.breakdownText}>
+                    Per day rate: 2% × {order.lateDays || 0} = {(order.lateDays || 0) * 2}%
+                  </ThemedText>
+                </View>
+              </View>
+            ))}
+          </View>
+        )}
+
+        {/* Transaction Section */}>
           <View style={styles.transactionHeader}>
             <ThemedText style={styles.transactionTitle}>Transaction History</ThemedText>
             <ThemedText style={styles.historyIcon}>📜</ThemedText>
@@ -112,6 +188,79 @@ const styles = StyleSheet.create({
   txDate: { fontSize: 11, color: '#6b7280' },
   txAmount: { fontSize: 13, fontWeight: '600' },
   bottomPadding: { height: 100 },
+  // Penalty Panel Styles
+  penaltySection: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 12 },
+  penaltySectionHeader: { marginBottom: 16 },
+  penaltySectionTitle: { fontSize: 16, fontWeight: '700', color: '#ef4444', marginBottom: 4 },
+  penaltySubtitle: { fontSize: 12, color: '#6b7280' },
+  penaltyCard: { 
+    backgroundColor: '#fef2f2', 
+    borderRadius: 12, 
+    padding: 14, 
+    marginBottom: 12, 
+    borderLeftWidth: 4, 
+    borderLeftColor: '#ef4444' 
+  },
+  penaltyCardHeader: { 
+    flexDirection: 'row', 
+    justifyContent: 'space-between', 
+    alignItems: 'flex-start', 
+    marginBottom: 12 
+  },
+  penaltyOrderId: { 
+    fontSize: 13, 
+    fontWeight: '700', 
+    color: '#111827' 
+  },
+  penaltyTailorName: { 
+    fontSize: 12, 
+    color: '#6b7280', 
+    marginTop: 4 
+  },
+  lateDaysBadge: { 
+    paddingHorizontal: 10, 
+    paddingVertical: 6, 
+    borderRadius: 8, 
+    backgroundColor: '#fee2e2' 
+  },
+  lateDaysText: { 
+    fontSize: 11, 
+    fontWeight: '700', 
+    color: '#dc2626' 
+  },
+  penaltyDetailRow: { 
+    flexDirection: 'row', 
+    justifyContent: 'space-between', 
+    alignItems: 'center', 
+    marginBottom: 10 
+  },
+  penaltyLabel: { 
+    fontSize: 12, 
+    color: '#6b7280', 
+    fontWeight: '500' 
+  },
+  penaltyAmount: { 
+    fontSize: 13, 
+    fontWeight: '600', 
+    color: '#111827' 
+  },
+  penaltyDivider: { 
+    height: 1, 
+    backgroundColor: '#fecaca', 
+    marginVertical: 10 
+  },
+  penaltyBreakdown: { 
+    marginTop: 10, 
+    paddingTop: 10, 
+    borderTopWidth: 1, 
+    borderTopColor: '#fecaca' 
+  },
+  breakdownText: { 
+    fontSize: 11, 
+    color: '#991b1b', 
+    fontWeight: '500', 
+    textAlign: 'center' 
+  },
 });
 
 export default CustomerWallet;
