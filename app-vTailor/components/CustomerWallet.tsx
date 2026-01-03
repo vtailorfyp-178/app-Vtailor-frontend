@@ -131,7 +131,8 @@ const CustomerWallet = () => {
           </View>
         )}
 
-        {/* Transaction Section */}>
+        {/* Transaction Section */}
+        <View style={styles.transactionSection}>
           <View style={styles.transactionHeader}>
             <ThemedText style={styles.transactionTitle}>Transaction History</ThemedText>
             <ThemedText style={styles.historyIcon}>📜</ThemedText>
