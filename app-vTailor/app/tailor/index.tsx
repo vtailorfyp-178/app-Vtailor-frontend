@@ -1,9 +1,9 @@
 import BottomTabBar, { TAB_BAR_HEIGHT } from '@/components/BottomTabBar';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
-import TailorHome from '@/components/TailorHome';
 import { useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { View } from 'react-native';
+import TailorHome from './home';
 import TailorWallet from './wallet';
 
 const TailorDashboard = () => {
