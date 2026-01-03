@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import BottomTabBar, { TAB_BAR_HEIGHT } from '@/components/BottomTabBar';
 import { ThemedText } from '@/components/themed-text';
 
 const TailorDashboard = () => {
-  const [activeTab, setActiveTab] = useState('home');
+  const [, setActiveTab] = useState('home');
 
   return (
     <ProtectedRoute requiredRole="tailor">

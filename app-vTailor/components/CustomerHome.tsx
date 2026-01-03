@@ -17,14 +17,14 @@ const CustomerHome = () => {
   const textColor = useThemeColor({}, 'text');
 
   const quickActions = [
-    { label: 'Customize', icon: '🎨', route: '/customer/customize3d' },
+    { label: 'Customize', icon: '🎨', route: '/customer/select2d' },
     { label: 'Measurements', icon: '📏', route: '/customer/measurements' },
     { label: 'Find Tailors', icon: '🔍', route: '/customer/find-tailors' },
   ];
 
   const currentOrders = [
-    { id: 1, name: 'Formal Suit', tailor: 'Ahmad Tailor', status: 'In Progress', daysLeft: 5, price: 8500 },
-    { id: 2, name: 'Wedding Sherwani', tailor: 'Master Tailors', status: 'Cutting', daysLeft: 12, price: 25000 },
+    { id: 1, name: 'Long Frock', tailor: 'Ahmad Tailor', status: 'In Progress', daysLeft: 5, price: 8500 },
+    { id: 2, name: 'Shalwar Kameez', tailor: 'Master Tailors', status: 'Cutting', daysLeft: 12, price: 25000 },
   ];
 
   return (
@@ -69,7 +69,9 @@ const CustomerHome = () => {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <ThemedText style={styles.sectionTitle}>Current Orders</ThemedText>
-            <ThemedText style={[styles.viewAll, { color: tint }]}>View All →</ThemedText>
+            <Pressable onPress={() => (router as any).push('/customer/orders')}>
+              <ThemedText style={[styles.viewAll, { color: tint }]}>View All →</ThemedText>
+            </Pressable>
           </View>
           <View style={styles.ordersList}>
             {currentOrders.map((order) => (

@@ -25,7 +25,7 @@ const SAMPLE_ORDERS: Order[] = [
     orderPrice: 8000,
     deliveryDate: new Date("2026-01-04"),
     initialWallet: 15000,
-    orderType: "Formal Suit",
+    orderType: "Long Frock",
   },
   {
     id: "ORD-002",
@@ -33,7 +33,7 @@ const SAMPLE_ORDERS: Order[] = [
     orderPrice: 12000,
     deliveryDate: new Date("2026-01-03"),
     initialWallet: 15000,
-    orderType: "Wedding Sherwani",
+    orderType: "Shalwar Kameez",
   },
 ];
 

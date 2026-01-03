@@ -3,47 +3,58 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+// Storage key used across wallet / penalty screens
+const STORAGE_KEY = 'vtailor_penalty_orders';
+
+// Sample orders. Add `deliveryDate` (ISO) for computed logic.
 const orders = [
   {
     id: 'ORD001',
     customer: 'Ali Hassan',
     phone: '+92 300 1234567',
-    garment: 'Formal Suit',
+    garment: 'Long Frock',
     status: 'in progress',
     amount: 1200,
     timeLeft: '2d 5h left',
     penalty: 0,
     delivery: 'Jan 12 • Pickup',
+    deliveryDate: '2026-01-12',
     urgent: false,
+    occasion: false,
     hasMeasurements: true,
   },
   {
     id: 'ORD002',
     customer: 'Zara Khan',
     phone: '+92 333 9876543',
-    garment: 'Bridal Dress',
+    garment: 'Lehenga',
     status: 'pending',
     amount: 9500,
     timeLeft: '18h left',
     penalty: 320,
     delivery: 'Jan 06 • Home Delivery',
+    deliveryDate: '2026-01-06',
     urgent: true,
+    occasion: true,
     hasMeasurements: false,
   },
   {
     id: 'ORD003',
     customer: 'Usman Tariq',
     phone: '+92 321 5558899',
-    garment: 'Kurta Pajama',
+    garment: 'Sharara',
     status: 'ready',
     amount: 6500,
     timeLeft: 'Ready for pickup',
     penalty: 0,
     delivery: 'Jan 04 • Store Pickup',
+    deliveryDate: '2026-01-04',
     urgent: false,
+    occasion: false,
     hasMeasurements: true,
   },
 ];
@@ -54,12 +65,60 @@ export default function TailorHome() {
   const card = useThemeColor({}, 'card');
   const inputBorder = useThemeColor({}, 'inputBorder');
   const tint = '#f9c8d8';
+  const [penaltiesMap, setPenaltiesMap] = useState<Record<string, number>>({});
 
   const getStatusStyle = (status: string) => {
     if (status === 'ready') return { backgroundColor: '#ecfdf3', color: '#15803d' };
     if (status === 'pending') return { backgroundColor: '#fff7ed', color: '#c2410c' };
     return { backgroundColor: '#e0f2fe', color: '#075985' }; // in progress
   };
+
+  // compute per-order penalty and persist to AsyncStorage so wallet screens can pick it up
+  useEffect(() => {
+    (async () => {
+      try {
+        const today = new Date();
+        const map: Record<string, number> = {};
+        const persisted: Array<any> = [];
+
+        orders.forEach((o) => {
+          const delivery = o.deliveryDate ? new Date(o.deliveryDate) : null;
+          if (!delivery) return;
+
+          const msPerDay = 1000 * 60 * 60 * 24;
+          const diff = Math.floor((today.getTime() - delivery.getTime()) / msPerDay);
+          const daysLate = diff > 0 ? diff : 0;
+          const penaltyRate = o.occasion ? 0.10 : 0.02; // 10% per day for occasion days, otherwise 2%
+          const penaltyPerDay = penaltyRate * o.amount;
+          const penaltyAmount = Math.round(daysLate * penaltyPerDay);
+
+          map[o.id] = penaltyAmount;
+
+          // Persist all orders to penalty tracking (penaltyAmount may be 0)
+          persisted.push({
+            orderId: o.id,
+            customerName: o.customer,
+            tailorName: o.customer,
+            orderAmount: o.amount,
+            daysLate,
+            lateDays: daysLate,
+            penaltyRate,
+            penaltyAmount,
+            penalty: penaltyAmount,
+            deliveryDate: o.deliveryDate,
+            status: o.status,
+            garment: o.garment,
+          });
+        });
+
+        setPenaltiesMap(map);
+        await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(persisted));
+      } catch (e) {
+        // no-op
+        console.warn('Penalty compute error', e);
+      }
+    })();
+  }, []);
 
   return (
     <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.container}>
@@ -96,7 +155,13 @@ export default function TailorHome() {
 
       {orders.slice(0, 2).map((order) => {
         const statusStyle = getStatusStyle(order.status);
-        console.log('Order data:', { id: order.id, customer: order.customer, status: order.status });
+        const penaltyAmount = penaltiesMap[order.id] ?? order.penalty ?? 0;
+        const deliveryDate = order.deliveryDate ? new Date(order.deliveryDate) : null;
+        let daysUntilDelivery: number | null = null;
+        if (deliveryDate) {
+          const msPerDay = 1000 * 60 * 60 * 24;
+          daysUntilDelivery = Math.ceil((deliveryDate.getTime() - new Date().getTime()) / msPerDay);
+        }
         return (
           <Pressable key={order.id} style={[styles.orderCard, { backgroundColor: card, borderColor: order.urgent ? '#fca5a5' : inputBorder, shadowColor: '#000' }]}> 
             <View style={styles.orderRow}>
@@ -120,6 +185,19 @@ export default function TailorHome() {
                 </View>
               </View>
             </View>
+            {/* Warning when delivery within 2 days and not ready */}
+            {typeof daysUntilDelivery === 'number' && daysUntilDelivery <= 2 && order.status !== 'ready' ? (
+              <View style={{ padding: 10, backgroundColor: '#fffbeb', borderRadius: 10, marginBottom: 10 }}>
+                <Text style={{ color: '#92400e', fontWeight: '700' }}>⚠️ Delivery due in {daysUntilDelivery} day(s). Late delivery will incur {order.occasion ? '10% (occasion)' : '2%'} per day penalty deducted from your payout.</Text>
+              </View>
+            ) : null}
+
+            {/* Penalty details - separate section per order */}
+            <View style={{ padding: 10, backgroundColor: '#fff7f7', borderRadius: 10, marginBottom: 10 }}>
+              <Text style={{ fontWeight: '800', marginBottom: 6 }}>Penalty Details</Text>
+              <Text style={{ color: '#6b7280', marginBottom: 4 }}>Per-day rate: {order.occasion ? '10% (occasion)' : '2%'}</Text>
+              <Text style={{ color: penaltyAmount ? '#b91c1c' : '#6b7280', fontWeight: penaltyAmount ? '800' : '600' }}>{penaltyAmount ? `Current penalty: Rs ${penaltyAmount}` : 'Current penalty: None'}</Text>
+            </View>
 
             <View style={styles.detailsRow}>
               <View style={styles.detailCol}>
@@ -132,8 +210,8 @@ export default function TailorHome() {
               </View>
               <View style={styles.detailCol}>
                 <Text style={styles.label}>Penalty</Text>
-                <Text style={[styles.detailValue, order.penalty ? styles.penalty : null]}>
-                  {order.penalty ? `Rs ${order.penalty}` : 'None'}
+                <Text style={[styles.detailValue, penaltyAmount ? styles.penalty : null]}>
+                  {penaltyAmount ? `Rs ${penaltyAmount}` : 'None'}
                 </Text>
               </View>
               <View style={styles.detailCol}>
@@ -158,6 +236,19 @@ export default function TailorHome() {
           </Pressable>
         );
       })}
+
+      {/* Penalty summary card below Current Customers */}
+      <View style={[styles.orderCard, { backgroundColor: '#fff7f7', borderColor: inputBorder }]}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+          <ThemedText style={{ fontWeight: '800' }}>Penalty Center</ThemedText>
+          <Text style={{ color: '#6b7280', fontSize: 12 }}>Auto-updated</Text>
+        </View>
+        <Text style={{ color: '#6b7280', marginBottom: 8 }}>Total pending penalty</Text>
+        <Text style={{ fontWeight: '900', fontSize: 18, color: '#b91c1c', marginBottom: 12 }}>Rs {Object.values(penaltiesMap).reduce((s, v) => s + (v || 0), 0).toLocaleString()}</Text>
+        <Pressable style={styles.primaryBtn} onPress={() => router.push('/tailor/penalty')}>
+          <Text style={styles.primaryText}>View Penalty Details</Text>
+        </Pressable>
+      </View>
 
       <View style={{ height: 120 }} />
     </ScrollView>

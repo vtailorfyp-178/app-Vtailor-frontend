@@ -54,11 +54,28 @@ export default function FindTailors() {
 
       <ScrollView contentContainerStyle={{ padding: 12 }}>
         {tailors.map((t) => (
-          <Pressable key={t.id} onPress={() => (router as any).push(`/customer/tailor/${t.id}`)} style={[styles.card, { backgroundColor: card, borderColor: inputBorder }]}> 
-            <ThemedText style={{ fontWeight: '700' }}>{t.name}</ThemedText>
-            <ThemedText style={{ color: muted }}>{t.specialization.join(', ')}</ThemedText>
-            <ThemedText style={{ marginTop: 6 }}>{t.distance} • {t.experience}+ yrs</ThemedText>
-          </Pressable>
+          <View key={t.id} style={[styles.card, { backgroundColor: card, borderColor: inputBorder }]}> 
+            <Pressable onPress={() => (router as any).push(`/customer/tailor/${t.id}`)}>
+              <ThemedText style={{ fontWeight: '700' }}>{t.name}</ThemedText>
+              <ThemedText style={{ color: muted }}>{t.specialization.join(', ')}</ThemedText>
+              <ThemedText style={{ marginTop: 6 }}>{t.distance} • {t.experience}+ yrs</ThemedText>
+            </Pressable>
+
+            <View style={styles.actionsRow}>
+              <Pressable
+                style={[styles.actionBtn, { borderColor: inputBorder }]}
+                onPress={() => (router as any).push(`/customer/tailor/${t.id}`)}
+              >
+                <ThemedText style={styles.actionText}>View Profile</ThemedText>
+              </Pressable>
+              <Pressable
+                style={[styles.actionBtnFilled, { backgroundColor: tint }]}
+                onPress={() => (router as any).push({ pathname: '/customer/chat', params: { tailorId: t.id, tailorName: t.name } })}
+              >
+                <ThemedText style={[styles.actionText, { color: '#fff' }]}>Chat</ThemedText>
+              </Pressable>
+            </View>
+          </View>
         ))}
       </ScrollView>
     </ThemedView>
@@ -72,4 +89,19 @@ const styles = StyleSheet.create({
   searchWrap: { margin: 12, borderRadius: 12, borderWidth: 1, padding: 8 },
   searchInput: { height: 44, paddingHorizontal: 8 },
   card: { padding: 12, borderRadius: 12, borderWidth: 1, marginBottom: 12 },
+  actionsRow: { flexDirection: 'row', marginTop: 12, gap: 8 },
+  actionBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  actionBtnFilled: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  actionText: { fontWeight: '600' },
 });

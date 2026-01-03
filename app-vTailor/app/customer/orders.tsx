@@ -15,10 +15,10 @@ const stats = [
 ];
 
 const orders = [
-  { id: 1, name: 'Formal Suit', tailor: 'Ahmad Tailor', status: 'In Progress', date: '25 Dec', price: 8500 },
-  { id: 2, name: 'Wedding Sherwani', tailor: 'Master Tailors', status: 'Cutting', date: '20 Dec', price: 25000 },
-  { id: 3, name: 'Casual Kurta', tailor: 'Classic Stitches', status: 'Delivered', date: '15 Dec', price: 3500 },
-  { id: 4, name: 'Office Shirts (3)', tailor: 'Ahmad Tailor', status: 'Delivered', date: '10 Dec', price: 6000 },
+  { id: 1, name: 'Long Frock', tailor: 'Ahmad Tailor', status: 'In Progress', date: '25 Dec', price: 8500 },
+  { id: 2, name: 'Shalwar Kameez', tailor: 'Master Tailors', status: 'Cutting', date: '20 Dec', price: 25000 },
+  { id: 3, name: 'Kurti', tailor: 'Classic Stitches', status: 'Delivered', date: '15 Dec', price: 3500 },
+  { id: 4, name: 'Lehenga', tailor: 'Ahmad Tailor', status: 'Delivered', date: '10 Dec', price: 6000 },
 ];
 
 const getStatusColors = (status: string) => {

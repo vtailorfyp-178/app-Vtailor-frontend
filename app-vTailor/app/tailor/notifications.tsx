@@ -6,16 +6,19 @@ import { ThemedText } from '@/components/themed-text';
 import { useThemeColor } from '@/hooks/use-theme-color';
 
 const notifications = [
-  { id: 1, type: 'new_order', title: 'New Order Request', message: "Ahmad Khan wants to order a Wedding Sherwani", time: '10 min ago', action: true },
-  { id: 2, type: 'deadline', title: 'Delivery Reminder', message: "2 days left for Ali Hassan's Formal Suit delivery", time: '1 hour ago' },
-  { id: 3, type: 'update', title: 'Update Reminder', message: 'Time to share stitching progress with Zara Khan', time: '3 hours ago' },
-  { id: 4, type: 'wallet', title: 'Payment Received', message: 'Rs. 12,000 added to your wallet from Zara Khan', time: '5 hours ago' },
-  { id: 5, type: 'penalty', title: 'Penalty Deducted', message: 'Rs. 425 deducted for late delivery (5%)', time: '1 day ago' },
-  { id: 6, type: 'cancelled', title: 'Order Cancelled', message: 'Customer cancelled the Casual Kurta order', time: '2 days ago' },
+  { id: 1, type: 'new_request', title: 'New Customer Request', message: 'Fatima Khan sent a request for Long Frock', time: '2 min ago', action: true },
+  { id: 2, type: 'new_order', title: 'New Order Request', message: "Ahmad Khan wants to order a Shalwar Kameez", time: '10 min ago', action: true },
+  { id: 3, type: 'deadline', title: 'Delivery Reminder', message: "2 days left for Ali Hassan's Long Frock delivery", time: '1 hour ago' },
+  { id: 4, type: 'update', title: 'Update Reminder', message: 'Time to share stitching progress with Zara Khan', time: '3 hours ago' },
+  { id: 5, type: 'wallet', title: 'Payment Received', message: 'Rs. 12,000 added to your wallet from Zara Khan', time: '5 hours ago' },
+  { id: 6, type: 'penalty', title: 'Penalty Deducted', message: 'Rs. 425 deducted for late delivery (5%)', time: '1 day ago' },
+  { id: 7, type: 'cancelled', title: 'Order Cancelled', message: 'Customer cancelled the Casual Kurta order', time: '2 days ago' },
 ];
 
 const typeIcon = (type: string) => {
   switch (type) {
+    case 'new_request':
+      return '📥';
     case 'new_order':
       return '🧾';
     case 'deadline':
@@ -38,6 +41,10 @@ export default function TailorNotifications() {
   const bg = useThemeColor({}, 'background');
   const card = useThemeColor({}, 'card');
   const muted = useThemeColor({}, 'muted');
+
+  const handleViewRequests = () => {
+    (router as any).push('/tailor/requests');
+  };
 
   return (
     <ProtectedRoute requiredRole="tailor">
@@ -65,11 +72,8 @@ export default function TailorNotifications() {
 
               {n.action && (
                 <View style={styles.actionsRow}>
-                  <Pressable style={[styles.actionBtn, styles.acceptBtn]} onPress={() => {}}>
-                    <Text style={styles.actionText}>Accept</Text>
-                  </Pressable>
-                  <Pressable style={[styles.actionBtn, styles.declineBtn]} onPress={() => {}}>
-                    <Text style={[styles.actionText, { color: '#111827' }]}>Decline</Text>
+                  <Pressable style={[styles.actionBtn, styles.acceptBtn]} onPress={handleViewRequests}>
+                    <Text style={styles.actionText}>View Request</Text>
                   </Pressable>
                 </View>
               )}

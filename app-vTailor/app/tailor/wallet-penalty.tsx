@@ -2,7 +2,7 @@ import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 interface Order {
@@ -32,7 +32,7 @@ const SAMPLE_ORDERS: Order[] = [
     customerName: "Fatima Khan",
     orderAmount: 12000,
     deliveryDate: new Date("2026-01-04"),
-    orderType: "Formal Suit",
+    orderType: "Long Frock",
     status: "Pending",
   },
   {
@@ -40,7 +40,15 @@ const SAMPLE_ORDERS: Order[] = [
     customerName: "Ahmed Ali",
     orderAmount: 8000,
     deliveryDate: new Date("2026-01-03"),
-    orderType: "Casual Kurta",
+    orderType: "Kurti",
+    status: "Pending",
+  },
+  {
+    id: "ORD-003",
+    customerName: "Aisha Ahmed",
+    orderAmount: 15000,
+    deliveryDate: new Date("2026-01-10"),
+    orderType: "Shalwar Kameez",
     status: "Pending",
   },
 ];
@@ -53,42 +61,7 @@ const TailorWalletPenaltyScreen = () => {
   const [totalOriginal, setTotalOriginal] = useState(0);
   const initialWallet = 20000;
 
-  useEffect(() => {
-    initializeData();
-  }, []);
-
-  useEffect(() => {
-    if (!orders.length) return;
-
-    // Daily check at midnight
-    const interval = setInterval(() => {
-      calculateAllPenalties();
-    }, 24 * 60 * 60 * 1000);
-
-    return () => clearInterval(interval);
-  }, [orders.length]);
-
-  const initializeData = async () => {
-    try {
-      const stored = await AsyncStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        const parsed: OrderRecord[] = JSON.parse(stored).map((o: any) => ({
-          ...o,
-          deliveryDate: new Date(o.deliveryDate),
-        }));
-        setOrders(parsed);
-        calculateAllPenalties(parsed);
-      } else {
-        setOrders(SAMPLE_ORDERS);
-        calculateAllPenalties(SAMPLE_ORDERS);
-      }
-    } catch (error) {
-      setOrders(SAMPLE_ORDERS);
-      calculateAllPenalties(SAMPLE_ORDERS);
-    }
-  };
-
-  const calculateAllPenalties = (sourceOrders?: OrderRecord[]) => {
+  const calculateAllPenalties = useCallback((sourceOrders?: OrderRecord[]) => {
     const currentOrders = sourceOrders || orders;
     if (!currentOrders.length) return;
 
@@ -106,7 +79,7 @@ const TailorWalletPenaltyScreen = () => {
         notifiedReminder = true;
       }
 
-      // ❌ DELIVERY LATE → PENALTY (1% PER DAY)
+      // ❌ DELIVERY LATE → PENALTY (default 2% per day, 10% for occasion)
       let penalty = 0;
       let lateDays = 0;
       let status = "On Time";
@@ -115,8 +88,8 @@ const TailorWalletPenaltyScreen = () => {
 
       if (remainingDays < 0) {
         lateDays = Math.abs(remainingDays);
-        const penaltyPercent = lateDays * 1;
-        penalty = (order.orderAmount * penaltyPercent) / 100;
+        const perDayRate = (order as any).penaltyRate ?? 0.02; // 2% default
+        penalty = Math.round(lateDays * perDayRate * order.orderAmount);
         receivableAmount = order.orderAmount - penalty;
         totalPenaltyAmount += penalty;
         status = `${lateDays} Day(s) Late`;
@@ -149,7 +122,44 @@ const TailorWalletPenaltyScreen = () => {
     setTotalPenalty(totalPenaltyAmount);
     setWalletBalance(initialWallet - totalPenaltyAmount);
     setTotalOriginal(totalOriginalSum);
-  };
+  }, [orders, initialWallet]);
+
+  const initializeData = useCallback(async () => {
+    try {
+      const stored = await AsyncStorage.getItem(STORAGE_KEY);
+      if (stored) {
+        const parsed: OrderRecord[] = JSON.parse(stored).map((o: any) => ({
+          ...o,
+          deliveryDate: new Date(o.deliveryDate),
+        }));
+        setOrders(parsed);
+        calculateAllPenalties(parsed);
+      } else {
+        setOrders(SAMPLE_ORDERS);
+        calculateAllPenalties(SAMPLE_ORDERS);
+      }
+    } catch {
+      setOrders(SAMPLE_ORDERS);
+      calculateAllPenalties(SAMPLE_ORDERS);
+    }
+  }, [calculateAllPenalties]);
+
+  useEffect(() => {
+    initializeData();
+  }, [initializeData]);
+
+  useEffect(() => {
+    if (!orders.length) return;
+
+    // Daily check at midnight
+    const interval = setInterval(() => {
+      calculateAllPenalties();
+    }, 24 * 60 * 60 * 1000);
+
+    return () => clearInterval(interval);
+  }, [orders.length, calculateAllPenalties]);
+
+
 
   const persistOrders = async (data: OrderRecord[]) => {
     try {
@@ -158,7 +168,7 @@ const TailorWalletPenaltyScreen = () => {
         deliveryDate: o.deliveryDate.toISOString(),
       }));
       await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
-    } catch (error) {
+    } catch {
       // fail silently
     }
   };
@@ -254,7 +264,7 @@ const TailorWalletPenaltyScreen = () => {
             <View style={styles.infoRow}>
               <Text style={styles.infoBullet}>•</Text>
               <Text style={styles.infoText}>
-                Penalty: <Text style={{ fontWeight: "700" }}>1% per late day</Text> of order amount
+                Penalty: <Text style={{ fontWeight: "700" }}>2% per late day</Text> (or <Text style={{ fontWeight: "700" }}>10% for occasion</Text>) of order amount
               </Text>
             </View>
             <View style={styles.infoRow}>
@@ -353,28 +363,27 @@ const TailorWalletPenaltyScreen = () => {
                       <View style={styles.penaltyDetailRow}>
                         <Text style={styles.penaltyLabel}>Penalty Per Day</Text>
                         <Text style={[styles.penaltyValue, { color: "#ef4444", fontWeight: "700" }]}>
-                          1% (Rs {Math.round(order.orderAmount * 0.01).toLocaleString()})
+                          {((order as any).penaltyRate ? ((order as any).penaltyRate * 100).toFixed(0) : '2')}% (Rs {Math.round(order.orderAmount * ((order as any).penaltyRate ?? 0.02)).toLocaleString()})
                         </Text>
                       </View>
 
                       <View style={styles.penaltyDetailRow}>
                         <Text style={styles.penaltyLabel}>Total Penalty</Text>
                         <Text style={[styles.penaltyValue, { color: "#ef4444", fontWeight: "700" }]}>
-                          {order.lateDays}% = Rs {order.penalty.toFixed(0)}
+                          Rs {order.penalty.toFixed(0)}
                         </Text>
                       </View>
 
                       <View style={styles.calculationBox}>
                         <Text style={styles.calculationText}>
-                          Rs {order.orderAmount.toLocaleString()} × {order.lateDays}% = Rs{" "}
-                          {order.penalty.toFixed(0)}
+                          Rs {order.orderAmount.toLocaleString()} × {((order as any).penaltyRate ? ((order as any).penaltyRate * 100) : 2)}% × {order.lateDays} day(s) = Rs {order.penalty.toFixed(0)}
                         </Text>
                       </View>
 
                       <View style={styles.divider} />
 
                       <View style={styles.receivableRow}>
-                        <Text style={styles.receivableLabel}>You'll Receive</Text>
+                        <Text style={styles.receivableLabel}>You&apos;ll Receive</Text>
                         <Text style={styles.receivableAmount}>
                           Rs {order.receivableAmount.toFixed(0)}
                         </Text>

@@ -32,7 +32,7 @@ const SAMPLE_ORDERS: Order[] = [
     tailorName: "Ahmad Tailor",
     orderAmount: 10000,
     deliveryDate: new Date("2026-01-03"),
-    orderType: "Formal Suit",
+    orderType: "Long Frock",
     status: "Late",
   },
   {
@@ -40,7 +40,7 @@ const SAMPLE_ORDERS: Order[] = [
     tailorName: "Master Tailors",
     orderAmount: 15000,
     deliveryDate: new Date("2026-01-05"),
-    orderType: "Wedding Sherwani",
+    orderType: "Shalwar Kameez",
     status: "On Track",
   },
 ];
