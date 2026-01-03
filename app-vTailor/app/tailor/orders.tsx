@@ -110,8 +110,19 @@ export default function TailorOrders() {
                   <Text style={[styles.statusText, { color: statusStyle.color }]}>{order.status}</Text>
                 </View>
               </View>
-              <View style={styles.cardBottom}>
-                <Text style={styles.small}>Rs {order.amount.toLocaleString()} • {order.timeLeft}</Text>
+              <View style={styles.detailsRow}>
+                <View>
+                  <Text style={styles.label}>Price</Text>
+                  <Text style={styles.amount}>Rs {order.amount.toLocaleString()}</Text>
+                </View>
+                <View>
+                  <Text style={styles.label}>Time</Text>
+                  <Text style={styles.time}>{order.timeLeft}</Text>
+                </View>
+                <View>
+                  <Text style={styles.label}>Contact</Text>
+                  <Text style={styles.small}>{order.phone}</Text>
+                </View>
               </View>
             </View>
           );
@@ -151,7 +162,10 @@ const styles = StyleSheet.create({
   },
   cardLeft: { flex: 1 },
   cardTitle: { fontSize: 15, fontWeight: '800', color: '#111827', marginBottom: 4 },
-  cardBottom: { flexDirection: 'row', justifyContent: 'space-between' },
+  detailsRow: { flexDirection: 'row', gap: 12, justifyContent: 'space-between' },
+  label: { color: '#6b7280', fontSize: 10, fontWeight: '600', marginBottom: 2 },
+  amount: { fontWeight: '800', fontSize: 14, color: '#111827' },
+  time: { color: '#ef4444', fontWeight: '700', fontSize: 12 },
   small: { color: '#6b7280', fontSize: 12, fontWeight: '500' },
   statusPill: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, minWidth: 70, alignItems: 'center' },
   statusText: { fontWeight: '700', fontSize: 11, textTransform: 'capitalize' },
