@@ -3,6 +3,8 @@ import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { ThemedText } from '@/components/themed-text';
 import { useThemeColor } from '@/hooks/use-theme-color';
+import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 
 const transactions = [
   { id: 1, type: 'credit', description: 'Payment from Ali Hassan', amount: 8500, date: '25 Dec' },
@@ -16,6 +18,7 @@ export default function TailorWallet() {
   const bg = useThemeColor({}, 'background');
   const cardBg = useThemeColor({}, 'card');
   const tint = useThemeColor({}, 'tint');
+  const router = useRouter();
 
   return (
     <ProtectedRoute requiredRole="tailor">
@@ -51,6 +54,21 @@ export default function TailorWallet() {
         </View>
 
         <ScrollView style={styles.listScroll} contentContainerStyle={{ padding: 16, paddingBottom: 120 }}>
+          {/* Delivery & Penalty Section */}
+          <Pressable 
+            style={[styles.deliveryPenaltyCard, { backgroundColor: cardBg }]}
+            onPress={() => router.push('/tailor/delivery-penalty')}
+          >
+            <View style={styles.deliveryPenaltyIcon}>
+              <Ionicons name="time-outline" size={24} color="#ef4444" />
+            </View>
+            <View style={{ flex: 1, marginLeft: 12 }}>
+              <Text style={styles.deliveryPenaltyTitle}>Delivery & Penalty</Text>
+              <Text style={styles.deliveryPenaltySubtitle}>Track orders, deadlines & penalties</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
+          </Pressable>
+
           <View style={styles.listHeaderRow}>
             <ThemedText style={styles.sectionTitle}>Transaction History</ThemedText>
             <Text style={styles.muted}>🕘</Text>
@@ -104,5 +122,33 @@ const styles = StyleSheet.create({
   txDate: { fontSize: 12, color: '#6b7280' },
   txAmount: { fontWeight: '700' },
   txPenalty: { borderColor: '#fde8ea' },
+  deliveryPenaltyCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#fee2e2',
+    backgroundColor: '#fef2f2',
+  },
+  deliveryPenaltyIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: '#fee2e2',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  deliveryPenaltyTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 4,
+  },
+  deliveryPenaltySubtitle: {
+    fontSize: 12,
+    color: '#6b7280',
+  },
 });
 
