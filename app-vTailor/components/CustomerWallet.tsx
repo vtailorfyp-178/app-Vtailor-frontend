@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { View, ScrollView, Pressable, StyleSheet } from 'react-native';
-import { ThemedText } from './themed-text';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import React, { useEffect, useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ThemedText } from './themed-text';
 
 const CustomerWallet = () => {
   const transactions = [
