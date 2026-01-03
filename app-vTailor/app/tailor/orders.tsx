@@ -104,8 +104,7 @@ export default function TailorOrders() {
             <View key={order.id} style={[styles.card, { backgroundColor: card, borderColor: inputBorder }]}>
               <View style={styles.cardRow}>
                 <View style={styles.cardLeft}>
-                  <Text style={styles.cardTitle}>{String(order.customer)}</Text>
-                  <Text style={styles.small}>{order.id}</Text>
+                  <Text style={styles.cardTitle}>{String(order.customer)} {order.id}</Text>
                 </View>
                 <View style={[styles.statusPill, { backgroundColor: statusStyle.backgroundColor }]}>
                   <Text style={[styles.statusText, { color: statusStyle.color }]}>{order.status}</Text>
