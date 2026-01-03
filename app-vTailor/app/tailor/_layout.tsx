@@ -1,13 +1,11 @@
-import React from 'react';
 import { Slot } from 'expo-router';
-import { View, StyleSheet, Platform } from 'react-native';
-import BottomTabBar, { TAB_BAR_HEIGHT } from '@/components/BottomTabBar';
+import React from 'react';
+import { Platform, StyleSheet, View } from 'react-native';
 
 export default function TailorLayout() {
   return (
-    <View style={[styles.container, { paddingBottom: TAB_BAR_HEIGHT }]}>
+    <View style={styles.container}>
       <Slot />
-      <BottomTabBar basePath="tailor" />
     </View>
   );
 }
