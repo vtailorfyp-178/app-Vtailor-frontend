@@ -1,10 +1,10 @@
-import React from 'react';
-import { ScrollView, View, StyleSheet, Pressable, Text } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
 import { useAuth } from '@/contexts/AuthContext';
 import { useThemeColor } from '@/hooks/use-theme-color';
-import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import React from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 export default function TailorHome() {
   const { user } = useAuth();

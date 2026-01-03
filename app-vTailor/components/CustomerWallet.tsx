@@ -1,8 +1,10 @@
 import { useThemeColor } from '@/hooks/use-theme-color';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View, Text } from 'react-native';
 import { ThemedText } from './themed-text';
+import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 
 const CustomerWallet = () => {
   const transactions = [
@@ -36,6 +38,7 @@ const CustomerWallet = () => {
   const tint = useThemeColor({}, 'tint');
   const card = useThemeColor({}, 'card');
   const inputBorder = useThemeColor({}, 'inputBorder');
+  const router = useRouter();
 
   const [mode, setMode] = useState<'add' | 'withdraw'>('add');
 
@@ -76,6 +79,23 @@ const CustomerWallet = () => {
       </View>
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+        {/* Delivery Status & Penalty Information Section */}
+        <View style={styles.deliverySection}>
+          <Pressable 
+            style={[styles.deliveryStatusCard, { backgroundColor: card }]}
+            onPress={() => router.push('/customer/order-timeline')}
+          >
+            <View style={styles.deliveryStatusIcon}>
+              <Ionicons name="cube-outline" size={26} color="#3b82f6" />
+            </View>
+            <View style={{ flex: 1, marginLeft: 14 }}>
+              <Text style={styles.deliveryStatusTitle}>Delivery Status & Penalty Information</Text>
+              <Text style={styles.deliveryStatusSubtitle}>Track orders, delivery dates & penalty details</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
+          </Pressable>
+        </View>
+
         {/* Penalty Module */}
         {penalties.length > 0 && (
           <View style={styles.penaltySection}>
@@ -261,6 +281,36 @@ const styles = StyleSheet.create({
     color: '#991b1b', 
     fontWeight: '500', 
     textAlign: 'center' 
+  },
+  // Delivery Status & Penalty Information Styles
+  deliverySection: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 0 },
+  deliveryStatusCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#dbeafe',
+    backgroundColor: '#eff6ff',
+  },
+  deliveryStatusIcon: {
+    width: 50,
+    height: 50,
+    borderRadius: 12,
+    backgroundColor: '#dbeafe',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  deliveryStatusTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 4,
+  },
+  deliveryStatusSubtitle: {
+    fontSize: 12,
+    color: '#6b7280',
   },
 });
 
