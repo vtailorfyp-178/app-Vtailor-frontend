@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, ScrollView, TextInput, Pressable, StyleSheet, KeyboardAvoidingView, Platform, Image } from 'react-native';
+import { View, ScrollView, TextInput, Pressable, StyleSheet, KeyboardAvoidingView, Platform, Image, Alert, Linking } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -68,6 +68,7 @@ export default function ChatConversation() {
   const conversation = SAMPLE_CONVERSATIONS[tailorId];
   const [messages, setMessages] = useState<Message[]>(conversation.messages);
   const [inputText, setInputText] = useState('');
+  const [showAttach, setShowAttach] = useState(false);
 
   const handleSendMessage = () => {
     if (inputText.trim()) {
@@ -94,6 +95,7 @@ export default function ChatConversation() {
   };
 
   const handlePickImage = () => {
+    setShowAttach(false);
     // Mock image selection
     const mockImageUri = 'https://via.placeholder.com/300x300/FF6B6B/FFFFFF?text=Dress+Design';
     const newMessage: Message = {
@@ -120,6 +122,7 @@ export default function ChatConversation() {
   };
 
   const handlePickVideo = () => {
+    setShowAttach(false);
     // Mock video selection
     const mockVideoUri = '📹 Video_Design_Reference.mp4';
     const newMessage: Message = {
@@ -148,6 +151,12 @@ export default function ChatConversation() {
     );
   }
 
+  const handleCall = () => {
+    const phone = '+92 300 1234567';
+    const url = `tel:${phone}`;
+    Linking.openURL(url).catch(() => Alert.alert('Call Failed', 'Unable to initiate call on this device.'));
+  };
+
   return (
     <ThemedView style={styles.container}>
       {/* Header */}
@@ -162,13 +171,15 @@ export default function ChatConversation() {
             <ThemedText style={{ color: '#e5e7eb', fontSize: 12 }}>Online</ThemedText>
           </View>
         </View>
-        <View style={{ width: 56 }} />
+        <Pressable onPress={handleCall} style={styles.callButton} hitSlop={8}>
+          <Ionicons name="call" size={22} color="#fff" />
+        </Pressable>
       </View>
 
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardAvoid}
-        keyboardVerticalOffset={100}
+        keyboardVerticalOffset={Platform.select({ ios: 0, android: 0, default: 0 })}
       >
         {/* Messages */}
         <ScrollView
@@ -227,17 +238,23 @@ export default function ChatConversation() {
         <View style={[styles.inputContainer, { backgroundColor: card, borderTopColor: inputBorder }]}>
           <View style={styles.mediaButtonsRow}>
             <Pressable
-              onPress={handlePickImage}
+              onPress={() => setShowAttach((v) => !v)}
               style={[styles.mediaButton, { borderColor: tint }]}
             >
-              <Ionicons name="image" size={18} color={tint} />
+              <Ionicons name={showAttach ? 'close' : 'add'} size={18} color={tint} />
             </Pressable>
-            <Pressable
-              onPress={handlePickVideo}
-              style={[styles.mediaButton, { borderColor: tint }]}
-            >
-              <Ionicons name="videocam" size={18} color={tint} />
-            </Pressable>
+            {showAttach && (
+              <View style={styles.attachMenu}>
+                <Pressable onPress={handlePickImage} style={[styles.attachItem, { borderColor: tint }]}> 
+                  <Ionicons name="image" size={18} color={tint} />
+                  <ThemedText style={styles.attachLabel}>Photo</ThemedText>
+                </Pressable>
+                <Pressable onPress={handlePickVideo} style={[styles.attachItem, { borderColor: tint }]}> 
+                  <Ionicons name="videocam" size={18} color={tint} />
+                  <ThemedText style={styles.attachLabel}>Video</ThemedText>
+                </Pressable>
+              </View>
+            )}
           </View>
           <TextInput
             style={[styles.messageInput, { borderColor: inputBorder, color: 'inherit' }]}
@@ -328,19 +345,11 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     gap: 10,
   },
-  mediaButtonsRow: {
-    flexDirection: 'column',
-    gap: 8,
-  },
-  mediaButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'transparent',
-  },
+  mediaButtonsRow: { flexDirection: 'row', alignItems: 'center', gap: 8, position: 'relative' },
+  mediaButton: { width: 40, height: 40, borderRadius: 10, borderWidth: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'transparent' },
+  attachMenu: { position: 'absolute', bottom: 50, left: 0, flexDirection: 'column-reverse', alignItems: 'flex-start', gap: 8 },
+  attachItem: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 8, borderRadius: 10, borderWidth: 1 },
+  attachLabel: { fontSize: 12 },
   messageInput: {
     flex: 1,
     borderWidth: 1,
@@ -371,6 +380,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#f3f4f6',
   },
   backButton: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  callButton: {
     width: 44,
     height: 44,
     alignItems: 'center',

@@ -75,11 +75,17 @@ const CustomerHome = () => {
           </View>
           <View style={styles.ordersList}>
             {currentOrders.map((order) => (
-              <View key={order.id} style={[styles.orderCard, { backgroundColor: card, borderColor: inputBorder }]}> 
+              <Pressable 
+                key={order.id} 
+                style={[styles.orderCard, { backgroundColor: card, borderColor: inputBorder }]}
+                onPress={() => router.push(`/customer/tailor-details?tailorId=${order.id}&from=home`)}
+              > 
                 <View style={styles.orderTop}>
                   <View>
                     <ThemedText style={styles.orderName}>{order.name}</ThemedText>
-                    <ThemedText style={styles.orderTailor}>{order.tailor}</ThemedText>
+                    <Pressable onPress={() => router.push(`/customer/tailor-details?tailorId=${order.id}&from=home`)}>
+                      <ThemedText style={[styles.orderTailor, { color: '#3b82f6', fontWeight: '600' }]}>{order.tailor}</ThemedText>
+                    </Pressable>
                   </View>
                   <View style={styles.statusBadge}>
                     <ThemedText style={styles.statusText}>{order.status}</ThemedText>
@@ -89,7 +95,7 @@ const CustomerHome = () => {
                   <ThemedText style={styles.daysLeft}>⏱️ {order.daysLeft} days left</ThemedText>
                   <ThemedText style={styles.price}>Rs. {order.price.toLocaleString()}</ThemedText>
                 </View>
-              </View>
+              </Pressable>
             ))}
           </View>
         </View>

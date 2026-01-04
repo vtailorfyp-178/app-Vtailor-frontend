@@ -249,7 +249,7 @@ const styles = StyleSheet.create({
   },
   headerContainer: {
     paddingHorizontal: 16,
-    paddingTop: 12,
+    paddingTop: 44,
     paddingBottom: 16,
     backgroundColor: "#fff",
     borderBottomWidth: 1,
@@ -275,7 +275,9 @@ const styles = StyleSheet.create({
     color: "#6b7280",
   },
   scrollContent: {
-    padding: 16,
+    paddingTop: 32,
+    paddingHorizontal: 16,
+    paddingBottom: 16,
   },
   tailorCard: {
     backgroundColor: "#f0f9ff",

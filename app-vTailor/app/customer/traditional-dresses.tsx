@@ -6,12 +6,16 @@ import { ThemedView } from '@/components/themed-view';
 import { useThemeColor } from '@/hooks/use-theme-color';
 
 const logo = require('../../assets/images/vTailorlogo.jpeg');
+const shalwarKameezImage = require('../../2d model/shalwar kameez.jpg');
+const ghraraImage = require('../../2d model/ghrara.jpg');
+const shararaImage = require('../../2d model/shrara.jpg');
+const lehengaImage = require('../../2d model/lehanga.jpg');
 
 const traditionalDresses = [
-  { id: 'shalwar-kameez', name: 'Shalwar Kameez', emoji: '👗' },
-  { id: 'ghagra', name: 'Ghagra', emoji: '👚' },
-  { id: 'sharara', name: 'Sharara', emoji: '✨' },
-  { id: 'lehenga', name: 'Lehenga', emoji: '💃' },
+  { id: 'shalwar-kameez', name: 'Shalwar Kameez' },
+  { id: 'ghagra', name: 'Ghrara' },
+  { id: 'sharara', name: 'Sharara' },
+  { id: 'lehenga', name: 'Lehenga' },
 ];
 
 export default function TraditionalDresses() {
@@ -42,10 +46,8 @@ export default function TraditionalDresses() {
             }
             style={[styles.card, { backgroundColor: card, borderColor: inputBorder }]}
           >
-            <View style={styles.emojiContainer}>
-              <ThemedText style={styles.emoji}>{dress.emoji}</ThemedText>
-            </View>
-            <Image source={logo} style={styles.thumb} resizeMode="cover" />
+
+            <Image source={dress.id === 'shalwar-kameez' ? shalwarKameezImage : dress.id === 'ghagra' ? ghraraImage : dress.id === 'sharara' ? shararaImage : dress.id === 'lehenga' ? lehengaImage : logo} style={styles.thumb} resizeMode="contain" />
             <ThemedText style={styles.dressName}>{dress.name}</ThemedText>
           </Pressable>
         ))}
@@ -85,6 +87,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   emoji: { fontSize: 36 },
-  thumb: { width: '100%', height: 100 },
-  dressName: { padding: 10, fontWeight: '600', textAlign: 'center' },
+  thumb: { width: '100%', height: 160 },
+  dressName: { padding: 12, fontWeight: '600', textAlign: 'center' },
 });

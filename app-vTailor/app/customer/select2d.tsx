@@ -6,6 +6,9 @@ import { ThemedView } from '@/components/themed-view';
 import { useThemeColor } from '@/hooks/use-theme-color';
 
 const logo = require('../../assets/images/vTailorlogo.jpeg');
+const traditionalDressesImage = require('../../2d model/traditional dresses.jpg');
+const casualDressesImage = require('../../2d model/casual dresses.jpg');
+const partyFormalDressesImage = require('../../2d model/partyformal 2.jpg');
 
 const models = [
   { id: 'traditional', name: 'Traditional Dresses' },
@@ -46,7 +49,16 @@ export default function Select2D() {
             }}
             style={[styles.card, { backgroundColor: card, borderColor: inputBorder }]}
           >
-            <Image source={logo} style={styles.thumb} resizeMode="cover" />
+            <Image 
+              source={
+                m.id === 'traditional' ? traditionalDressesImage : 
+                m.id === 'casual' ? casualDressesImage : 
+                m.id === 'party-formal' ? partyFormalDressesImage :
+                logo
+              } 
+              style={styles.thumb} 
+              resizeMode="contain" 
+            />
             <ThemedText style={styles.modelName}>{m.name}</ThemedText>
           </Pressable>
         ))}
@@ -61,7 +73,7 @@ const styles = StyleSheet.create({
   header: { paddingTop: 40, padding: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   headerTitle: { color: '#fff', fontWeight: '700', fontSize: 16 },
   grid: { padding: 12, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
-  card: { width: '48%', borderRadius: 12, marginBottom: 12, overflow: 'hidden', alignItems: 'center' },
+  card: { width: '48%', borderRadius: 12, marginBottom: 12, overflow: 'hidden', alignItems: 'center', borderWidth: 2 },
   thumb: { width: '100%', height: 140 },
   modelName: { padding: 10, fontWeight: '600' },
 });

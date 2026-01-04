@@ -1,8 +1,11 @@
 import React from 'react';
-import { View, ScrollView, StyleSheet } from 'react-native';
+import { View, ScrollView, StyleSheet, Pressable } from 'react-native';
 import { ThemedText } from './themed-text';
+import { useRouter } from 'expo-router';
 
 const CustomerOrders = () => {
+  const router = useRouter();
+  
   const stats = [
     { icon: '📦', label: 'Total', value: 8 },
     { icon: '⏳', label: 'In Progress', value: 2 },
@@ -45,11 +48,13 @@ const CustomerOrders = () => {
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         <View style={styles.ordersList}>
           {orders.map((order) => (
-            <View key={order.id} style={styles.orderCard}>
+            <Pressable key={order.id} style={styles.orderCard} onPress={() => router.push(`/customer/tailor-details?tailorId=${order.id}&from=orders`)}>
               <View style={styles.orderHeader}>
-                <View>
+                <View style={{ flex: 1 }}>
                   <ThemedText style={styles.orderName}>{order.name}</ThemedText>
-                  <ThemedText style={styles.orderTailor}>{order.tailor}</ThemedText>
+                  <Pressable onPress={() => router.push(`/customer/tailor-details?tailorId=${order.id}&from=orders`)}>
+                    <ThemedText style={[styles.orderTailor, { color: '#3b82f6', fontWeight: '600' }]}>{order.tailor}</ThemedText>
+                  </Pressable>
                 </View>
                 <View style={[styles.statusBadge, { backgroundColor: getStatusColor(order.status) + '20' }]}>
                   <ThemedText style={[styles.statusText, { color: getStatusColor(order.status) }]}>{order.status}</ThemedText>
@@ -59,7 +64,7 @@ const CustomerOrders = () => {
                 <ThemedText style={styles.orderDate}>{order.date}</ThemedText>
                 <ThemedText style={styles.orderPrice}>Rs. {order.price.toLocaleString()}</ThemedText>
               </View>
-            </View>
+            </Pressable>
           ))}
         </View>
         <View style={styles.bottomPadding} />

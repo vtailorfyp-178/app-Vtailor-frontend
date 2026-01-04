@@ -1,16 +1,18 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, Image, Pressable, TextInput, ScrollView, Platform } from 'react-native';
+import { View, StyleSheet, Image, Pressable, TextInput, ScrollView, Platform, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { useAuth } from '@/contexts/AuthContext';
+import { Ionicons } from '@expo/vector-icons';
 
 const logo = require('../assets/images/vTailorlogo.jpeg');
 
 export default function ProfileSetup() {
   const router = useRouter();
   const { user, updateProfile, userRole, markProfileCompleted } = useAuth();
+  const [profileImage, setProfileImage] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     name: user?.name ?? '',
     email: user?.email ?? '',
@@ -28,6 +30,26 @@ export default function ProfileSetup() {
     'Kids Wear',
     'Alterations',
   ];
+
+  const handlePickProfileImage = () => {
+    Alert.alert('Profile Picture', 'Choose an option', [
+      {
+        text: 'Camera',
+        onPress: () => {
+          setProfileImage('https://via.placeholder.com/200x200?text=Camera+Photo');
+          Alert.alert('Success', 'Photo captured');
+        },
+      },
+      {
+        text: 'Gallery',
+        onPress: () => {
+          setProfileImage('https://via.placeholder.com/200x200?text=Gallery+Image');
+          Alert.alert('Success', 'Photo selected');
+        },
+      },
+      { text: 'Cancel', onPress: () => {}, style: 'cancel' },
+    ]);
+  };
 
   const toggleSpecialization = (spec: string) => {
     setFormData((prev) => ({
@@ -77,8 +99,12 @@ export default function ProfileSetup() {
 
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         <View style={styles.avatarRow}>
-          <View style={[styles.avatarPlaceholder, { backgroundColor: avatarBg, borderColor: tint, borderWidth: 2 }]}><ThemedText>👤</ThemedText></View>
-          <Pressable style={[styles.avatarButton, { backgroundColor: avatarBtn }]}><ThemedText style={{ color: '#fff' }}>📷</ThemedText></Pressable>
+          <View style={[styles.avatarPlaceholder, { backgroundColor: avatarBg, borderColor: tint, borderWidth: 2 }]}>
+            {profileImage ? <Image source={{ uri: profileImage }} style={styles.avatarImage} /> : <ThemedText>👤</ThemedText>}
+          </View>
+          <Pressable style={[styles.avatarButton, { backgroundColor: avatarBtn }]} onPress={handlePickProfileImage}>
+            <Ionicons name="camera" size={18} color="#fff" />
+          </Pressable>
         </View>
 
         <View style={styles.fieldGroup}>
@@ -167,7 +193,8 @@ const styles = StyleSheet.create({
   subtitle: { marginTop: 6, color: '#6b7280' },
   scroll: { padding: 20, paddingBottom: 120 },
   avatarRow: { alignItems: 'center', marginBottom: 16 },
-  avatarPlaceholder: { width: 88, height: 88, borderRadius: 44, backgroundColor: '#f3f4f6', alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
+  avatarPlaceholder: { width: 88, height: 88, borderRadius: 44, backgroundColor: '#f3f4f6', alignItems: 'center', justifyContent: 'center', marginBottom: 8, overflow: 'hidden' },
+  avatarImage: { width: '100%', height: '100%' },
   avatarButton: { position: 'absolute', right: 24, bottom: -6, width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
   fieldGroup: { marginBottom: 12 },
   label: { marginBottom: 6, fontWeight: '600' },

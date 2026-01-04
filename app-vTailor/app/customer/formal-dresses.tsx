@@ -6,11 +6,14 @@ import { ThemedView } from '@/components/themed-view';
 import { useThemeColor } from '@/hooks/use-theme-color';
 
 const logo = require('../../assets/images/vTailorlogo.jpeg');
+const maxiImage = require('../../2d model/maxi.jpg');
+const gownImage = require('../../2d model/gown 2.jpg');
+const longFrockImage = require('../../2d model/long frock 2.jpg');
 
 const formalDresses = [
-  { id: 'maxi', name: 'Maxi', emoji: '✨' },
-  { id: 'gown', name: 'Gown', emoji: '👗' },
-  { id: 'long-frock', name: 'Long Frock', emoji: '💃' },
+  { id: 'maxi', name: 'Maxi' },
+  { id: 'gown', name: 'Gown' },
+  { id: 'long-frock', name: 'Long Frock' },
 ];
 
 export default function FormalDresses() {
@@ -41,10 +44,8 @@ export default function FormalDresses() {
             }
             style={[styles.card, { backgroundColor: card, borderColor: inputBorder }]}
           >
-            <View style={styles.emojiContainer}>
-              <ThemedText style={styles.emoji}>{dress.emoji}</ThemedText>
-            </View>
-            <Image source={logo} style={styles.thumb} resizeMode="cover" />
+
+            <Image source={dress.id === 'maxi' ? maxiImage : dress.id === 'gown' ? gownImage : dress.id === 'long-frock' ? longFrockImage : logo} style={styles.thumb} resizeMode={dress.id === 'maxi' || dress.id === 'gown' || dress.id === 'long-frock' ? 'contain' : 'cover'} />
             <ThemedText style={styles.dressName}>{dress.name}</ThemedText>
           </Pressable>
         ))}
@@ -84,6 +85,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   emoji: { fontSize: 36 },
-  thumb: { width: '100%', height: 100 },
-  dressName: { padding: 10, fontWeight: '600', textAlign: 'center' },
+  thumb: { width: '100%', height: 160 },
+  dressName: { padding: 12, fontWeight: '600', textAlign: 'center' },
 });

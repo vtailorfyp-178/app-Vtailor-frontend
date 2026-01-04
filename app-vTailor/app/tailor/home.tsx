@@ -134,7 +134,7 @@ export default function TailorHome() {
       </View>
 
       <View style={styles.quickRow}>
-        <Pressable style={[styles.quickCard, { borderColor: inputBorder }]} onPress={() => router.push('/tailor/3d')}>
+        <Pressable style={[styles.quickCard, { borderColor: inputBorder }]} onPress={() => router.push('/tailor/3d-review')}>
           <Text style={styles.quickIcon}>🧵</Text>
           <Text style={styles.quickLabel}>3D Review</Text>
         </Pressable>
@@ -221,8 +221,11 @@ export default function TailorHome() {
             </View>
 
             <View style={styles.actionsRow}>
-              <Pressable style={styles.primaryBtn} onPress={() => router.push('/tailor/orders')}>
-                <Text style={styles.primaryText}>Open Orders</Text>
+              <Pressable
+                style={styles.primaryBtn}
+                onPress={() => router.push({ pathname: '/tailor/order-detail', params: { orderId: order.id } })}
+              >
+                <Text style={styles.primaryText}>View Order</Text>
               </Pressable>
               <Pressable
                 style={[styles.secondaryBtn, { borderColor: inputBorder }]}

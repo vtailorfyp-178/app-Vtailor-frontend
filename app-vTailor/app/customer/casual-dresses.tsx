@@ -6,10 +6,12 @@ import { ThemedView } from '@/components/themed-view';
 import { useThemeColor } from '@/hooks/use-theme-color';
 
 const logo = require('../../assets/images/vTailorlogo.jpeg');
+const kurtiImage = require('../../2d model/kurti 3.jpg');
+const shortFrockImage = require('../../2d model/short frock.jpg');
 
 const casualDresses = [
-  { id: 'kurti', name: 'Kurti', emoji: '👕' },
-  { id: 'short-frock', name: 'Short Frock', emoji: '👗' },
+  { id: 'kurti', name: 'Kurti' },
+  { id: 'short-frock', name: 'Short Frock' },
 ];
 
 export default function CasualDresses() {
@@ -40,10 +42,8 @@ export default function CasualDresses() {
             }
             style={[styles.card, { backgroundColor: card, borderColor: inputBorder }]}
           >
-            <View style={styles.emojiContainer}>
-              <ThemedText style={styles.emoji}>{dress.emoji}</ThemedText>
-            </View>
-            <Image source={logo} style={styles.thumb} resizeMode="cover" />
+
+            <Image source={dress.id === 'kurti' ? kurtiImage : dress.id === 'short-frock' ? shortFrockImage : logo} style={styles.thumb} resizeMode="contain" />
             <ThemedText style={styles.dressName}>{dress.name}</ThemedText>
           </Pressable>
         ))}
@@ -83,6 +83,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   emoji: { fontSize: 36 },
-  thumb: { width: '100%', height: 100 },
-  dressName: { padding: 10, fontWeight: '600', textAlign: 'center' },
+  thumb: { width: '100%', height: 160 },
+  dressName: { padding: 12, fontWeight: '600', textAlign: 'center' },
 });

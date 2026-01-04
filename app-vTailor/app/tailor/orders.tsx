@@ -9,6 +9,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 const orders = [
   {
     id: 'ORD001',
+    customerId: 1,
     customer: 'Ali Hassan',
     phone: '+92 300 1234567',
     garment: 'Long Frock',
@@ -22,6 +23,7 @@ const orders = [
   },
   {
     id: 'ORD002',
+    customerId: 2,
     customer: 'Zara Khan',
     phone: '+92 333 9876543',
     garment: 'Lehenga',
@@ -35,6 +37,7 @@ const orders = [
   },
   {
     id: 'ORD003',
+    customerId: 5,
     customer: 'Usman Tariq',
     phone: '+92 321 5558899',
     garment: 'Ghagra',
@@ -45,6 +48,20 @@ const orders = [
     delivery: 'Jan 04 • Store Pickup',
     urgent: false,
     hasMeasurements: true,
+  },
+  {
+    id: 'ORD004',
+    customerId: 6,
+    customer: 'Hira Malik',
+    phone: '+92 300 7778899',
+    garment: 'Maxi Dress',
+    status: 'cancelled',
+    amount: 4200,
+    timeLeft: '-',
+    penalty: 0,
+    delivery: '—',
+    urgent: false,
+    hasMeasurements: false,
   },
 ];
 
@@ -95,13 +112,21 @@ export default function TailorOrders() {
           <Pressable style={[styles.filterBtn, filter === 'done' && styles.filterActive]} onPress={() => setFilter('done')}>
             <Text style={filter === 'done' ? styles.filterTextActive : styles.filterText}>Done ({counts.done})</Text>
           </Pressable>
+          <Pressable style={[styles.filterBtn, filter === 'cancelled' && styles.filterActive]} onPress={() => setFilter('cancelled')}>
+            <Text style={filter === 'cancelled' ? styles.filterTextActive : styles.filterText}>Cancelled ({counts.cancelled})</Text>
+          </Pressable>
         </View>
 
         {filtered.map((order) => {
           const statusStyle = getStatusStyle(order.status);
-          console.log('Orders page - Order:', { id: order.id, customer: order.customer });
           return (
-            <View key={order.id} style={[styles.card, { backgroundColor: card, borderColor: inputBorder }]}>
+            <Pressable
+              key={order.id}
+              style={[styles.card, { backgroundColor: card, borderColor: inputBorder }]}
+              onPress={() =>
+                router.push({ pathname: '/tailor/order-detail', params: { orderId: order.id, customerId: String(order.customerId), customerName: order.customer } })
+              }
+            >
               <View style={styles.cardRow}>
                 <View style={styles.cardLeft}>
                   <Text style={styles.cardTitle}>{String(order.customer)} {order.id}</Text>
@@ -124,7 +149,7 @@ export default function TailorOrders() {
                   <Text style={styles.small}>{order.phone}</Text>
                 </View>
               </View>
-            </View>
+            </Pressable>
           );
         })}
 

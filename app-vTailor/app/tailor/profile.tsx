@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, Alert } from 'react-native';
 import { useAuth } from '@/contexts/AuthContext';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { ThemedText } from '@/components/themed-text';
@@ -34,7 +34,7 @@ export default function TailorProfile() {
         <View style={styles.headerGradient}>
           <View style={styles.headerTop}>
             <ThemedText style={styles.headerTitle}>Profile</ThemedText>
-            <Pressable style={styles.iconBtn} onPress={() => {}}>
+            <Pressable style={styles.iconBtn} onPress={() => router.push('/tailor/profile-edit')}>
               <Text style={styles.iconBtnText}>✏️</Text>
             </Pressable>
           </View>
@@ -69,15 +69,15 @@ export default function TailorProfile() {
             <Text style={styles.sectionLabel}>Information</Text>
             <View style={[styles.infoCard, { backgroundColor: cardBg }]}> 
               <View style={styles.infoRow}><Text style={styles.infoIcon}>📞</Text><View style={{flex:1}}><Text style={styles.infoLabel}>Phone Number</Text><Text style={styles.infoValue}>{user?.userPhone || 'Not set'}</Text></View></View>
-              <View style={styles.infoRow}><Text style={styles.infoIcon}>✉️</Text><View style={{flex:1}}><Text style={styles.infoLabel}>Email</Text><Text style={styles.infoValue}>{user?.user?.email || 'Not set'}</Text></View></View>
-              <View style={styles.infoRow}><Text style={styles.infoIcon}>📍</Text><View style={{flex:1}}><Text style={styles.infoLabel}>Address</Text><Text style={styles.infoValue}>{user?.user?.address || 'Not set'}</Text></View></View>
-              <View style={styles.infoRow}><Text style={styles.infoIcon}>💼</Text><View style={{flex:1}}><Text style={styles.infoLabel}>Experience</Text><Text style={styles.infoValue}>8 Years</Text></View></View>
+              <View style={styles.infoRow}><Text style={styles.infoIcon}>✉️</Text><View style={{flex:1}}><Text style={styles.infoLabel}>Email</Text><Text style={styles.infoValue}>{user?.email || 'Not set'}</Text></View></View>
+              <View style={styles.infoRow}><Text style={styles.infoIcon}>📍</Text><View style={{flex:1}}><Text style={styles.infoLabel}>Address</Text><Text style={styles.infoValue}>{user?.address || 'Not set'}</Text></View></View>
+              <View style={styles.infoRow}><Text style={styles.infoIcon}>💼</Text><View style={{flex:1}}><Text style={styles.infoLabel}>Experience</Text><Text style={styles.infoValue}>{user?.experience ? `${user.experience} Years` : '8 Years'}</Text></View></View>
             </View>
           </View>
 
           <View style={styles.section}>
             <View style={styles.sampleHeader}><Text style={styles.sectionLabel}>Sample Work</Text>
-            <Pressable onPress={() => {}}><Text style={styles.linkText}>Edit</Text></Pressable></View>
+            <Pressable onPress={() => router.push('/tailor/sample-work-edit')}><Text style={styles.linkText}>Edit</Text></Pressable></View>
             <View style={styles.grid}>
               {sampleWork.map((i) => (
                 <View key={i} style={[styles.sampleBox, { backgroundColor: '#f3f4f6' }]}>

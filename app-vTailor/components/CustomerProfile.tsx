@@ -15,8 +15,8 @@ const CustomerProfile = () => {
   const muted = useThemeColor({}, 'muted');
 
   const menuItems = [
-    { icon: '⚙️', label: 'Settings' },
-    { icon: '❓', label: 'Help & Support' },
+    { icon: '⚙️', label: 'Settings', path: '/customer/settings' },
+    { icon: '❓', label: 'Help & Support', path: '/customer/help' },
   ];
 
   const handleLogout = () => {
@@ -33,7 +33,7 @@ const CustomerProfile = () => {
             <ThemedText style={styles.profileName}>{user?.name || 'Customer Name'}</ThemedText>
             <ThemedText style={[styles.profilePhone, { color: muted }]}>{user?.email || '+92 300 1234567'}</ThemedText>
           </View>
-          <Pressable style={[styles.editBtn, { backgroundColor: card }]}><ThemedText style={styles.editIcon}>✏️</ThemedText></Pressable>
+          <Pressable style={[styles.editBtn, { backgroundColor: card }]} onPress={() => router.push('/customer/profile-edit')}><ThemedText style={styles.editIcon}>✏️</ThemedText></Pressable>
         </View>
       </View>
 
@@ -65,7 +65,7 @@ const CustomerProfile = () => {
 
         <View style={styles.section}>
           {menuItems.map((item) => (
-            <Pressable key={item.label} style={styles.menuItem}>
+            <Pressable key={item.label} style={styles.menuItem} onPress={() => router.push(item.path)}>
               <View style={styles.menuIconBox}><ThemedText style={styles.menuIcon}>{item.icon}</ThemedText></View>
               <ThemedText style={styles.menuLabel}>{item.label}</ThemedText>
               <ThemedText style={styles.menuArrow}>→</ThemedText>
