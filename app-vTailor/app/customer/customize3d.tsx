@@ -79,7 +79,15 @@ export default function Customize3D() {
 
       <ScrollView contentContainerStyle={styles.scroll}>
         <View style={[styles.preview, { backgroundColor: card, borderColor: inputBorder }]}> 
-          {modelId === 'shalwar-kameez' ? (
+          {modelId === 'maxi' ? (
+            <Image source={require('../../2d model/Maxi 1.jpeg')} style={styles.previewImage} resizeMode="contain" />
+          ) : modelId === 'kurti' ? (
+            <Image source={require('../../2d model/kurti 2.jpeg')} style={styles.previewImage} resizeMode="contain" />
+          ) : modelId === 'short-frock' ? (
+            <Image source={require('../../2d model/short frock.jpeg')} style={styles.previewImage} resizeMode="contain" />
+          ) : modelId === 'long-frock' ? (
+            <Image source={require('../../2d model/long frock 1.jpeg')} style={styles.previewImage} resizeMode="contain" />
+          ) : modelId === 'shalwar-kameez' ? (
             <Image source={require('../../2d model/shalwar kameez 1.jpeg')} style={styles.previewImage} resizeMode="contain" />
           ) : (
             <ThemedText>3D Avatar Preview</ThemedText>
