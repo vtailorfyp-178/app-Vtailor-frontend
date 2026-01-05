@@ -18,6 +18,7 @@ const CustomerHome = () => {
 
   const quickActions = [
     { label: 'Customize', icon: '🎨', route: '/customer/select2d' },
+    { label: 'My Designs', icon: '🖼️', route: '/customer/my-customizations' },
     { label: 'Measurements', icon: '📏', route: '/customer/measurements' },
     { label: 'Find Tailors', icon: '🔍', route: '/customer/find-tailors' },
   ];

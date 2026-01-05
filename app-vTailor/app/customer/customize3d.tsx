@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { View, ScrollView, Pressable, StyleSheet, Image } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -53,17 +54,46 @@ export default function Customize3D() {
   const inputBorder = useThemeColor({}, 'inputBorder');
 
   const [activeTab, setActiveTab] = useState<TabId>('neck');
-  const [selections, setSelections] = useState<Record<TabId, string | null>>({
+  const defaultSelections: Record<TabId, string | null> = {
     neck: null,
     sleeves: null,
     length: null,
     accessories: null,
     fabric: null,
     colors: null,
-  });
+  };
+
+  const initialSelections: Record<TabId, string | null> = (() => {
+    try {
+      const s = params?.selections ? JSON.parse(params.selections as string) : null;
+      return s ? { ...defaultSelections, ...(s as any) } : defaultSelections;
+    } catch (e) {
+      return defaultSelections;
+    }
+  })();
+
+  const [selections, setSelections] = useState<Record<TabId, string | null>>(initialSelections);
 
   const handleSelect = (tab: TabId, id: string) => {
     setSelections((p) => ({ ...p, [tab]: id }));
+  };
+
+  const saveCustomization = async () => {
+    try {
+      const listRaw = await AsyncStorage.getItem('CUSTOMIZATIONS');
+      const list = listRaw ? JSON.parse(listRaw) : [];
+      const item = {
+        id: Date.now().toString(),
+        modelId,
+        modelName: (params.modelName as string) || '',
+        selections,
+        createdAt: new Date().toISOString(),
+      };
+      list.push(item);
+      await AsyncStorage.setItem('CUSTOMIZATIONS', JSON.stringify(list));
+    } catch (e) {
+      // ignore storage errors for now
+    }
   };
 
   const completed = Object.values(selections).filter(Boolean).length;
@@ -127,9 +157,20 @@ export default function Customize3D() {
         </View>
       </ScrollView>
 
-      <View style={[styles.footer, { borderTopColor: inputBorder, backgroundColor: card }]}> 
-        <Pressable onPress={() => (router as any).push('/customer/find-tailors')} disabled={!isComplete} style={[styles.proceed, { backgroundColor: isComplete ? tint : '#f3f4f6' }]}>
-          <ThemedText style={{ color: isComplete ? '#fff' : '#999' }}>{isComplete ? 'Proceed to Find Tailor' : `Complete selections (${completed}/${tabs.length})`}</ThemedText>
+        <View style={[styles.footer, { borderTopColor: inputBorder, backgroundColor: card }]}> 
+        <Pressable
+          onPress={async () => {
+            if (!isComplete) return;
+            await saveCustomization();
+            (router as any).push({
+              pathname: '/customer/preview-customization',
+              params: { modelId, modelName: (params.modelName as string) || '', selections: JSON.stringify(selections) },
+            });
+          }}
+          disabled={!isComplete}
+          style={[styles.proceed, { backgroundColor: isComplete ? tint : '#f3f4f6' }]}
+        >
+          <ThemedText style={{ color: isComplete ? '#fff' : '#999' }}>{isComplete ? 'Preview Customization' : `Complete selections (${completed}/${tabs.length})`}</ThemedText>
         </Pressable>
       </View>
     </ThemedView>
