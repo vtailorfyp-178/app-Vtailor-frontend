@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { View, ScrollView, Pressable, StyleSheet } from 'react-native';
-import { useRouter } from 'expo-router';
+import { View, ScrollView, Pressable, StyleSheet, Image } from 'react-native';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useThemeColor } from '@/hooks/use-theme-color';
@@ -46,6 +46,8 @@ const options: Record<TabId, Array<{ id: string; name: string; preview: string }
 
 export default function Customize3D() {
   const router = useRouter();
+  const params = useLocalSearchParams();
+  const modelId = (params.modelId as string) || '';
   const tint = useThemeColor({}, 'tint');
   const card = useThemeColor({}, 'card');
   const inputBorder = useThemeColor({}, 'inputBorder');
@@ -77,7 +79,11 @@ export default function Customize3D() {
 
       <ScrollView contentContainerStyle={styles.scroll}>
         <View style={[styles.preview, { backgroundColor: card, borderColor: inputBorder }]}> 
-          <ThemedText>3D Avatar Preview</ThemedText>
+          {modelId === 'shalwar-kameez' ? (
+            <Image source={require('../../2d model/shalwar kameez 1.jpeg')} style={styles.previewImage} resizeMode="contain" />
+          ) : (
+            <ThemedText>3D Avatar Preview</ThemedText>
+          )}
         </View>
 
         <View style={styles.suggestions}>
@@ -130,6 +136,7 @@ const styles = StyleSheet.create({
   preview: { height: 220, borderRadius: 12, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
   suggestions: { marginTop: 12 },
   suggCard: { padding: 12, borderRadius: 12, marginRight: 8, borderWidth: 1 },
+  previewImage: { width: '100%', height: '100%' },
   optionsWrap: { paddingTop: 12 },
   tabBtn: { padding: 10, borderRadius: 12, marginRight: 8, alignItems: 'center' },
   optCard: { width: 88, padding: 10, borderRadius: 12, marginRight: 8, borderWidth: 1, alignItems: 'center' },

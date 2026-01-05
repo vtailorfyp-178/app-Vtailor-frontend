@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, ScrollView, TextInput, Pressable, StyleSheet } from 'react-native';
+import { View, ScrollView, TextInput, Pressable, StyleSheet, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -33,11 +33,16 @@ export default function MeasurementForm() {
   const [shirt, setShirt] = useState<Record<string, string>>({});
   const [trouser, setTrouser] = useState<Record<string, string>>({});
   const [focusedField, setFocusedField] = useState<string | null>(null);
+  // Use the static measurement image from the 2d model folder
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const measurementImg = require('../../2d model/measurment.jpg');
 
   const shirtProgress = Object.values(shirt).filter(Boolean).length;
   const trouserProgress = Object.values(trouser).filter(Boolean).length;
   const shirtComplete = shirtProgress === shirtFields.length;
   const trouserComplete = trouserProgress === trouserFields.length;
+
+  // No picker: show static guidance image
 
   return (
     <ThemedView style={styles.container}>
@@ -52,7 +57,7 @@ export default function MeasurementForm() {
           <ThemedText style={{ fontWeight: '700', marginBottom: 8 }}>3D Model Guidance</ThemedText>
           <ThemedText style={{ marginBottom: 6, color: muted }}>{focusedField ? `Guidance: measure the ${focusedField}` : 'Tap a measurement field below to see guidance on the model.'}</ThemedText>
           <View style={[styles.modelPlaceholder, { borderColor: inputBorder }]}> 
-            <ThemedText style={{ fontSize: 40 }}>{focusedField ? '🧍‍♂️' : '👤'}</ThemedText>
+            <Image source={measurementImg} style={styles.modelImage} resizeMode="contain" />
           </View>
         </View>
 
@@ -127,6 +132,7 @@ const styles = StyleSheet.create({
   input: { minWidth: 120, borderWidth: 1, borderRadius: 10, padding: 8, height: 44 },
   footer: { padding: 12 },
   proceed: { padding: 14, borderRadius: 12, alignItems: 'center' },
-  previewBox: { padding: 12, borderRadius: 12, borderWidth: 1, marginBottom: 12 },
-  modelPlaceholder: { height: 140, borderRadius: 12, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  previewBox: { padding: 16, borderRadius: 12, borderWidth: 1, marginBottom: 16 },
+  modelPlaceholder: { height: 260, borderRadius: 12, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  modelImage: { width: '100%', height: 260, borderRadius: 12 },
 });

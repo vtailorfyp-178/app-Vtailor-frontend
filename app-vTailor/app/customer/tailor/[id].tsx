@@ -49,10 +49,10 @@ export default function TailorDetail() {
 
   useEffect(() => {
     if (requestStatus === 'accepted') {
-      // Show notification after acceptance
+      // Redirect customer to deciding price page so both sides can see/decide price and days
       const timer = setTimeout(() => {
-        // Could integrate with notification system here
-      }, 2000);
+        (router as any).replace({ pathname: '/customer/decided-price', params: { orderId: `REQ${tailorId}`, customerName: tailor.name, price: '0', days: '0' } });
+      }, 1200);
       return () => clearTimeout(timer);
     }
   }, [requestStatus]);
@@ -106,10 +106,10 @@ export default function TailorDetail() {
               {tailor.name} has accepted your request and will contact you soon.
             </ThemedText>
             <Pressable
-              onPress={() => (router as any).replace('/customer')}
+              onPress={() => (router as any).replace({ pathname: '/customer/decided-price', params: { orderId: `REQ${tailorId}`, customerName: tailor.name, price: '0', days: '0' } })}
               style={[styles.proceedBtn, { backgroundColor: tint }]}
             >
-              <ThemedText style={{ color: '#fff', fontWeight: '600' }}>Back to Dashboard</ThemedText>
+              <ThemedText style={{ color: '#fff', fontWeight: '600' }}>Proceed to Decide Price</ThemedText>
             </Pressable>
           </View>
         )}

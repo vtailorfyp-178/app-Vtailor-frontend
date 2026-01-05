@@ -47,15 +47,12 @@ export default function TailorRequests() {
   const [requests, setRequests] = useState<CustomerRequest[]>(PENDING_REQUESTS);
 
   const handleAccept = (reqId: string) => {
-    setRequests((prev) =>
-      prev.map((req) =>
-        req.id === reqId ? { ...req, status: 'accepted' } : req
-      )
-    );
-    // Show success notification
-    setTimeout(() => {
-      // Could add toast notification here
-    }, 500);
+    const acceptedReq = requests.find((r) => r.id === reqId);
+    if (acceptedReq) {
+      // Navigate tailor to decide price page for this request
+      (router as any).push({ pathname: '/tailor/decided-price', params: { orderId: acceptedReq.id, customerName: acceptedReq.customerName, price: String(acceptedReq.budget) } });
+      setRequests((prev) => prev.map((req) => (req.id === reqId ? { ...req, status: 'accepted' } : req)));
+    }
   };
 
   const handleDecline = (reqId: string) => {
