@@ -5,11 +5,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useThemeColor } from '@/hooks/use-theme-color';
 
-const logo = require('../../assets/images/vTailorlogo.jpeg');
-const shalwarKameezImage = require('../../2d model/shalwar kameez.jpg');
-const ghraraImage = require('../../2d model/ghrara.jpg');
-const shararaImage = require('../../2d model/shrara.jpg');
-const lehengaImage = require('../../2d model/lehanga.jpg');
+import { logo, modelPreviewImages } from '../../../constants/images';
 
 const traditionalDresses = [
   { id: 'shalwar-kameez', name: 'Shalwar Kameez' },
@@ -47,7 +43,7 @@ export default function TraditionalDresses() {
             style={[styles.card, { backgroundColor: card, borderColor: inputBorder }]}
           >
 
-            <Image source={dress.id === 'shalwar-kameez' ? shalwarKameezImage : dress.id === 'ghagra' ? ghraraImage : dress.id === 'sharara' ? shararaImage : dress.id === 'lehenga' ? lehengaImage : logo} style={styles.thumb} resizeMode="contain" />
+            <Image source={modelPreviewImages[dress.id] ?? logo} style={styles.thumb} resizeMode="contain" />
             <ThemedText style={styles.dressName}>{dress.name}</ThemedText>
           </Pressable>
         ))}

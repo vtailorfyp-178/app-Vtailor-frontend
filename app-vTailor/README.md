@@ -48,3 +48,43 @@ Join our community of developers creating universal apps.
 
 - [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
 - [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+
+
+
+Projects Flow:
+                           App Starts
+                              ↓
+                           index.tsx
+                              ↓
+                           SplashScreen Component
+                              ↓
+                           Terms Screen (terms.tsx)
+                              ↓
+                           Auth Screen (auth.tsx)
+                              ↓
+                           Profile Setup
+                              ↓
+                           Role Selection (AuthContext Contexts)
+                              ↓
+                           Customer OR Tailor Dashboard
+                              ↓
+            if customer
+            ↓
+   app/customer.tsx
+         ↓
+   BottomTabBar, home   , chat, wallet, profile, order
+                   ↓
+                  select2d.tsx
+                     ↓
+                  dresses (folder)
+                     ↓
+                  customize3d.tsx
+                     ↓
+                  preview-customization
+                     ↓
+                  find-tailors
+                     ↓
+
+                     ↓
+   ↓
+Wallet / Orders / Chat / Profile

@@ -5,10 +5,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useThemeColor } from '@/hooks/use-theme-color';
 
-const logo = require('../../assets/images/vTailorlogo.jpeg');
-const traditionalDressesImage = require('../../2d model/traditional dresses.jpg');
-const casualDressesImage = require('../../2d model/casual dresses.jpg');
-const partyFormalDressesImage = require('../../2d model/partyformal 2.jpg');
+import { logo, modelPreviewImages } from '../../constants/images';
 
 const models = [
   { id: 'traditional', name: 'Traditional Dresses' },
@@ -38,26 +35,21 @@ export default function Select2D() {
             key={m.id}
             onPress={() => {
               if (m.id === 'traditional') {
-                (router as any).push('/customer/traditional-dresses');
+                (router as any).push('/customer/dresses/traditional-dresses');
               } else if (m.id === 'casual') {
-                (router as any).push('/customer/casual-dresses');
+                (router as any).push('/customer/dresses/casual-dresses');
               } else if (m.id === 'party-formal') {
-                (router as any).push('/customer/formal-dresses');
+                (router as any).push('/customer/dresses/party-formal-dresses');
               } else {
                 (router as any).push({ pathname: '/customer/customize3d', params: { modelId: m.id, modelName: m.name } });
               }
             }}
             style={[styles.card, { backgroundColor: card, borderColor: inputBorder }]}
           >
-            <Image 
-              source={
-                m.id === 'traditional' ? traditionalDressesImage : 
-                m.id === 'casual' ? casualDressesImage : 
-                m.id === 'party-formal' ? partyFormalDressesImage :
-                logo
-              } 
-              style={styles.thumb} 
-              resizeMode="contain" 
+            <Image
+              source={modelPreviewImages[m.id] ?? logo}
+              style={styles.thumb}
+              resizeMode={modelPreviewImages[m.id] ? 'contain' : 'cover'}
             />
             <ThemedText style={styles.modelName}>{m.name}</ThemedText>
           </Pressable>

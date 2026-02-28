@@ -5,26 +5,9 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { Ionicons } from '@expo/vector-icons';
-
-type TailorData = {
-  id: number;
-  name: string;
-  rating: number;
-  reviews: number;
-  experience: number;
-  distance: string;
-  specialization: string[];
-  avatar: string;
-  isAvailable: boolean;
-};
+import { Tailor, TAILORS } from '../../constants/tailors';
 
 type RequestStatus = 'idle' | 'sending' | 'accepted' | 'declined';
-
-const TAILORS: Record<number, TailorData> = {
-  1: { id: 1, name: 'Ahmad Master Tailor', rating: 4.9, reviews: 156, experience: 15, distance: '0.8 km', specialization: ['Formal', 'Wedding'], avatar: '👨‍🔧', isAvailable: true },
-  2: { id: 2, name: 'Karachi Tailoring House', rating: 4.7, reviews: 89, experience: 10, distance: '1.2 km', specialization: ['Casual'], avatar: '🧵', isAvailable: true },
-  3: { id: 3, name: 'Classic Stitchers', rating: 4.8, reviews: 210, experience: 20, distance: '2.5 km', specialization: ['Traditional'], avatar: '✂️', isAvailable: false },
-};
 
 export default function TailorDetail() {
   const router = useRouter();

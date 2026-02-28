@@ -4,24 +4,9 @@ import { useRouter } from 'expo-router';
 import { ThemedView } from '@/components/themed-view';
 import { ThemedText } from '@/components/themed-text';
 import { useThemeColor } from '@/hooks/use-theme-color';
+import { Tailor, ALL } from '../../constants/tailors';
 
-type Tailor = {
-  id: number;
-  name: string;
-  rating: number;
-  reviews: number;
-  experience: number;
-  distance: string;
-  specialization: string[];
-  avatar: string;
-  isAvailable: boolean;
-};
-
-const ALL: Tailor[] = [
-  { id: 1, name: 'Ahmad Master Tailor', rating: 4.9, reviews: 156, experience: 15, distance: '0.8 km', specialization: ['Formal', 'Wedding'], avatar: '👨‍🔧', isAvailable: true },
-  { id: 2, name: 'Karachi Tailoring House', rating: 4.7, reviews: 89, experience: 10, distance: '1.2 km', specialization: ['Casual'], avatar: '🧵', isAvailable: true },
-  { id: 3, name: 'Classic Stitchers', rating: 4.8, reviews: 210, experience: 20, distance: '2.5 km', specialization: ['Traditional'], avatar: '✂️', isAvailable: false },
-];
+// tailors data imported from constants/tailors
 
 export default function FindTailors() {
   const router = useRouter();
@@ -55,7 +40,7 @@ export default function FindTailors() {
       <ScrollView contentContainerStyle={{ padding: 12 }}>
         {tailors.map((t) => (
           <View key={t.id} style={[styles.card, { backgroundColor: card, borderColor: inputBorder }]}> 
-            <Pressable onPress={() => (router as any).push(`/customer/tailor/${t.id}`)}>
+            <Pressable onPress={() => (router as any).push({ pathname: '/customer/Tailor[id]', params: { id: t.id } })}>
               <ThemedText style={{ fontWeight: '700' }}>{t.name}</ThemedText>
               <ThemedText style={{ color: muted }}>{t.specialization.join(', ')}</ThemedText>
               <ThemedText style={{ marginTop: 6 }}>{t.distance} • {t.experience}+ yrs</ThemedText>
@@ -64,7 +49,7 @@ export default function FindTailors() {
             <View style={styles.actionsRow}>
               <Pressable
                 style={[styles.actionBtn, { borderColor: inputBorder }]}
-                onPress={() => (router as any).push(`/customer/tailor/${t.id}`)}
+                onPress={() => (router as any).push({ pathname: '/customer/Tailor[id]', params: { id: t.id } })}
               >
                 <ThemedText style={styles.actionText}>View Profile</ThemedText>
               </Pressable>

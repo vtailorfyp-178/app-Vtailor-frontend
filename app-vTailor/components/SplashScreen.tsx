@@ -2,8 +2,8 @@ import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Animated, Image, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useThemeColor } from '@/hooks/use-theme-color';
+import { logo } from '../constants/images';
 
-const logo = require('../assets/images/vTailorlogo.jpeg');
 
 export default function SplashScreen() {
   const router = useRouter();

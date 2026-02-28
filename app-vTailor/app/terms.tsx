@@ -5,8 +5,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { useAuth } from '@/contexts/AuthContext';
-
-const logo = require('../assets/images/vTailorlogo.jpeg');
+import { logo } from '../constants/images';
 
 export default function Terms() {
   const router = useRouter();

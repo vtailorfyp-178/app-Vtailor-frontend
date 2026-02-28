@@ -35,7 +35,7 @@ export default function MeasurementForm() {
   const [focusedField, setFocusedField] = useState<string | null>(null);
   // Use the static measurement image from the 2d model folder
   // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const measurementImg = require('../../2d model/measurment.jpg');
+  const measurementImg = require('../../images/2d model/measurment.jpg');
 
   const shirtProgress = Object.values(shirt).filter(Boolean).length;
   const trouserProgress = Object.values(trouser).filter(Boolean).length;

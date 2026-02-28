@@ -6,8 +6,7 @@ import { ThemedView } from '@/components/themed-view';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { useAuth } from '@/contexts/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
-
-const logo = require('../assets/images/vTailorlogo.jpeg');
+import { logo } from '../constants/images';
 
 export default function ProfileSetup() {
   const router = useRouter();

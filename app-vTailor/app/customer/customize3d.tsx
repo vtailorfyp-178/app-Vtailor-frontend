@@ -5,6 +5,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useThemeColor } from '@/hooks/use-theme-color';
+import { modelPreviewImages } from '../../constants/images';
 
 type TabId = 'neck' | 'sleeves' | 'length' | 'accessories' | 'fabric' | 'colors';
 
@@ -109,19 +110,14 @@ export default function Customize3D() {
 
       <ScrollView contentContainerStyle={styles.scroll}>
         <View style={[styles.preview, { backgroundColor: card, borderColor: inputBorder }]}> 
-          {modelId === 'maxi' ? (
-            <Image source={require('../../2d model/Maxi 1.jpeg')} style={styles.previewImage} resizeMode="contain" />
-          ) : modelId === 'kurti' ? (
-            <Image source={require('../../2d model/kurti 2.jpeg')} style={styles.previewImage} resizeMode="contain" />
-          ) : modelId === 'short-frock' ? (
-            <Image source={require('../../2d model/short frock.jpeg')} style={styles.previewImage} resizeMode="contain" />
-          ) : modelId === 'long-frock' ? (
-            <Image source={require('../../2d model/long frock 1.jpeg')} style={styles.previewImage} resizeMode="contain" />
-          ) : modelId === 'shalwar-kameez' ? (
-            <Image source={require('../../2d model/shalwar kameez 1.jpeg')} style={styles.previewImage} resizeMode="contain" />
-          ) : (
-            <ThemedText>3D Avatar Preview</ThemedText>
-          )}
+          {(() => {
+            const img = modelPreviewImages[modelId];
+            return img ? (
+              <Image source={img} style={styles.previewImage} resizeMode="contain" />
+            ) : (
+              <ThemedText>3D Avatar Preview</ThemedText>
+            );
+          })()}
         </View>
 
         <View style={styles.suggestions}>

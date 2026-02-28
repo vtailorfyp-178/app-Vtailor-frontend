@@ -1,85 +1,110 @@
-import { useThemeColor } from '@/hooks/use-theme-color';
-import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Platform, Pressable, StyleSheet, View } from 'react-native';
+import { useRouter } from 'expo-router';
+import { useThemeColor } from '@/hooks/use-theme-color';
 import { ThemedText } from './themed-text';
 
 interface BottomTabBarProps {
   basePath: 'customer' | 'tailor';
   onTabChange?: (tab: string) => void;
-  activeTab?: string; // optional controlled active tab
+  activeTab?: string;
 }
 
-export const TAB_BAR_HEIGHT = Platform.select({ ios: 90, android: 80, default: 80 });
+export const TAB_BAR_HEIGHT = Platform.select({
+  ios: 90,
+  android: 80,
+  default: 80,
+});
+
+const TABS = [
+  { label: 'Home', icon: '🏠', id: 'home' },
+  { label: 'Orders', icon: '📦', id: 'orders' },
+  { label: 'Chat', icon: '💬', id: 'chat' },
+  { label: 'Wallet', icon: '💰', id: 'wallet' },
+  { label: 'Profile', icon: '👤', id: 'profile' },
+];
 
 const BottomTabBar = ({ basePath, onTabChange, activeTab }: BottomTabBarProps) => {
+  const router = useRouter();
   const [internalTab, setInternalTab] = useState(activeTab || 'home');
 
-  // sync internal state when a controlled activeTab is provided
-  React.useEffect(() => {
+  // Theme colors (called once)
+  const cardColor = useThemeColor({}, 'card');
+  const borderColor = useThemeColor({}, 'inputBorder');
+  const iconBg = useThemeColor({}, 'iconBg');
+  const tintColor = useThemeColor({}, 'tint');
+
+  // Sync with controlled activeTab
+  useEffect(() => {
     if (activeTab) {
       setInternalTab(activeTab);
     }
   }, [activeTab]);
 
-  const customerTabs = [
-    { label: 'Home', icon: '🏠', id: 'home' },
-    { label: 'Orders', icon: '📦', id: 'orders' },
-    { label: 'Chat', icon: '💬', id: 'chat' },
-    { label: 'Wallet', icon: '💰', id: 'wallet' },
-    { label: 'Profile', icon: '👤', id: 'profile' },
-  ];
-
-  const tailorTabs = [
-    { label: 'Home', icon: '🏠', id: 'home' },
-    { label: 'Orders', icon: '📦', id: 'orders' },
-    { label: 'Chat', icon: '💬', id: 'chat' },
-    { label: 'Wallet', icon: '💰', id: 'wallet' },
-    { label: 'Profile', icon: '👤', id: 'profile' },
-  ];
-
-  const tabs = basePath === 'customer' ? customerTabs : tailorTabs;
-
-  const handleTabPress = (tabId: string) => {
-    setInternalTab(tabId);
-    if (onTabChange) {
-      onTabChange(tabId);
-    }
-  };
-
-  const router = useRouter();
-
   const handleNavigate = (tabId: string) => {
     setInternalTab(tabId);
-    if (onTabChange) onTabChange(tabId);
-    try {
-      // If a parent provided `onTabChange`, assume in-dashboard controlled tabs
-      // and avoid router navigation so the BottomTabBar stays fixed.
-      if (!onTabChange) {
-        const target = tabId === 'home' ? `/${basePath}` : `/${basePath}/${tabId}`;
-        (router as any).push(target);
-      }
-    } catch (e) {
-      // fallback: no-op
+    onTabChange?.(tabId);
+
+    // Only navigate if parent is not controlling tabs
+    if (!onTabChange) {
+      const target =
+        tabId === 'home'
+          ? `/${basePath}`
+          : `/${basePath}/${tabId}`;
+
+      router.push(target as any);
     }
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: useThemeColor({}, 'card'), borderTopColor: useThemeColor({}, 'inputBorder') }]} pointerEvents="box-none">
-      {tabs.map((tab) => (
-        <Pressable
-          key={tab.id}
-          style={[styles.tab, internalTab === tab.id && { backgroundColor: useThemeColor({}, 'iconBg'), borderRadius: 12, marginHorizontal: 2 }]}
-          onPress={() => handleNavigate(tab.id)}
-        >
-          <ThemedText style={[styles.icon, internalTab === tab.id && styles.activeIcon]}>
-            {tab.icon}
-          </ThemedText>
-          <ThemedText style={[styles.label, internalTab === tab.id && { color: useThemeColor({}, 'tint'), fontWeight: '600' }]}>
-            {tab.label}
-          </ThemedText>
-        </Pressable>
-      ))}
+    <View
+      style={[
+        styles.container,
+        {
+          backgroundColor: cardColor,
+          borderTopColor: borderColor,
+        },
+      ]}
+    >
+      {TABS.map((tab) => {
+        const isActive = internalTab === tab.id;
+
+        return (
+          <Pressable
+            key={tab.id}
+            style={[
+              styles.tab,
+              isActive && {
+                backgroundColor: iconBg,
+                borderRadius: 12,
+                marginHorizontal: 2,
+              },
+            ]}
+            onPress={() => handleNavigate(tab.id)}
+          >
+            <ThemedText
+              style={[
+                styles.icon,
+                isActive && styles.activeIcon,
+              ]}
+            >
+              {tab.icon}
+            </ThemedText>
+
+            <ThemedText
+              style={[
+                styles.label,
+                isActive && {
+                  color: tintColor,
+                  fontWeight: '600',
+                },
+              ]}
+            >
+              {tab.label}
+            </ThemedText>
+          </Pressable>
+        );
+      })}
     </View>
   );
 };
@@ -96,16 +121,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderTopWidth: 1,
     paddingTop: 8,
-    paddingBottom: Platform.select({ ios: 20, android: 12, default: 12 }),
+    paddingBottom: Platform.select({
+      ios: 20,
+      android: 12,
+      default: 12,
+    }),
     zIndex: 50,
   },
   tab: {
     alignItems: 'center',
     padding: 8,
     flex: 1,
-  },
-  activeTab: {
-    
   },
   icon: {
     fontSize: 24,
@@ -119,9 +145,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     color: '#6b7280',
     fontWeight: '500',
-  },
-  activeLabel: {
-    fontWeight: '600',
   },
 });
 

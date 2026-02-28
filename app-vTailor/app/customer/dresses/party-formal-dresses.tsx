@@ -5,10 +5,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useThemeColor } from '@/hooks/use-theme-color';
 
-const logo = require('../../assets/images/vTailorlogo.jpeg');
-const maxiImage = require('../../2d model/maxi.jpg');
-const gownImage = require('../../2d model/gown 2.jpg');
-const longFrockImage = require('../../2d model/long frock 2.jpg');
+import { logo, modelPreviewImages } from '../../../constants/images';
 
 const formalDresses = [
   { id: 'maxi', name: 'Maxi' },
@@ -45,7 +42,7 @@ export default function FormalDresses() {
             style={[styles.card, { backgroundColor: card, borderColor: inputBorder }]}
           >
 
-            <Image source={dress.id === 'maxi' ? maxiImage : dress.id === 'gown' ? gownImage : dress.id === 'long-frock' ? longFrockImage : logo} style={styles.thumb} resizeMode={dress.id === 'maxi' || dress.id === 'gown' || dress.id === 'long-frock' ? 'contain' : 'cover'} />
+            <Image source={modelPreviewImages[dress.id] ?? logo} style={styles.thumb} resizeMode={modelPreviewImages[dress.id] ? 'contain' : 'cover'} />
             <ThemedText style={styles.dressName}>{dress.name}</ThemedText>
           </Pressable>
         ))}

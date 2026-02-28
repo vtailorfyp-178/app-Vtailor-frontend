@@ -8,6 +8,8 @@ import { useThemeColor } from '@/hooks/use-theme-color';
 
 type Item = { id: string; modelId: string; modelName: string; selections: Record<string, string | null>; createdAt: string };
 
+import { modelPreviewImages } from '../../constants/images';
+
 export default function MyCustomizations() {
   const router = useRouter();
   const tint = useThemeColor({}, 'tint');
@@ -29,14 +31,7 @@ export default function MyCustomizations() {
     load();
   }, []);
 
-  const imageFor = (modelId: string) => {
-    if (modelId === 'maxi') return require('../../2d model/Maxi 1.jpeg');
-    if (modelId === 'kurti') return require('../../2d model/kurti 2.jpeg');
-    if (modelId === 'short-frock') return require('../../2d model/short frock.jpeg');
-    if (modelId === 'long-frock') return require('../../2d model/long frock 1.jpeg');
-    if (modelId === 'shalwar-kameez') return require('../../2d model/shalwar kameez 1.jpeg');
-    return null;
-  };
+  const imageFor = (modelId: string) => modelPreviewImages[modelId] ?? null;
 
   return (
     <ThemedView style={styles.container}>

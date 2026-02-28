@@ -5,6 +5,8 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useThemeColor } from '@/hooks/use-theme-color';
 
+import { modelPreviewImages } from '../../constants/images';
+
 export default function PreviewCustomization() {
   const router = useRouter();
   const params = useLocalSearchParams();
@@ -22,18 +24,7 @@ export default function PreviewCustomization() {
   const card = useThemeColor({}, 'card');
   const inputBorder = useThemeColor({}, 'inputBorder');
 
-  const imageSource =
-    modelId === 'maxi'
-      ? require('../../2d model/Maxi 1.jpeg')
-      : modelId === 'kurti'
-      ? require('../../2d model/kurti 2.jpeg')
-      : modelId === 'short-frock'
-      ? require('../../2d model/short frock.jpeg')
-      : modelId === 'long-frock'
-      ? require('../../2d model/long frock 1.jpeg')
-      : modelId === 'shalwar-kameez'
-      ? require('../../2d model/shalwar kameez 1.jpeg')
-      : null;
+  const imageSource = modelPreviewImages[modelId] ?? null;
 
   return (
     <ThemedView style={styles.container}>
