@@ -5,7 +5,8 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { Ionicons } from '@expo/vector-icons';
-import { Tailor, TAILORS } from '../../constants/tailors';
+import { Tailor, TAILORS } from '@/constants/tailors';
+import { HeaderBar, Tag, StatusCard, AvailabilityBadge } from '@/components';
 
 type RequestStatus = 'idle' | 'sending' | 'accepted' | 'declined';
 
@@ -43,78 +44,23 @@ export default function TailorDetail() {
   if (!tailor) {
     return (
       <ThemedView style={styles.container}>
-        <View style={[styles.header, { backgroundColor: tint }]}>
-          <Pressable onPress={() => (router as any).back()}>
-            <ThemedText style={{ color: '#fff' }}>{'< Back'}</ThemedText>
-          </Pressable>
-          <ThemedText style={styles.headerTitle}>Tailor Not Found</ThemedText>
-          <View style={{ width: 56 }} />
-        </View>
+        <HeaderBar title="Tailor Not Found" onBack={() => (router as any).back()} />
       </ThemedView>
     );
   }
 
   return (
     <ThemedView style={styles.container}>
-      <View style={[styles.header, { backgroundColor: tint }]}>
-        <Pressable onPress={() => (router as any).back()}>
-          <ThemedText style={{ color: '#fff' }}>{'< Back'}</ThemedText>
-        </Pressable>
-        <ThemedText style={styles.headerTitle}>Tailor Profile</ThemedText>
-        <View style={{ width: 56 }} />
-      </View>
+      <HeaderBar title="Tailor Profile" onBack={() => (router as any).back()} />
 
       <ScrollView contentContainerStyle={styles.scroll}>
         {/* Sending Request Status */}
-        {requestStatus === 'sending' && (
-          <View style={[styles.statusCard, { backgroundColor: '#fffbeb', borderColor: '#b45309' }]}>
-            <ThemedText style={{ fontSize: 40, marginBottom: 12 }}>⏳</ThemedText>
-            <ThemedText style={{ fontSize: 18, fontWeight: '700', marginBottom: 8, textAlign: 'center' }}>
-              Request Sending...
-            </ThemedText>
-            <ThemedText style={[styles.statusText, { color: '#b45309' }]}>
-              Waiting for {tailor.name} to accept your request
-            </ThemedText>
-          </View>
-        )}
-
-        {/* Accepted Status */}
-        {requestStatus === 'accepted' && (
-          <View style={[styles.statusCard, { backgroundColor: '#ecfdf5', borderColor: '#059669' }]}>
-            <ThemedText style={{ fontSize: 40, marginBottom: 12 }}>✅</ThemedText>
-            <ThemedText style={{ fontSize: 18, fontWeight: '700', marginBottom: 8, textAlign: 'center' }}>
-              Request Accepted!
-            </ThemedText>
-            <ThemedText style={[styles.statusText, { color: '#059669' }]}>
-              {tailor.name} has accepted your request and will contact you soon.
-            </ThemedText>
-            <Pressable
-              onPress={() => (router as any).replace({ pathname: '/customer/decided-price', params: { orderId: `REQ${tailorId}`, customerName: tailor.name, price: '0', days: '0' } })}
-              style={[styles.proceedBtn, { backgroundColor: tint }]}
-            >
-              <ThemedText style={{ color: '#fff', fontWeight: '600' }}>Proceed to Decide Price</ThemedText>
-            </Pressable>
-          </View>
-        )}
-
-        {/* Declined Status */}
-        {requestStatus === 'declined' && (
-          <View style={[styles.statusCard, { backgroundColor: '#fff1f2', borderColor: '#dc2626' }]}>
-            <ThemedText style={{ fontSize: 40, marginBottom: 12 }}>❌</ThemedText>
-            <ThemedText style={{ fontSize: 18, fontWeight: '700', marginBottom: 8, textAlign: 'center' }}>
-              Request Declined
-            </ThemedText>
-            <ThemedText style={[styles.statusText, { color: '#dc2626' }]}>
-              {tailor.name} cannot take this order at the moment. Try finding another tailor.
-            </ThemedText>
-            <Pressable
-              onPress={() => (router as any).replace('/customer/find-tailors')}
-              style={[styles.proceedBtn, { backgroundColor: tint }]}
-            >
-              <ThemedText style={{ color: '#fff', fontWeight: '600' }}>Find Another Tailor</ThemedText>
-            </Pressable>
-          </View>
-        )}
+        <StatusCard
+          type={requestStatus === 'idle' ? 'empty' : requestStatus}
+          message={requestStatus === 'sending' ? `Waiting for ${tailor.name} to accept your request` : requestStatus === 'accepted' ? `${tailor.name} has accepted your request and will contact you soon.` : requestStatus === 'declined' ? `${tailor.name} cannot take this order at the moment. Try finding another tailor.` : ''}
+          onPrimary={requestStatus === 'accepted' ? () => (router as any).replace({ pathname: '/customer/decided-price', params: { orderId: `REQ${tailorId}`, customerName: tailor.name, price: '0', days: '0' } }) : requestStatus === 'declined' ? () => (router as any).replace('/customer/find-tailors') : undefined}
+          primaryLabel={requestStatus === 'accepted' ? 'Proceed to Decide Price' : requestStatus === 'declined' ? 'Find Another Tailor' : undefined}
+        />
 
         {/* Tailor Details */}
         {requestStatus === 'idle' && (
@@ -154,7 +100,7 @@ export default function TailorDetail() {
             <View style={[styles.sectionCard, { backgroundColor: card, borderColor: inputBorder }]}>
               <ThemedText style={styles.sectionTitle}>Specialization</ThemedText>
               <View style={styles.tagsContainer}>
-                {tailor.specialization.map((spec, idx) => (
+                {tailor.specialization.map((spec: string, idx: number) => (
                   <View key={idx} style={[styles.tag, { backgroundColor: tint }]}>
                     <ThemedText style={{ color: '#fff', fontSize: 12 }}>{spec}</ThemedText>
                   </View>

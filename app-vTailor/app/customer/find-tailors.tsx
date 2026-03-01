@@ -4,8 +4,8 @@ import { useRouter } from 'expo-router';
 import { ThemedView } from '@/components/themed-view';
 import { ThemedText } from '@/components/themed-text';
 import { useThemeColor } from '@/hooks/use-theme-color';
-import { Tailor, ALL } from '../../constants/tailors';
-
+import { Tailor, ALL } from '@/constants/tailors';
+import { TailorCard, SearchBar, HeaderBar } from '@/components';
 // tailors data imported from constants/tailors
 
 export default function FindTailors() {
@@ -27,40 +27,18 @@ export default function FindTailors() {
 
   return (
     <ThemedView style={styles.container}>
-      <View style={[styles.header, { backgroundColor: tint }]}> 
-        <Pressable onPress={() => (router as any).back()}><ThemedText style={{ color: '#fff' }}>{'< Back'}</ThemedText></Pressable>
-        <ThemedText style={styles.headerTitle}>Find Tailors</ThemedText>
-        <View style={{ width: 56 }} />
-      </View>
+      <HeaderBar title="Find Tailors" onBack={() => (router as any).back()} />
 
-      <View style={[styles.searchWrap, { backgroundColor: card, borderColor: inputBorder }]}> 
-        <TextInput placeholder="Search tailors..." value={query} onChangeText={setQuery} style={styles.searchInput} placeholderTextColor={muted} />
-      </View>
+      <SearchBar value={query} onChange={setQuery} placeholder="Search tailors..." />
 
       <ScrollView contentContainerStyle={{ padding: 12 }}>
         {tailors.map((t) => (
-          <View key={t.id} style={[styles.card, { backgroundColor: card, borderColor: inputBorder }]}> 
-            <Pressable onPress={() => (router as any).push({ pathname: '/customer/Tailor[id]', params: { id: t.id } })}>
-              <ThemedText style={{ fontWeight: '700' }}>{t.name}</ThemedText>
-              <ThemedText style={{ color: muted }}>{t.specialization.join(', ')}</ThemedText>
-              <ThemedText style={{ marginTop: 6 }}>{t.distance} • {t.experience}+ yrs</ThemedText>
-            </Pressable>
-
-            <View style={styles.actionsRow}>
-              <Pressable
-                style={[styles.actionBtn, { borderColor: inputBorder }]}
-                onPress={() => (router as any).push({ pathname: '/customer/Tailor[id]', params: { id: t.id } })}
-              >
-                <ThemedText style={styles.actionText}>View Profile</ThemedText>
-              </Pressable>
-              <Pressable
-                style={[styles.actionBtnFilled, { backgroundColor: tint }]}
-                onPress={() => (router as any).push({ pathname: '/customer/chat', params: { tailorId: t.id, tailorName: t.name } })}
-              >
-                <ThemedText style={[styles.actionText, { color: '#fff' }]}>Chat</ThemedText>
-              </Pressable>
-            </View>
-          </View>
+          <TailorCard
+            key={t.id}
+            tailor={t}
+            onPress={() => (router as any).push({ pathname: '/customer/Tailor[id]', params: { id: t.id } })}
+            onChat={() => (router as any).push({ pathname: '/customer/chat', params: { tailorId: t.id, tailorName: t.name } })}
+          />
         ))}
       </ScrollView>
     </ThemedView>
