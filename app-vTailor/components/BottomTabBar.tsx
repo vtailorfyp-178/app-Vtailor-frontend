@@ -53,9 +53,12 @@ const BottomTabBar = ({ basePath, onTabChange, activeTab }: BottomTabBarProps) =
     setInternalTab(tabId);
     if (onTabChange) onTabChange(tabId);
     try {
-      // If a parent provided `onTabChange`, assume in-dashboard controlled tabs
-      // and avoid router navigation so the BottomTabBar stays fixed.
-      if (!onTabChange) {
+      // In dashboard-controlled mode, keep URL in sync with selected tab
+      // so back navigation restores the same tab.
+      if (onTabChange) {
+        const target = `/${basePath}?tab=${tabId}`;
+        (router as any).replace(target);
+      } else {
         const target = tabId === 'home' ? `/${basePath}` : `/${basePath}/${tabId}`;
         (router as any).push(target);
       }
