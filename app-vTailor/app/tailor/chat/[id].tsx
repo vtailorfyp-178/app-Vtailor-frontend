@@ -39,7 +39,7 @@ export default function TailorChatConversation() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const customerId = parseInt(params.id as string) || 1;
-  const returnTo = params.returnTo as string | undefined;
+  const returnTo = typeof params.returnTo === 'string' ? params.returnTo : undefined;
   const tint = useThemeColor({}, 'tint');
   const card = useThemeColor({}, 'card');
   const inputBorder = useThemeColor({}, 'inputBorder');
@@ -53,8 +53,13 @@ export default function TailorChatConversation() {
   const handleBack = () => {
     if (returnTo) {
       router.replace(returnTo as any);
-    } else {
+      return;
+    }
+    if (router.canGoBack()) {
       (router as any).back();
+      return;
+    } else {
+      router.replace('/tailor?tab=chat');
     }
   };
 

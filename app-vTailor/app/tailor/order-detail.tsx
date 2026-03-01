@@ -67,6 +67,7 @@ export default function OrderDetail() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const orderId = (params.orderId as string) || '';
+  const returnTo = typeof params.returnTo === 'string' ? params.returnTo : null;
 
   const card = useThemeColor({}, 'card');
   const tint = useThemeColor({}, 'tint');
@@ -77,12 +78,24 @@ export default function OrderDetail() {
   const statusStyle = getStatusStyle(order.status);
   const customerId = order.customerId ?? 1;
 
+  const handleBack = () => {
+    if (returnTo) {
+      router.replace(returnTo as any);
+      return;
+    }
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
+    router.replace('/tailor/orders');
+  };
+
   return (
     <ProtectedRoute requiredRole="tailor">
       <View style={[styles.container, { backgroundColor: bg }]}>
         {/* Header */}
         <View style={[styles.header, { backgroundColor: tint }]}>
-          <Pressable onPress={() => router.back()} style={styles.headerButton}>
+          <Pressable onPress={handleBack} style={styles.headerButton}>
             <Ionicons name="chevron-back" size={26} color="#fff" />
           </Pressable>
           <ThemedText style={[styles.headerTitle, { color: '#fff' }]}>Order Details</ThemedText>
@@ -163,7 +176,7 @@ export default function OrderDetail() {
             </View>
             <View style={[styles.actionsRow, { marginTop: 10 }]}>
               <Pressable style={[styles.actionBtnWide, { backgroundColor: '#111827' }]}
-                onPress={() => router.push({ pathname: '/tailor/chat/[id]', params: { id: String(customerId) } })}>
+                onPress={() => router.push({ pathname: '/tailor/chat/[id]', params: { id: String(customerId), returnTo: '/tailor?tab=chat' } })}>
                 <Ionicons name="chatbubbles" size={18} color="#fff" />
                 <Text style={[styles.actionText, { color: '#fff' }]}>Open Chat</Text>
               </Pressable>

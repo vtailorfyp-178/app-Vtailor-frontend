@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TextInput, Pressable } from 'react-
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { ThemedText } from '@/components/themed-text';
 import { useThemeColor } from '@/hooks/use-theme-color';
-import { useRouter } from 'expo-router';
+import { usePathname, useRouter } from 'expo-router';
 
 const sampleChats = [
   { id: 1, name: 'Ali Hassan', lastMessage: 'When will my suit be ready?', time: '5m ago', unread: 1, avatar: 'AH' },
@@ -17,6 +17,8 @@ export default function TailorChat() {
   const bg = useThemeColor({}, 'background');
   const card = useThemeColor({}, 'card');
   const router = useRouter();
+  const pathname = usePathname();
+  const returnTo = pathname === '/tailor/chat' ? '/tailor/chat' : '/tailor?tab=chat';
 
   const chats = sampleChats.filter((c) => c.name.toLowerCase().includes(query.toLowerCase()));
 
@@ -41,7 +43,16 @@ export default function TailorChat() {
           )}
 
           {chats.map((chat) => (
-            <Pressable key={chat.id} style={[styles.chatCard, { backgroundColor: card }]} onPress={() => router.push(`/tailor/chat/${chat.id}`)}>
+            <Pressable
+              key={chat.id}
+              style={[styles.chatCard, { backgroundColor: card }]}
+              onPress={() =>
+                router.push({
+                  pathname: '/tailor/chat/[id]',
+                  params: { id: String(chat.id), returnTo },
+                })
+              }
+            >
               <View style={[styles.avatar, { backgroundColor: '#ffe4f0' }]}>
                 <Text style={styles.avatarText}>{chat.avatar}</Text>
               </View>

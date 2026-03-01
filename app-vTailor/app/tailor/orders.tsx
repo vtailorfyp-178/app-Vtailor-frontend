@@ -2,7 +2,7 @@ import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { ThemedText } from '@/components/themed-text';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { usePathname, useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
@@ -67,9 +67,11 @@ const orders = [
 
 export default function TailorOrders() {
   const router = useRouter();
+  const pathname = usePathname();
   const card = useThemeColor({}, 'card');
   const inputBorder = useThemeColor({}, 'inputBorder');
   const [filter, setFilter] = useState<'all' | 'active' | 'done' | 'cancelled'>('all');
+  const returnTo = pathname === '/tailor/orders' ? '/tailor/orders' : '/tailor?tab=orders';
 
   const getStatusStyle = (status: string) => {
     if (status === 'ready') return { backgroundColor: '#ecfdf3', color: '#15803d' };
@@ -124,7 +126,15 @@ export default function TailorOrders() {
               key={order.id}
               style={[styles.card, { backgroundColor: card, borderColor: inputBorder }]}
               onPress={() =>
-                router.push({ pathname: '/tailor/order-detail', params: { orderId: order.id, customerId: String(order.customerId), customerName: order.customer } })
+                router.push({
+                  pathname: '/tailor/order-detail',
+                  params: {
+                    orderId: order.id,
+                    customerId: String(order.customerId),
+                    customerName: order.customer,
+                    returnTo,
+                  },
+                })
               }
             >
               <View style={styles.cardRow}>
