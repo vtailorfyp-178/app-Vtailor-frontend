@@ -1,9 +1,9 @@
-import React from 'react';
-import { View, ScrollView, TextInput, Text, Pressable, StyleSheet } from 'react-native';
-import { useRouter } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
-import { ThemedText } from './themed-text';
 import { useThemeColor } from '@/hooks/use-theme-color';
+import { useRouter } from 'expo-router';
+import React from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ThemedText } from './themed-text';
 
 const CustomerHome = () => {
   const router = useRouter();
@@ -17,14 +17,15 @@ const CustomerHome = () => {
   const textColor = useThemeColor({}, 'text');
 
   const quickActions = [
-    { label: 'Customize', icon: '🎨' },
-    { label: 'Measurements', icon: '📏' },
-    { label: 'Find Tailors', icon: '🔍' },
+    { label: 'Customize', icon: '🎨', route: '/customer/select2d' },
+    { label: 'My Designs', icon: '🖼️', route: '/customer/my-customizations' },
+    { label: 'Measurements', icon: '📏', route: '/customer/measurements' },
+    { label: 'Find Tailors', icon: '🔍', route: '/customer/find-tailors' },
   ];
 
   const currentOrders = [
-    { id: 1, name: 'Formal Suit', tailor: 'Ahmad Tailor', status: 'In Progress', daysLeft: 5, price: 8500 },
-    { id: 2, name: 'Wedding Sherwani', tailor: 'Master Tailors', status: 'Cutting', daysLeft: 12, price: 25000 },
+    { id: 1, name: 'Long Frock', tailor: 'Ahmad Tailor', status: 'In Progress', daysLeft: 5, price: 8500 },
+    { id: 2, name: 'Shalwar Kameez', tailor: 'Master Tailors', status: 'Cutting', daysLeft: 12, price: 25000 },
   ];
 
   return (
@@ -58,7 +59,7 @@ const CustomerHome = () => {
           <ThemedText style={styles.sectionTitle}>Quick Actions</ThemedText>
           <View style={styles.quickActionsGrid}>
             {quickActions.map((action) => (
-              <Pressable key={action.label} style={styles.actionButton}>
+              <Pressable key={action.label} style={styles.actionButton} onPress={() => (router as any).push(action.route)}>
                 <Text style={styles.actionIcon}>{action.icon}</Text>
                 <ThemedText style={styles.actionLabel}>{action.label}</ThemedText>
               </Pressable>
@@ -69,15 +70,23 @@ const CustomerHome = () => {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <ThemedText style={styles.sectionTitle}>Current Orders</ThemedText>
-            <ThemedText style={[styles.viewAll, { color: tint }]}>View All →</ThemedText>
+            <Pressable onPress={() => (router as any).push('/customer/orders')}>
+              <ThemedText style={[styles.viewAll, { color: tint }]}>View All →</ThemedText>
+            </Pressable>
           </View>
           <View style={styles.ordersList}>
             {currentOrders.map((order) => (
-              <View key={order.id} style={[styles.orderCard, { backgroundColor: card, borderColor: inputBorder }]}> 
+              <Pressable 
+                key={order.id} 
+                style={[styles.orderCard, { backgroundColor: card, borderColor: inputBorder }]}
+                onPress={() => router.push(`/customer/tailor-details?tailorId=${order.id}&from=home`)}
+              > 
                 <View style={styles.orderTop}>
                   <View>
                     <ThemedText style={styles.orderName}>{order.name}</ThemedText>
-                    <ThemedText style={styles.orderTailor}>{order.tailor}</ThemedText>
+                    <Pressable onPress={() => router.push(`/customer/tailor-details?tailorId=${order.id}&from=home`)}>
+                      <ThemedText style={[styles.orderTailor, { color: '#3b82f6', fontWeight: '600' }]}>{order.tailor}</ThemedText>
+                    </Pressable>
                   </View>
                   <View style={styles.statusBadge}>
                     <ThemedText style={styles.statusText}>{order.status}</ThemedText>
@@ -87,12 +96,12 @@ const CustomerHome = () => {
                   <ThemedText style={styles.daysLeft}>⏱️ {order.daysLeft} days left</ThemedText>
                   <ThemedText style={styles.price}>Rs. {order.price.toLocaleString()}</ThemedText>
                 </View>
-              </View>
+              </Pressable>
             ))}
           </View>
         </View>
 
-        <Pressable style={[styles.aiCard, { backgroundColor: card, borderColor: inputBorder }]}> 
+        <Pressable onPress={() => (router as any).push('/customer/ai-assistant')} style={[styles.aiCard, { backgroundColor: card, borderColor: inputBorder }]}> 
           <Text style={styles.aiIcon}>🤖</Text>
           <View style={styles.aiContent}>
             <ThemedText style={styles.aiTitle}>AI Style Assistant</ThemedText>
@@ -101,13 +110,22 @@ const CustomerHome = () => {
           <ThemedText style={styles.arrow}>→</ThemedText>
         </Pressable>
 
-        <View style={[styles.tipsCard, { backgroundColor: card, borderColor: inputBorder }]}> 
+        <Pressable onPress={() => (router as any).push('/customer/order-timeline')} style={[styles.aiCard, { backgroundColor: card, borderColor: inputBorder }]}> 
+          <Text style={styles.aiIcon}>📊</Text>
+          <View style={styles.aiContent}>
+            <ThemedText style={styles.aiTitle}>Order Timeline</ThemedText>
+            <ThemedText style={[styles.aiDesc, { color: muted }]}>Track your order progress</ThemedText>
+          </View>
+          <ThemedText style={styles.arrow}>→</ThemedText>
+        </Pressable>
+
+        <Pressable onPress={() => (router as any).push('/customer/chat')} style={[styles.tipsCard, { backgroundColor: card, borderColor: inputBorder }]}> 
           <Text style={styles.tipsIcon}>💬</Text>
           <View>
             <ThemedText style={styles.tipsTitle}>Need Assistance?</ThemedText>
             <ThemedText style={[styles.tipsDesc, { color: muted }]}>Use direct chat with your tailor</ThemedText>
           </View>
-        </View>
+        </Pressable>
 
         <View style={styles.bottomPadding} />
       </ScrollView>

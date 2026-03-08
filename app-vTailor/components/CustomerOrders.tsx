@@ -1,8 +1,11 @@
 import React from 'react';
-import { View, ScrollView, StyleSheet } from 'react-native';
+import { View, ScrollView, StyleSheet, Pressable } from 'react-native';
 import { ThemedText } from './themed-text';
+import { useRouter } from 'expo-router';
 
 const CustomerOrders = () => {
+  const router = useRouter();
+  
   const stats = [
     { icon: '📦', label: 'Total', value: 8 },
     { icon: '⏳', label: 'In Progress', value: 2 },
@@ -11,10 +14,10 @@ const CustomerOrders = () => {
   ];
 
   const orders = [
-    { id: 1, name: 'Formal Suit', tailor: 'Ahmad Tailor', status: 'In Progress', date: '25 Dec', price: 8500 },
-    { id: 2, name: 'Wedding Sherwani', tailor: 'Master Tailors', status: 'Cutting', date: '20 Dec', price: 25000 },
-    { id: 3, name: 'Casual Kurta', tailor: 'Classic Stitches', status: 'Delivered', date: '15 Dec', price: 3500 },
-    { id: 4, name: 'Office Shirts (3)', tailor: 'Ahmad Tailor', status: 'Delivered', date: '10 Dec', price: 6000 },
+    { id: 1, name: 'Long Frock', tailor: 'Ahmad Tailor', status: 'In Progress', date: '25 Dec', price: 8500 },
+    { id: 2, name: 'Shalwar Kameez', tailor: 'Master Tailors', status: 'Cutting', date: '20 Dec', price: 25000 },
+    { id: 3, name: 'Kurti', tailor: 'Classic Stitches', status: 'Delivered', date: '15 Dec', price: 3500 },
+    { id: 4, name: 'Lehenga', tailor: 'Ahmad Tailor', status: 'Delivered', date: '10 Dec', price: 6000 },
   ];
 
   const getStatusColor = (status: string) => {
@@ -45,11 +48,13 @@ const CustomerOrders = () => {
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         <View style={styles.ordersList}>
           {orders.map((order) => (
-            <View key={order.id} style={styles.orderCard}>
+            <Pressable key={order.id} style={styles.orderCard} onPress={() => router.push(`/customer/tailor-details?tailorId=${order.id}&from=orders`)}>
               <View style={styles.orderHeader}>
-                <View>
+                <View style={{ flex: 1 }}>
                   <ThemedText style={styles.orderName}>{order.name}</ThemedText>
-                  <ThemedText style={styles.orderTailor}>{order.tailor}</ThemedText>
+                  <Pressable onPress={() => router.push(`/customer/tailor-details?tailorId=${order.id}&from=orders`)}>
+                    <ThemedText style={[styles.orderTailor, { color: '#3b82f6', fontWeight: '600' }]}>{order.tailor}</ThemedText>
+                  </Pressable>
                 </View>
                 <View style={[styles.statusBadge, { backgroundColor: getStatusColor(order.status) + '20' }]}>
                   <ThemedText style={[styles.statusText, { color: getStatusColor(order.status) }]}>{order.status}</ThemedText>
@@ -59,7 +64,7 @@ const CustomerOrders = () => {
                 <ThemedText style={styles.orderDate}>{order.date}</ThemedText>
                 <ThemedText style={styles.orderPrice}>Rs. {order.price.toLocaleString()}</ThemedText>
               </View>
-            </View>
+            </Pressable>
           ))}
         </View>
         <View style={styles.bottomPadding} />

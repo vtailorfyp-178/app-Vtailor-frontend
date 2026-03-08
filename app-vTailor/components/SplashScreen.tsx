@@ -51,7 +51,7 @@ export default function SplashScreen() {
       />
 
       <Animated.View style={[styles.taglineWrap, { opacity }]}>
-        <Text style={styles.tagline}>Stitch Your Style</Text>
+        <Text style={styles.tagline}>Stitching Style with Intelligence</Text>
         <View style={styles.dots}>
           <Animated.View style={[styles.dot, { backgroundColor: tint }]} />
           <Animated.View style={[styles.dot, { backgroundColor: '#f59e0b' }]} />

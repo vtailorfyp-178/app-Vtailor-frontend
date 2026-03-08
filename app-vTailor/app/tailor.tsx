@@ -1,15 +1,15 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
-import BottomTabBar from '@/components/BottomTabBar';
+import BottomTabBar, { TAB_BAR_HEIGHT } from '@/components/BottomTabBar';
 import { ThemedText } from '@/components/themed-text';
 
 const TailorDashboard = () => {
-  const [activeTab, setActiveTab] = useState('home');
+  const [, setActiveTab] = useState('home');
 
   return (
     <ProtectedRoute requiredRole="tailor">
-      <View style={{ flex: 1 }}>
+      <View style={{ flex: 1, paddingBottom: TAB_BAR_HEIGHT }}>
         <View style={styles.container}>
           <ThemedText style={styles.title}>Tailor Dashboard</ThemedText>
           <ThemedText style={styles.subtitle}>Coming Soon!</ThemedText>
@@ -38,4 +38,7 @@ const styles = StyleSheet.create({
   },
 });
 
-export default TailorDashboard;
+// Do not default-export this component to avoid creating an automatic route.
+// This file remains for reference; the actual route is `app/tailor/index.tsx`.
+// Keep this file for reference only — do not export as default to avoid duplicate route.
+export const TailorDashboardComponent = TailorDashboard;

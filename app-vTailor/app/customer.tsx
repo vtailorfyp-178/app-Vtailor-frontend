@@ -1,15 +1,26 @@
-import React, { useState } from 'react';
-import { View } from 'react-native';
-import { ProtectedRoute } from '@/components/ProtectedRoute';
-import BottomTabBar from '@/components/BottomTabBar';
+import BottomTabBar, { TAB_BAR_HEIGHT } from '@/components/BottomTabBar';
+import CustomerChat from '@/components/CustomerChat';
 import CustomerHome from '@/components/CustomerHome';
 import CustomerOrders from '@/components/CustomerOrders';
-import CustomerChat from '@/components/CustomerChat';
-import CustomerWallet from '@/components/CustomerWallet';
 import CustomerProfile from '@/components/CustomerProfile';
+import CustomerWallet from '@/components/CustomerWallet';
+import { ProtectedRoute } from '@/components/ProtectedRoute';
+import { useFocusEffect, useLocalSearchParams } from 'expo-router';
+import React, { useCallback, useState } from 'react';
+import { View } from 'react-native';
 
 const CustomerDashboard = () => {
-  const [activeTab, setActiveTab] = useState('home');
+  const params = useLocalSearchParams();
+  const [activeTab, setActiveTab] = useState(() => 
+    typeof params?.tab === 'string' ? params.tab : 'home'
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      const tabFromParams = typeof params?.tab === 'string' ? params.tab : 'home';
+      setActiveTab(tabFromParams);
+    }, [params?.tab])
+  );
 
   const renderTab = () => {
     switch (activeTab) {
@@ -24,9 +35,9 @@ const CustomerDashboard = () => {
 
   return (
     <ProtectedRoute requiredRole="customer">
-      <View style={{ flex: 1 }}>
+      <View style={{ flex: 1, paddingBottom: TAB_BAR_HEIGHT }}>
         {renderTab()}
-        <BottomTabBar basePath="customer" onTabChange={setActiveTab} />
+        <BottomTabBar basePath="customer" onTabChange={setActiveTab} activeTab={activeTab} />
       </View>
     </ProtectedRoute>
   );
