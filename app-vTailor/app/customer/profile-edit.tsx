@@ -6,10 +6,11 @@ import { ThemedText } from '@/components/themed-text';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 
 export default function CustomerProfileEdit() {
   const auth = useAuth();
-  const { user, updateProfile, userPhone } = auth;
+  const { user, loginEmail, updateProfile } = auth;
   const router = useRouter();
   const bg = useThemeColor({}, 'background');
   const cardBg = useThemeColor({}, 'card');
@@ -17,26 +18,51 @@ export default function CustomerProfileEdit() {
   const inputBorder = useThemeColor({}, 'inputBorder');
   const muted = useThemeColor({}, 'muted');
 
-  const [profileImage, setProfileImage] = useState<string | null>(null);
+  const [profileImage, setProfileImage] = useState<string | null>(user?.avatar ?? null);
   const [name, setName] = useState(user?.name || '');
-  const [phone, setPhone] = useState(userPhone || '');
-  const [email, setEmail] = useState(user?.email || '');
+  const [phone, setPhone] = useState(user?.phone || '');
+  // email is locked to the OTP-verified login email — users cannot change it here
+  const email = user?.email || loginEmail || '';
   const [address, setAddress] = useState(user?.address || '');
 
   const handlePickImage = () => {
     Alert.alert('Change Profile Picture', 'Choose an option', [
       {
         text: 'Camera',
-        onPress: () => {
-          setProfileImage('https://via.placeholder.com/200x200?text=Camera+Photo');
-          Alert.alert('Success', 'Photo captured from camera');
+        onPress: async () => {
+          const permission = await ImagePicker.requestCameraPermissionsAsync();
+          if (!permission.granted) {
+            Alert.alert('Permission Required', 'Camera access is needed to take photos.');
+            return;
+          }
+          const result = await ImagePicker.launchCameraAsync({
+            mediaTypes: ['images'] as any,
+            allowsEditing: true,
+            aspect: [1, 1],
+            quality: 0.8,
+          });
+          if (!result.canceled) {
+            setProfileImage(result.assets[0].uri);
+          }
         },
       },
       {
         text: 'Gallery',
-        onPress: () => {
-          setProfileImage('https://via.placeholder.com/200x200?text=Gallery+Image');
-          Alert.alert('Success', 'Photo selected from gallery');
+        onPress: async () => {
+          const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+          if (!permission.granted) {
+            Alert.alert('Permission Required', 'Gallery access is needed to select photos.');
+            return;
+          }
+          const result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ['images'] as any,
+            allowsEditing: true,
+            aspect: [1, 1],
+            quality: 0.8,
+          });
+          if (!result.canceled) {
+            setProfileImage(result.assets[0].uri);
+          }
         },
       },
       { text: 'Cancel', onPress: () => {}, style: 'cancel' },
@@ -44,14 +70,16 @@ export default function CustomerProfileEdit() {
   };
 
   const handleSave = () => {
-    if (!name.trim() || !phone.trim()) {
-      Alert.alert('Error', 'Name and phone are required');
+    if (!name.trim()) {
+      Alert.alert('Error', 'Name is required');
       return;
     }
     updateProfile({
       name: name,
       email: email,
+      phone: phone,
       address: address,
+      avatar: profileImage ?? undefined,
     });
     Alert.alert('Success', 'Profile updated successfully!');
     router.replace('/customer?tab=profile');
@@ -110,15 +138,13 @@ export default function CustomerProfileEdit() {
             />
           </View>
 
-          {/* Email */}
+          {/* Email — read-only: locked to OTP-verified address */}
           <View style={styles.section}>
-            <ThemedText style={styles.label}>Email</ThemedText>
+            <ThemedText style={styles.label}>Email (verified)</ThemedText>
             <TextInput
-              style={[styles.input, { borderColor: inputBorder, color: '#111827', backgroundColor: cardBg }]}
-              placeholder="Enter email address"
-              placeholderTextColor={muted}
+              style={[styles.input, { borderColor: inputBorder, color: '#6b7280', backgroundColor: '#f3f4f6' }]}
               value={email}
-              onChangeText={setEmail}
+              editable={false}
               keyboardType="email-address"
             />
           </View>

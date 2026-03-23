@@ -78,10 +78,10 @@ export default function CustomerSettings() {
 
               <Pressable style={[styles.settingItem, { backgroundColor: cardBg, marginTop: 8 }]} onPress={handleChangePhone}>
                 <View style={styles.settingLeft}>
-                  <Text style={styles.settingIcon}>📞</Text>
+                  <Text style={styles.settingIcon}>�</Text>
                   <View style={{ marginLeft: 12, flex: 1 }}>
-                    <Text style={styles.settingLabel}>Phone Number</Text>
-                    <Text style={[styles.settingValue, { color: muted }]}>{auth.userPhone || 'Not set'}</Text>
+                    <Text style={styles.settingLabel}>Email</Text>
+                    <Text style={[styles.settingValue, { color: muted }]}>{auth.loginEmail || auth.user?.email || 'Not set'}</Text>
                   </View>
                 </View>
                 <Ionicons name="chevron-forward" size={20} color={muted} />

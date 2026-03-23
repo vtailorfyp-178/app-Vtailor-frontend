@@ -1,42 +1,71 @@
 import React, { useRef, useState } from 'react';
-import { View, StyleSheet, Image, Pressable, TextInput, Keyboard, Platform } from 'react-native';
+import { View, StyleSheet, Image, Pressable, TextInput, Platform, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { useAuth, UserRole } from '@/contexts/AuthContext';
+import { sendEmailOtp, verifyEmailOtp } from '@/services/authApi';
 
 const logo = require('../assets/images/vTailorlogo.jpeg');
 
-type AuthStep = 'role' | 'phone' | 'otp';
+type AuthStep = 'role' | 'email' | 'otp';
 
 export default function AuthScreen() {
   const router = useRouter();
   const { login } = useAuth();
+
   const [step, setStep] = useState<AuthStep>('role');
   const [role, setRole] = useState<UserRole>(null);
-  const [phone, setPhone] = useState('');
-  const [phoneFocused, setPhoneFocused] = useState(false);
-  const [otp, setOtp] = useState(['', '', '', '', '', '']);
 
+  const [email, setEmail] = useState('');
+  const [emailFocused, setEmailFocused] = useState(false);
+
+  const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const otpRefs = useRef<Array<TextInput | null>>(Array(6).fill(null));
+  const [sendingOtp, setSendingOtp] = useState(false);
+  const [verifyingOtp, setVerifyingOtp] = useState(false);
+  // method_id returned by /otp/start — required by /otp/verify
+  const [methodId, setMethodId] = useState<string | null>(null);
 
   const tint = useThemeColor({}, 'tint');
   const buttonStart = useThemeColor({}, 'buttonStart');
-  const [otpFocusedIndex, setOtpFocusedIndex] = useState<number | null>(null);
   const accentAlt = useThemeColor({}, 'accentAlt');
   const iconBg = useThemeColor({}, 'iconBg');
   const iconBgAlt = useThemeColor({}, 'iconBgAlt');
 
-  // when a role is selected, show the pink outline briefly then proceed
+  const [otpFocusedIndex, setOtpFocusedIndex] = useState<number | null>(null);
+
   const handleRoleSelect = (selectedRole: UserRole) => {
     setRole(selectedRole);
-    // show outline, then advance so user sees selection highlight
-    setTimeout(() => setStep('phone'), 220);
+    setTimeout(() => setStep('email'), 220);
   };
 
-  const handlePhoneSubmit = () => {
-    if (phone.length >= 10) setStep('otp');
+  const handleEmailSubmit = async () => {
+    if (!email || !email.includes('@')) {
+      Alert.alert('Invalid email', 'Please enter a valid email address');
+      return;
+    }
+
+    setSendingOtp(true);
+    try {
+      const res = await sendEmailOtp(email);
+
+      // Backend returns { status: 'success', method_id: '...', message: '...' } on success
+      // or { detail: '...' } (HTTP error body) on failure.
+      if (res && res.status === 'success' && res.method_id) {
+        setMethodId(res.method_id);
+        setStep('otp');
+      } else {
+        const msg = res?.detail || res?.message || 'Failed to send OTP. Please try again.';
+        Alert.alert('Send OTP Failed', String(msg));
+      }
+    } catch (err) {
+      console.log('OTP send error', err);
+      Alert.alert('Network error', 'Unable to reach server. Check your connection and try again.');
+    } finally {
+      setSendingOtp(false);
+    }
   };
 
   const handleOtpChange = (index: number, value: string) => {
@@ -44,22 +73,45 @@ export default function AuthScreen() {
       const newOtp = [...otp];
       newOtp[index] = value;
       setOtp(newOtp);
+
       if (value && index < 5) otpRefs.current[index + 1]?.focus();
       if (!value && index > 0) otpRefs.current[index - 1]?.focus();
     }
   };
 
-  const handleVerifyOtp = () => {
+  const handleVerifyOtp = async () => {
     const otpValue = otp.join('');
-    if (otpValue.length === 6) {
-      login(phone, role);
-      router.replace('/profile-setup');
+
+    if (otpValue.length !== 6) return;
+
+    if (!methodId) {
+      Alert.alert('Session expired', 'Please go back and request a new OTP.');
+      return;
+    }
+
+    setVerifyingOtp(true);
+    try {
+      const result = await verifyEmailOtp(methodId, otpValue);
+
+      if (result?.access_token) {
+        // Pass the email so it is auto-populated in profile-setup and stored per-role
+        login(result.access_token, role, result.email ?? email);
+        router.replace('/profile-setup');
+      } else {
+        const msg = result?.detail || result?.message || 'Invalid or expired code.';
+        Alert.alert('Verification failed', String(msg));
+      }
+    } catch (err) {
+      console.log('OTP verify error', err);
+      Alert.alert('Network error', 'Unable to verify OTP. Please try again.');
+    } finally {
+      setVerifyingOtp(false);
     }
   };
 
   const handleBack = () => {
-    if (step === 'phone') setStep('role');
-    else if (step === 'otp') setStep('phone');
+    if (step === 'email') setStep('role');
+    else if (step === 'otp') setStep('email');
   };
 
   return (
@@ -73,27 +125,28 @@ export default function AuthScreen() {
 
         <View style={{ alignItems: 'center' }}>
           <Image source={logo} style={styles.logo} />
-          <ThemedText type="title">
+          <ThemedText type="title" style={styles.title}>
             {step === 'role' && 'Welcome to V Tailor'}
-            {step === 'phone' && 'Enter Your Phone'}
+            {step === 'email' && 'Enter Your Email'}
             {step === 'otp' && 'Verify OTP'}
           </ThemedText>
           <ThemedText style={styles.subtitle}>
             {step === 'role' && 'Choose how you want to use V Tailor'}
-            {step === 'phone' && 'We will send you a verification code'}
-            {step === 'otp' && `Code sent to +${phone}`}
+            {step === 'email' && 'We will send you a verification code'}
+            {step === 'otp' && `Code sent to ${email}`}
           </ThemedText>
         </View>
       </View>
 
       <View style={styles.content}>
+
         {step === 'role' && (
           <View style={styles.roleList}>
+
             <Pressable
               onPress={() => handleRoleSelect('customer')}
               style={[
                 styles.roleCard,
-                // show a light pink outline by default for the customer card
                 { borderColor: role === 'customer' ? tint : '#fae3ea' },
                 role === 'customer' && { borderWidth: 2 },
               ]}
@@ -102,54 +155,60 @@ export default function AuthScreen() {
                 <View style={[styles.roleIcon, { backgroundColor: role === 'customer' ? tint : iconBg }]}>
                   <ThemedText style={{ color: role === 'customer' ? '#fff' : tint }}>👤</ThemedText>
                 </View>
+
                 <View style={{ flex: 1 }}>
-                  <ThemedText type="defaultSemiBold">I'm a Customer</ThemedText>
+                  <ThemedText type="defaultSemiBold">Customer</ThemedText>
                   <ThemedText style={styles.small}>Get custom clothes from expert tailors</ThemedText>
                 </View>
               </View>
             </Pressable>
 
-            <Pressable onPress={() => handleRoleSelect('tailor')} style={[styles.roleCard, styles.roleCardAlt, role === 'tailor' && { borderColor: accentAlt, borderWidth: 2 }]}>
+            <Pressable
+              onPress={() => handleRoleSelect('tailor')}
+              style={[styles.roleCard, styles.roleCardAlt, role === 'tailor' && { borderColor: accentAlt, borderWidth: 2 }]}
+            >
               <View style={styles.roleInner}>
                 <View style={[styles.roleIcon, { backgroundColor: role === 'tailor' ? accentAlt : iconBgAlt }]}>
                   <ThemedText style={{ color: role === 'tailor' ? '#fff' : accentAlt }}>✂️</ThemedText>
                 </View>
+
                 <View style={{ flex: 1 }}>
-                  <ThemedText type="defaultSemiBold">I'm a Tailor</ThemedText>
+                  <ThemedText type="defaultSemiBold">Tailor</ThemedText>
                   <ThemedText style={styles.small}>Offer your tailoring services</ThemedText>
                 </View>
               </View>
             </Pressable>
 
-            <ThemedText style={styles.tiny}>By continuing, you agree to our Terms & Privacy Policy</ThemedText>
+            <ThemedText style={styles.tiny}>
+              By continuing, you agree to our Terms & Privacy Policy
+            </ThemedText>
+
           </View>
         )}
 
-        {step === 'phone' && (
+        {step === 'email' && (
           <View>
-            <ThemedText style={styles.label}>Phone Number</ThemedText>
-            <View style={styles.phoneRow}>
-              <ThemedText style={styles.cc}>+92</ThemedText>
-              <TextInput
-                style={[styles.phoneInput, { borderColor: phoneFocused ? tint : '#e6e7eb' }]}
-                keyboardType="phone-pad"
-                value={phone}
-                onFocus={() => setPhoneFocused(true)}
-                onBlur={() => setPhoneFocused(false)}
-                onChangeText={(t) => setPhone(t.replace(/\D/g, '').slice(0, 10))}
-                placeholder="3XX XXXXXXX"
-              />
-            </View>
+            <ThemedText style={styles.label}>Email Address</ThemedText>
+
+            <TextInput
+              style={[styles.phoneInput, { borderColor: emailFocused ? tint : '#e6e7eb' }]}
+              value={email}
+              onFocus={() => setEmailFocused(true)}
+              onBlur={() => setEmailFocused(false)}
+              onChangeText={setEmail}
+              placeholder="example@email.com"
+            />
+
             <Pressable
-              onPress={handlePhoneSubmit}
+              onPress={handleEmailSubmit}
+              disabled={sendingOtp || !email.includes('@')}
               style={[
                 styles.button,
-                phone.length < 10 && styles.buttonDisabled,
-                { backgroundColor: phone.length >= 10 ? tint : buttonStart, borderColor: phone.length >= 10 ? tint : '#f6d6de' },
+                (sendingOtp || !email.includes('@')) && styles.buttonDisabled,
+                { backgroundColor: email.includes('@') ? tint : buttonStart }
               ]}
-              disabled={phone.length < 10}
             >
-              <ThemedText style={styles.buttonText}>Send OTP →</ThemedText>
+              <ThemedText style={styles.buttonText}>{sendingOtp ? 'Sending…' : 'Send OTP →'}</ThemedText>
             </Pressable>
           </View>
         )}
@@ -157,12 +216,16 @@ export default function AuthScreen() {
         {step === 'otp' && (
           <View>
             <ThemedText style={styles.label}>Enter 6-digit code</ThemedText>
+
             <View style={styles.otpRow}>
               {otp.map((d, i) => (
                 <TextInput
                   key={i}
                   ref={(ref) => { otpRefs.current[i] = ref; }}
-                  style={[styles.otpInput, { borderColor: d ? tint : (otpFocusedIndex === i ? tint : '#e6e7eb') }]}
+                  style={[
+                    styles.otpInput,
+                    { borderColor: d ? tint : (otpFocusedIndex === i ? tint : '#e6e7eb') }
+                  ]}
                   keyboardType="number-pad"
                   maxLength={1}
                   value={d}
@@ -172,45 +235,147 @@ export default function AuthScreen() {
                 />
               ))}
             </View>
+
             <Pressable
               onPress={handleVerifyOtp}
+              disabled={verifyingOtp || otp.join('').length < 6}
               style={[
                 styles.button,
-                otp.join('').length < 6 && styles.buttonDisabled,
-                { backgroundColor: otp.join('').length === 6 ? tint : buttonStart, borderColor: otp.join('').length === 6 ? tint : '#f6d6de' },
+                (verifyingOtp || otp.join('').length < 6) && styles.buttonDisabled,
+                { backgroundColor: otp.join('').length === 6 ? tint : buttonStart }
               ]}
-              disabled={otp.join('').length < 6}
             >
-              <ThemedText style={styles.buttonText}>Verify & Continue</ThemedText>
+              <ThemedText style={styles.buttonText}>{verifyingOtp ? 'Verifying…' : 'Verify & Continue'}</ThemedText>
             </Pressable>
+
           </View>
         )}
+
       </View>
     </ThemedView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  header: { paddingTop: Platform.select({ ios: 44, android: 24, default: 24 }), paddingHorizontal: 20 },
-  backButton: { marginBottom: 8 },
-  logo: { width: 96, height: 96, alignSelf: 'center', marginTop: 8, marginBottom: 8 },
-  subtitle: { fontSize: 14, marginTop: 6, color: '#6b7280', textAlign: 'center' },
-  content: { flex: 1, padding: 20 },
-  roleList: { gap: 12 },
-  roleCard: { padding: 18, borderRadius: 18, borderWidth: 1, borderColor: 'rgba(0,0,0,0.05)', backgroundColor: undefined, marginBottom: 10 },
-  roleCardAlt: { borderColor: 'rgba(245,158,11,0.2)' },
-  roleInner: { flexDirection: 'row', alignItems: 'center' },
-  roleIcon: { width: 56, height: 56, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
-  small: { fontSize: 13, color: '#6b7280' },
-  tiny: { fontSize: 12, color: '#6b7280', textAlign: 'center', marginTop: 8 },
-  label: { marginBottom: 8, fontWeight: '600' },
-  phoneRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
-  cc: { marginRight: 10 },
-  phoneInput: { flex: 1, borderWidth: 1, borderRadius: 12, padding: 12, height: 48 },
-  button: { marginTop: 12, paddingVertical: 14, borderRadius: 10, alignItems: 'center' },
-  buttonDisabled: { backgroundColor: 'rgba(0,0,0,0.1)' },
-  buttonText: { color: '#fff', fontWeight: '600' },
-  otpRow: { flexDirection: 'row', justifyContent: 'center', gap: 8, marginBottom: 12 },
-  otpInput: { width: 48, height: 56, borderWidth: 1, borderRadius: 10, textAlign: 'center', fontSize: 20, marginHorizontal: 6 },
+  container: {
+    flex: 1,
+    paddingHorizontal: 16,
+    paddingTop: 20,
+    justifyContent: 'flex-start',
+  },
+  header: {
+    marginTop: 8,
+    marginBottom: 8,
+    alignItems: 'center',
+  },
+  backButton: {
+    alignSelf: 'flex-start',
+    padding: 8,
+    marginBottom: 16,
+  },
+  logo: {
+    width: 96,
+    height: 96,
+    marginBottom: 12,
+    resizeMode: 'contain',
+  },
+  title: {
+    fontSize: 34,
+    fontWeight: '800',
+    textAlign: 'center',
+    marginTop: 6,
+    lineHeight: 40,
+  },
+  subtitle: {
+    marginTop: 6,
+    textAlign: 'center',
+    fontSize: 16,
+    color: '#394052',
+  },
+  content: {
+    flex: 1,
+    justifyContent: 'flex-start',
+  },
+  roleList: {
+    gap: 12,
+    marginTop: 40,
+  },
+  roleCard: {
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 18,
+    marginBottom: 12,
+    backgroundColor: '#fff',
+    shadowColor: '#000',
+    shadowOpacity: 0.06,
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  roleCardAlt: {
+    borderColor: '#fae3ea',
+  },
+  roleInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  roleIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+    fontSize: 24,
+  },
+  small: {
+    fontSize: 12,
+    marginTop: 4,
+  },
+  tiny: {
+    fontSize: 11,
+    marginTop: 36,
+    textAlign: 'center',
+  },
+  label: {
+    marginBottom: 12,
+    fontWeight: '500',
+  },
+  phoneInput: {
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 20,
+    fontSize: 16,
+  },
+  button: {
+    paddingVertical: 12,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  buttonDisabled: {
+    opacity: 0.6,
+  },
+  buttonText: {
+    fontWeight: '600',
+    fontSize: 16,
+    color: '#fff',
+  },
+  otpRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+    gap: 8,
+  },
+  otpInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderRadius: 8,
+    textAlign: 'center',
+    fontSize: 18,
+    fontWeight: 'bold',
+    paddingVertical: 12,
+  },
 });

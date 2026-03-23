@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Alert, Image } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, Alert, Image, Modal, Linking } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { ThemedText } from '@/components/themed-text';
 import { useThemeColor } from '@/hooks/use-theme-color';
+import * as ImagePicker from 'expo-image-picker';
+import { ResizeMode, Video } from 'expo-av';
 
 interface MediaItem {
   id: string;
@@ -21,48 +23,63 @@ export default function SampleWorkEdit() {
   const tint = useThemeColor({}, 'tint');
   const muted = useThemeColor({}, 'muted');
 
-  const [media, setMedia] = useState<MediaItem[]>([
-    { id: '1', type: 'image', name: 'Sample 1', uri: 'https://via.placeholder.com/200x200?text=Sample+1' },
-    { id: '2', type: 'image', name: 'Sample 2', uri: 'https://via.placeholder.com/200x200?text=Sample+2' },
-    { id: '3', type: 'image', name: 'Sample 3', uri: 'https://via.placeholder.com/200x200?text=Sample+3' },
-  ]);
+  const [media, setMedia] = useState<MediaItem[]>([]);
+  const [imageViewerVisible, setImageViewerVisible] = useState(false);
+  const [selectedImageUri, setSelectedImageUri] = useState<string | null>(null);
+  const [videoViewerVisible, setVideoViewerVisible] = useState(false);
+  const [selectedVideoUri, setSelectedVideoUri] = useState<string | null>(null);
 
-  const handleAddImage = () => {
-    Alert.alert('Add Image', 'Pick image from gallery', [
-      {
-        text: 'Gallery',
-        onPress: () => {
-          const newItem: MediaItem = {
-            id: String(Date.now()),
-            type: 'image',
-            name: `Sample ${media.length + 1}`,
-            uri: 'https://via.placeholder.com/200x200?text=New+Image',
-          };
-          setMedia([...media, newItem]);
-          Alert.alert('Success', 'Image added to sample work');
-        },
-      },
-      { text: 'Cancel', onPress: () => {}, style: 'cancel' },
-    ]);
+  const openImageViewer = (uri: string) => {
+    setSelectedImageUri(uri);
+    setImageViewerVisible(true);
   };
 
-  const handleAddVideo = () => {
-    Alert.alert('Add Video', 'Pick video from gallery', [
-      {
-        text: 'Gallery',
-        onPress: () => {
-          const newItem: MediaItem = {
-            id: String(Date.now()),
-            type: 'video',
-            name: `Sample Video ${media.filter(m => m.type === 'video').length + 1}`,
-            uri: 'https://via.placeholder.com/200x200?text=Video',
-          };
-          setMedia([...media, newItem]);
-          Alert.alert('Success', 'Video added to sample work');
-        },
-      },
-      { text: 'Cancel', onPress: () => {}, style: 'cancel' },
-    ]);
+  const openVideo = (uri: string) => {
+    setSelectedVideoUri(uri);
+    setVideoViewerVisible(true);
+  };
+
+  const handleAddImage = async () => {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert('Permission Required', 'Gallery access is needed to select images.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'] as any,
+      allowsEditing: false,
+      quality: 0.8,
+    });
+    if (!result.canceled) {
+      const newItem: MediaItem = {
+        id: String(Date.now()),
+        type: 'image',
+        name: `Sample ${media.length + 1}`,
+        uri: result.assets[0].uri,
+      };
+      setMedia(prev => [...prev, newItem]);
+    }
+  };
+
+  const handleAddVideo = async () => {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert('Permission Required', 'Gallery access is needed to select videos.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['videos'] as any,
+      quality: 1,
+    });
+    if (!result.canceled) {
+      const newItem: MediaItem = {
+        id: String(Date.now()),
+        type: 'video',
+        name: `Sample Video ${media.filter(m => m.type === 'video').length + 1}`,
+        uri: result.assets[0].uri,
+      };
+      setMedia(prev => [...prev, newItem]);
+    }
   };
 
   const handleDelete = (id: string) => {
@@ -102,17 +119,28 @@ export default function SampleWorkEdit() {
             <View style={styles.grid}>
               {media.map((item) => (
                 <View key={item.id} style={[styles.mediaCard, { backgroundColor: cardBg }]}>
-                  {item.uri && (
-                    <Image source={{ uri: item.uri }} style={styles.thumbnail} />
-                  )}
-                  <View style={styles.mediaOverlay}>
-                    {item.type === 'video' && (
-                      <Ionicons name="play-circle" size={32} color="#fff" />
+                  <Pressable
+                    style={{ flex: 1 }}
+                    onPress={() => {
+                      if (!item.uri) return;
+                      if (item.type === 'image') openImageViewer(item.uri);
+                      else openVideo(item.uri);
+                    }}
+                  >
+                    {item.type === 'image' && item.uri ? (
+                      <Image source={{ uri: item.uri }} style={styles.thumbnail} />
+                    ) : (
+                      <View style={[styles.thumbnail, styles.videoPlaceholder]} />
                     )}
-                    {item.type === 'image' && (
-                      <Ionicons name="image" size={28} color="#fff" />
-                    )}
-                  </View>
+                    <View style={styles.mediaOverlay}>
+                      {item.type === 'video' && (
+                        <Ionicons name="play-circle" size={32} color="#fff" />
+                      )}
+                      {item.type === 'image' && (
+                        <Ionicons name="image" size={28} color="#fff" />
+                      )}
+                    </View>
+                  </Pressable>
                   <Pressable
                     style={styles.deleteBtn}
                     onPress={() => handleDelete(item.id)}
@@ -164,6 +192,32 @@ export default function SampleWorkEdit() {
 
           <View style={{ height: 40 }} />
         </ScrollView>
+
+        <Modal visible={imageViewerVisible} transparent animationType="fade" onRequestClose={() => setImageViewerVisible(false)}>
+          <View style={styles.viewerBackdrop}>
+            <Pressable style={styles.viewerClose} onPress={() => setImageViewerVisible(false)}>
+              <Ionicons name="close" size={28} color="#fff" />
+            </Pressable>
+            {selectedImageUri ? <Image source={{ uri: selectedImageUri }} style={styles.viewerImage} resizeMode="contain" /> : null}
+          </View>
+        </Modal>
+
+        <Modal visible={videoViewerVisible} transparent animationType="fade" onRequestClose={() => setVideoViewerVisible(false)}>
+          <View style={styles.viewerBackdrop}>
+            <Pressable style={styles.viewerClose} onPress={() => setVideoViewerVisible(false)}>
+              <Ionicons name="close" size={28} color="#fff" />
+            </Pressable>
+            {selectedVideoUri ? (
+              <Video
+                source={{ uri: selectedVideoUri }}
+                style={styles.viewerVideo}
+                useNativeControls
+                resizeMode={ResizeMode.CONTAIN}
+                shouldPlay
+              />
+            ) : null}
+          </View>
+        </Modal>
       </View>
     </ProtectedRoute>
   );
@@ -180,8 +234,13 @@ const styles = StyleSheet.create({
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   mediaCard: { width: '31%', aspectRatio: 1, borderRadius: 12, overflow: 'hidden', position: 'relative', borderWidth: 1, borderColor: '#e5e7eb' },
   thumbnail: { width: '100%', height: '100%' },
+  videoPlaceholder: { backgroundColor: '#1f2937' },
   mediaOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.3)' },
   deleteBtn: { position: 'absolute', top: 4, right: 4, padding: 4 },
+  viewerBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.92)', alignItems: 'center', justifyContent: 'center', padding: 16 },
+  viewerImage: { width: '100%', height: '85%' },
+  viewerVideo: { width: '100%', height: '60%' },
+  viewerClose: { position: 'absolute', top: 44, right: 18, zIndex: 10, padding: 6 },
   addRow: { flexDirection: 'row', gap: 10 },
   addBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 12, borderRadius: 10, gap: 8 },
   addBtnText: { color: '#fff', fontWeight: '700', fontSize: 13 },

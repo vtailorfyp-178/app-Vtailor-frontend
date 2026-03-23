@@ -3,72 +3,172 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export type UserRole = 'customer' | 'tailor' | null;
 
-type UserProfile = {
+export type UserProfile = {
   name?: string;
   email?: string;
+  phone?: string;
   address?: string;
   experience?: string;
   specialization?: string[];
   description?: string;
+  avatar?: string;
 };
 
 type AuthContextType = {
   acceptedTerms: boolean;
   acceptTerms: () => void;
-  userPhone: string | null;
+  /** JWT access token */
+  token: string | null;
+  userPhone: string | null;       // backward-compat alias for token
   userRole: UserRole;
-  login: (phone: string, role: UserRole) => void;
-  user?: UserProfile | null;
+  loginEmail: string | null;      // the email address used at OTP login — auto-fills forms
+  /** Call after OTP verify. email comes from the /otp/verify response. */
+  login: (token: string, role: UserRole, email?: string) => void;
+  /** Customer profile (only populated when userRole === 'customer') */
+  customerProfile: UserProfile | null;
+  /** Tailor profile (only populated when userRole === 'tailor') */
+  tailorProfile: UserProfile | null;
+  /** Convenience: whichever profile belongs to the current role */
+  user: UserProfile | null;
+  /** Persists profile under the key for the current role */
   updateProfile: (profile: UserProfile) => void;
   isProfileCompleted: boolean;
+  isAuthLoading: boolean;
   markProfileCompleted: () => void;
+  logout: () => void;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export function AuthProvider({ children }: { children: ReactNode }) {
-  const [acceptedTerms, setAcceptedTerms] = useState(false);
-  const [userPhone, setUserPhone] = useState<string | null>(null);
-  const [userRole, setUserRole] = useState<UserRole>(null);
-  const [user, setUser] = useState<UserProfile | null>(null);
-  const [isProfileCompleted, setIsProfileCompleted] = useState(false);
+// AsyncStorage key helpers — one set of keys per role so data never mixes
+const profileKey   = (role: UserRole) => `profile_${role}`;
+const completedKey = (role: UserRole) => `profileCompleted_${role}`;
 
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const [acceptedTerms, setAcceptedTerms]       = useState(false);
+  const [token, setToken]                       = useState<string | null>(null);
+  const [userRole, setUserRole]                 = useState<UserRole>(null);
+  const [loginEmail, setLoginEmail]             = useState<string | null>(null);
+  const [customerProfile, setCustomerProfile]   = useState<UserProfile | null>(null);
+  const [tailorProfile, setTailorProfile]       = useState<UserProfile | null>(null);
+  const [isProfileCompleted, setIsProfileCompleted] = useState(false);
+  const [isAuthLoading, setIsAuthLoading]       = useState(true);
+
+  // Restore auth session from storage on startup (web reload + app restart)
   useEffect(() => {
-    const loadProfileStatus = async () => {
+    const restoreSession = async () => {
       try {
-        const completed = await AsyncStorage.getItem('profileCompleted');
-        if (completed === 'true') {
-          setIsProfileCompleted(true);
+        const [storedToken, storedRole, storedEmail] = await Promise.all([
+          AsyncStorage.getItem('authToken'),
+          AsyncStorage.getItem('userRole'),
+          AsyncStorage.getItem('loginEmail'),
+        ]);
+
+        const role = (storedRole as UserRole) || null;
+
+        if (storedToken) setToken(storedToken);
+        if (role)        setUserRole(role);
+        if (storedEmail) setLoginEmail(storedEmail);
+
+        // Load the role-specific profile and completion flag
+        if (role) {
+          const [storedProfile, completed] = await Promise.all([
+            AsyncStorage.getItem(profileKey(role)),
+            AsyncStorage.getItem(completedKey(role)),
+          ]);
+          if (storedProfile) {
+            const parsed = JSON.parse(storedProfile) as UserProfile;
+            role === 'customer' ? setCustomerProfile(parsed) : setTailorProfile(parsed);
+          }
+          if (completed === 'true') setIsProfileCompleted(true);
         }
       } catch (error) {
-        console.error('Error loading profile status:', error);
+        console.error('Error restoring auth session:', error);
+      } finally {
+        setIsAuthLoading(false);
       }
     };
-    loadProfileStatus();
+    restoreSession();
   }, []);
 
   const acceptTerms = () => setAcceptedTerms(true);
 
-  const login = (phone: string, role: UserRole) => {
-    setUserPhone(phone);
+  const login = (newToken: string, role: UserRole, email?: string) => {
+    setToken(newToken);
     setUserRole(role);
+    // Reset completion for the new session so profile-setup is always shown on first login
+    setIsProfileCompleted(false);
+    if (email) {
+      setLoginEmail(email);
+      // Pre-seed the email field in whichever profile slot this role uses
+      const seed: UserProfile = { email };
+      role === 'customer' ? setCustomerProfile(seed) : setTailorProfile(seed);
+    }
+    AsyncStorage.setItem('authToken', newToken).catch(() => {});
+    AsyncStorage.setItem('userRole', role ?? '').catch(() => {});
+    if (email) AsyncStorage.setItem('loginEmail', email).catch(() => {});
   };
 
+  const logout = () => {
+    setToken(null);
+    setUserRole(null);
+    setLoginEmail(null);
+    setCustomerProfile(null);
+    setTailorProfile(null);
+    setIsProfileCompleted(false);
+    AsyncStorage.multiRemove([
+      'authToken', 'userRole', 'loginEmail',
+      profileKey('customer'), completedKey('customer'),
+      profileKey('tailor'),   completedKey('tailor'),
+    ]).catch(() => {});
+  };
+
+  /** Saves to the role-specific profile key so customer and tailor data never overlap */
   const updateProfile = (profile: UserProfile) => {
-    setUser((prev) => ({ ...(prev || {}), ...profile }));
+    if (userRole === 'customer') {
+      setCustomerProfile((prev) => {
+        const next = { ...(prev || {}), ...profile };
+        AsyncStorage.setItem(profileKey('customer'), JSON.stringify(next)).catch(() => {});
+        return next;
+      });
+    } else if (userRole === 'tailor') {
+      setTailorProfile((prev) => {
+        const next = { ...(prev || {}), ...profile };
+        AsyncStorage.setItem(profileKey('tailor'), JSON.stringify(next)).catch(() => {});
+        return next;
+      });
+    }
   };
 
   const markProfileCompleted = async () => {
     setIsProfileCompleted(true);
     try {
-      await AsyncStorage.setItem('profileCompleted', 'true');
+      await AsyncStorage.setItem(completedKey(userRole), 'true');
     } catch (error) {
       console.error('Error saving profile status:', error);
     }
   };
 
+  // Convenience: whichever profile belongs to the current role
+  const user = userRole === 'customer' ? customerProfile : userRole === 'tailor' ? tailorProfile : null;
+
   return (
-    <AuthContext.Provider value={{ acceptedTerms, acceptTerms, userPhone, userRole, login, user, updateProfile, isProfileCompleted, markProfileCompleted }}>
+    <AuthContext.Provider value={{
+      acceptedTerms, acceptTerms,
+      token,
+      userPhone: token,   // backward-compat alias
+      userRole,
+      loginEmail,
+      login,
+      customerProfile,
+      tailorProfile,
+      user,
+      updateProfile,
+      isProfileCompleted,
+      isAuthLoading,
+      markProfileCompleted,
+      logout,
+    }}>
       {children}
     </AuthContext.Provider>
   );

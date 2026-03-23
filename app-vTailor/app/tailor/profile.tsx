@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, Alert, Image } from 'react-native';
 import { useAuth } from '@/contexts/AuthContext';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { ThemedText } from '@/components/themed-text';
@@ -41,11 +41,14 @@ export default function TailorProfile() {
 
           <View style={styles.profileRow}>
             <View style={[styles.avatar, { backgroundColor: cardBg }]}> 
-              <Text style={styles.avatarIcon}>👤</Text>
+              {user?.avatar
+                ? <Image source={{ uri: user.avatar }} style={styles.avatarImage} />
+                : <Text style={styles.avatarIcon}>👤</Text>
+              }
             </View>
             <View style={{ marginLeft: 12 }}>
               <Text style={styles.name}>{user?.name || 'Tailor Name'}</Text>
-              <Text style={styles.phone}>{user?.userPhone || '+92 300 1234567'}</Text>
+              <Text style={styles.phone}>{auth?.loginEmail || user?.email || 'tailor@example.com'}</Text>
               <View style={styles.ratingRow}>
                 <Text style={styles.star}>⭐</Text>
                 <Text style={styles.rating}>4.8</Text>
@@ -68,10 +71,10 @@ export default function TailorProfile() {
           <View style={styles.section}>
             <Text style={styles.sectionLabel}>Information</Text>
             <View style={[styles.infoCard, { backgroundColor: cardBg }]}> 
-              <View style={styles.infoRow}><Text style={styles.infoIcon}>📞</Text><View style={{flex:1}}><Text style={styles.infoLabel}>Phone Number</Text><Text style={styles.infoValue}>{user?.userPhone || 'Not set'}</Text></View></View>
-              <View style={styles.infoRow}><Text style={styles.infoIcon}>✉️</Text><View style={{flex:1}}><Text style={styles.infoLabel}>Email</Text><Text style={styles.infoValue}>{user?.email || 'Not set'}</Text></View></View>
+              <View style={styles.infoRow}><Text style={styles.infoIcon}>📱</Text><View style={{flex:1}}><Text style={styles.infoLabel}>Phone</Text><Text style={styles.infoValue}>{user?.phone || 'Not set'}</Text></View></View>
+              <View style={styles.infoRow}><Text style={styles.infoIcon}>✉️</Text><View style={{flex:1}}><Text style={styles.infoLabel}>Email</Text><Text style={styles.infoValue}>{auth?.loginEmail || user?.email || 'Not set'}</Text></View></View>
               <View style={styles.infoRow}><Text style={styles.infoIcon}>📍</Text><View style={{flex:1}}><Text style={styles.infoLabel}>Address</Text><Text style={styles.infoValue}>{user?.address || 'Not set'}</Text></View></View>
-              <View style={styles.infoRow}><Text style={styles.infoIcon}>💼</Text><View style={{flex:1}}><Text style={styles.infoLabel}>Experience</Text><Text style={styles.infoValue}>{user?.experience ? `${user.experience} Years` : '8 Years'}</Text></View></View>
+              <View style={styles.infoRow}><Text style={styles.infoIcon}>💼</Text><View style={{flex:1}}><Text style={styles.infoLabel}>Experience</Text><Text style={styles.infoValue}>{user?.experience ? `${user.experience} Years` : 'Not set'}</Text></View></View>
             </View>
           </View>
 
@@ -112,7 +115,8 @@ const styles = StyleSheet.create({
   iconBtn: { padding: 8, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.6)' },
   iconBtnText: { fontSize: 14 },
   profileRow: { flexDirection: 'row', alignItems: 'center', marginTop: 12 },
-  avatar: { width: 80, height: 80, borderRadius: 40, alignItems: 'center', justifyContent: 'center' },
+  avatar: { width: 80, height: 80, borderRadius: 40, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  avatarImage: { width: '100%', height: '100%', borderRadius: 40 },
   avatarIcon: { fontSize: 32 },
   name: { fontSize: 18, fontWeight: '700' },
   phone: { color: '#6b7280' },

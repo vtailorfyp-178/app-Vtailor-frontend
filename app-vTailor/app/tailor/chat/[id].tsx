@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
-import { View, ScrollView, TextInput, Pressable, StyleSheet, KeyboardAvoidingView, Platform, Image, Alert, Linking } from 'react-native';
+import { View, ScrollView, TextInput, Pressable, StyleSheet, KeyboardAvoidingView, Platform, Image, Alert, Linking, Modal } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
+import * as ImagePicker from 'expo-image-picker';
+import { ResizeMode, Video } from 'expo-av';
 
 interface Message {
   id: string;
@@ -49,6 +51,22 @@ export default function TailorChatConversation() {
   const [messages, setMessages] = useState<Message[]>(thread?.messages ?? []);
   const [inputText, setInputText] = useState('');
   const [showAttach, setShowAttach] = useState(false);
+  const [imageViewerVisible, setImageViewerVisible] = useState(false);
+  const [selectedImageUri, setSelectedImageUri] = useState<string | null>(null);
+  const [videoViewerVisible, setVideoViewerVisible] = useState(false);
+  const [selectedVideoUri, setSelectedVideoUri] = useState<string | null>(null);
+
+  const getMediaLabel = (uri: string) => uri.split('/').pop() || 'Selected media';
+
+  const openImageViewer = (uri: string) => {
+    setSelectedImageUri(uri);
+    setImageViewerVisible(true);
+  };
+
+  const openVideo = (uri: string) => {
+    setSelectedVideoUri(uri);
+    setVideoViewerVisible(true);
+  };
 
   const handleBack = () => {
     if (returnTo) {
@@ -81,14 +99,48 @@ export default function TailorChatConversation() {
     Linking.openURL(url).catch(() => Alert.alert('Call Failed', 'Unable to initiate call on this device.'));
   };
 
-  const handlePickImage = () => {
+  const handlePickImage = async () => {
     setShowAttach(false);
-    Alert.alert('Attachment', 'Pick image (placeholder)');
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert('Permission Required', 'Gallery access is needed to select images.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'] as any,
+      quality: 0.8,
+    });
+    if (!result.canceled) {
+      const newMsg: Message = {
+        id: String(Date.now()),
+        sender: 'tailor',
+        media: { type: 'image', uri: result.assets[0].uri },
+        time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+      };
+      setMessages((prev) => [...prev, newMsg]);
+    }
   };
 
-  const handlePickVideo = () => {
+  const handlePickVideo = async () => {
     setShowAttach(false);
-    Alert.alert('Attachment', 'Pick video (placeholder)');
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert('Permission Required', 'Gallery access is needed to select videos.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['videos'] as any,
+      quality: 1,
+    });
+    if (!result.canceled) {
+      const newMsg: Message = {
+        id: String(Date.now()),
+        sender: 'tailor',
+        media: { type: 'video', uri: result.assets[0].uri },
+        time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+      };
+      setMessages((prev) => [...prev, newMsg]);
+    }
   };
 
   if (!thread) {
@@ -152,9 +204,18 @@ export default function TailorChatConversation() {
                 >
                   {msg.media ? (
                     msg.media.type === 'image' ? (
-                      <Image source={{ uri: msg.media.uri }} style={styles.mediaImage} />
+                      <Pressable onPress={() => openImageViewer(msg.media!.uri)}>
+                        <Image source={{ uri: msg.media.uri }} style={styles.mediaImage} />
+                      </Pressable>
                     ) : (
-                      <ThemedText style={{ color: msg.sender === 'tailor' ? '#fff' : '#000' }}>{msg.media.uri}</ThemedText>
+                      <Pressable onPress={() => openVideo(msg.media!.uri)}>
+                        <View style={styles.videoPlaceholder}>
+                          <Ionicons name="play-circle" size={30} color={msg.sender === 'tailor' ? '#fff' : '#111827'} />
+                          <ThemedText style={{ color: msg.sender === 'tailor' ? '#fff' : '#111827', marginTop: 8, fontSize: 12, textAlign: 'center' }}>
+                            {getMediaLabel(msg.media.uri)}
+                          </ThemedText>
+                        </View>
+                      </Pressable>
                     )
                   ) : (
                     <ThemedText style={[styles.messageText, msg.sender === 'tailor' ? { color: '#fff' } : {}]}>
@@ -197,6 +258,32 @@ export default function TailorChatConversation() {
             </Pressable>
           </View>
         </KeyboardAvoidingView>
+
+        <Modal visible={imageViewerVisible} transparent animationType="fade" onRequestClose={() => setImageViewerVisible(false)}>
+          <View style={styles.viewerBackdrop}>
+            <Pressable style={styles.viewerClose} onPress={() => setImageViewerVisible(false)}>
+              <Ionicons name="close" size={28} color="#fff" />
+            </Pressable>
+            {selectedImageUri ? <Image source={{ uri: selectedImageUri }} style={styles.viewerImage} resizeMode="contain" /> : null}
+          </View>
+        </Modal>
+
+        <Modal visible={videoViewerVisible} transparent animationType="fade" onRequestClose={() => setVideoViewerVisible(false)}>
+          <View style={styles.viewerBackdrop}>
+            <Pressable style={styles.viewerClose} onPress={() => setVideoViewerVisible(false)}>
+              <Ionicons name="close" size={28} color="#fff" />
+            </Pressable>
+            {selectedVideoUri ? (
+              <Video
+                source={{ uri: selectedVideoUri }}
+                style={styles.viewerVideo}
+                useNativeControls
+                resizeMode={ResizeMode.CONTAIN}
+                shouldPlay
+              />
+            ) : null}
+          </View>
+        </Modal>
       </ThemedView>
     </ProtectedRoute>
   );
@@ -216,6 +303,11 @@ const styles = StyleSheet.create({
   customerWrapper: { alignItems: 'flex-start' },
   bubble: { padding: 12, borderRadius: 12, maxWidth: '78%' },
   mediaImage: { width: 180, height: 180, borderRadius: 12 },
+  videoPlaceholder: { width: 180, minHeight: 120, borderRadius: 12, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 10 },
+  viewerBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.92)', alignItems: 'center', justifyContent: 'center', padding: 16 },
+  viewerImage: { width: '100%', height: '85%' },
+  viewerVideo: { width: '100%', height: '60%' },
+  viewerClose: { position: 'absolute', top: 44, right: 18, zIndex: 10, padding: 6 },
   messageText: { fontSize: 14 },
   time: { fontSize: 11, marginTop: 4 },
   inputBar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 10, borderTopWidth: 1 },

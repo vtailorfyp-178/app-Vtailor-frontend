@@ -11,13 +11,13 @@ interface ProtectedRouteProps {
 
 export const ProtectedRoute = ({ children, requiredRole }: ProtectedRouteProps) => {
   const router = useRouter();
-  const { isProfileCompleted, userRole } = useAuth();
-  const [isChecking, setIsChecking] = React.useState(true);
+  const { isProfileCompleted, userRole, isAuthLoading } = useAuth();
   const tint = useThemeColor({}, 'tint');
 
   useEffect(() => {
-    setIsChecking(false);
-    
+    // Wait until AsyncStorage values are loaded before making routing decisions
+    if (isAuthLoading) return;
+
     if (!isProfileCompleted) {
       (router as any).replace('/profile-setup');
       return;
@@ -32,9 +32,9 @@ export const ProtectedRoute = ({ children, requiredRole }: ProtectedRouteProps) 
         (router as any).replace('/auth');
       }
     }
-  }, [isProfileCompleted, userRole, requiredRole, router]);
+  }, [isAuthLoading, isProfileCompleted, userRole, requiredRole, router]);
 
-  if (isChecking) {
+  if (isAuthLoading) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
         <ActivityIndicator size="large" color={tint} />

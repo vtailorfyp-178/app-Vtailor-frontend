@@ -6,16 +6,19 @@ import { ThemedView } from '@/components/themed-view';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { useAuth } from '@/contexts/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 
 const logo = require('../assets/images/vTailorlogo.jpeg');
 
 export default function ProfileSetup() {
   const router = useRouter();
-  const { user, updateProfile, userRole, markProfileCompleted } = useAuth();
-  const [profileImage, setProfileImage] = useState<string | null>(null);
+  const { user, loginEmail, updateProfile, userRole, markProfileCompleted } = useAuth();
+  const [profileImage, setProfileImage] = useState<string | null>(user?.avatar ?? null);
+  // loginEmail is set by login() right after OTP verify succeeds, auto-fills the email field
   const [formData, setFormData] = useState({
     name: user?.name ?? '',
-    email: user?.email ?? '',
+    email: user?.email ?? loginEmail ?? '',
+    phone: user?.phone ?? '',
     address: user?.address ?? '',
     experience: user?.experience ?? '',
     specialization: user?.specialization ?? [] as string[],
@@ -35,16 +38,40 @@ export default function ProfileSetup() {
     Alert.alert('Profile Picture', 'Choose an option', [
       {
         text: 'Camera',
-        onPress: () => {
-          setProfileImage('https://via.placeholder.com/200x200?text=Camera+Photo');
-          Alert.alert('Success', 'Photo captured');
+        onPress: async () => {
+          const permission = await ImagePicker.requestCameraPermissionsAsync();
+          if (!permission.granted) {
+            Alert.alert('Permission Required', 'Camera access is needed to take photos.');
+            return;
+          }
+          const result = await ImagePicker.launchCameraAsync({
+            mediaTypes: ['images'] as any,
+            allowsEditing: true,
+            aspect: [1, 1],
+            quality: 0.8,
+          });
+          if (!result.canceled) {
+            setProfileImage(result.assets[0].uri);
+          }
         },
       },
       {
         text: 'Gallery',
-        onPress: () => {
-          setProfileImage('https://via.placeholder.com/200x200?text=Gallery+Image');
-          Alert.alert('Success', 'Photo selected');
+        onPress: async () => {
+          const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+          if (!permission.granted) {
+            Alert.alert('Permission Required', 'Gallery access is needed to select photos.');
+            return;
+          }
+          const result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ['images'] as any,
+            allowsEditing: true,
+            aspect: [1, 1],
+            quality: 0.8,
+          });
+          if (!result.canceled) {
+            setProfileImage(result.assets[0].uri);
+          }
         },
       },
       { text: 'Cancel', onPress: () => {}, style: 'cancel' },
@@ -64,10 +91,12 @@ export default function ProfileSetup() {
     updateProfile({
       name: formData.name,
       email: formData.email,
+      phone: formData.phone,
       address: formData.address,
       experience: formData.experience,
       specialization: formData.specialization,
       description: formData.description,
+      avatar: profileImage ?? undefined,
     });
     
     await markProfileCompleted();
@@ -119,9 +148,18 @@ export default function ProfileSetup() {
           <ThemedText style={styles.label}>Email Address</ThemedText>
           <TextInput
             value={formData.email}
-            onChangeText={(t) => setFormData({ ...formData, email: t })}
+            editable={false}
             placeholder="your@email.com"
             keyboardType="email-address"
+            style={[styles.input, { borderColor: inputBorder, backgroundColor: '#f3f4f6', color: '#6b7280' }]}
+          />
+
+          <ThemedText style={styles.label}>Phone Number</ThemedText>
+          <TextInput
+            value={formData.phone}
+            onChangeText={(t) => setFormData({ ...formData, phone: t })}
+            placeholder="e.g., +92 300 1234567"
+            keyboardType="phone-pad"
             style={[styles.input, { borderColor: inputBorder }]}
           />
 

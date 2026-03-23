@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
-import { View, ScrollView, TextInput, Pressable, StyleSheet, KeyboardAvoidingView, Platform, Image, Alert, Linking } from 'react-native';
+import { View, ScrollView, TextInput, Pressable, StyleSheet, KeyboardAvoidingView, Platform, Image, Alert, Linking, Modal } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
+import { ResizeMode, Video } from 'expo-av';
 
 interface Message {
   id: string;
@@ -69,6 +71,22 @@ export default function ChatConversation() {
   const [messages, setMessages] = useState<Message[]>(conversation.messages);
   const [inputText, setInputText] = useState('');
   const [showAttach, setShowAttach] = useState(false);
+  const [imageViewerVisible, setImageViewerVisible] = useState(false);
+  const [selectedImageUri, setSelectedImageUri] = useState<string | null>(null);
+  const [videoViewerVisible, setVideoViewerVisible] = useState(false);
+  const [selectedVideoUri, setSelectedVideoUri] = useState<string | null>(null);
+
+  const getMediaLabel = (uri: string) => uri.split('/').pop() || 'Selected media';
+
+  const openImageViewer = (uri: string) => {
+    setSelectedImageUri(uri);
+    setImageViewerVisible(true);
+  };
+
+  const openVideo = (uri: string) => {
+    setSelectedVideoUri(uri);
+    setVideoViewerVisible(true);
+  };
 
   const handleSendMessage = () => {
     if (inputText.trim()) {
@@ -94,47 +112,66 @@ export default function ChatConversation() {
     }
   };
 
-  const handlePickImage = () => {
+  const handlePickImage = async () => {
     setShowAttach(false);
-    // Mock image selection
-    const mockImageUri = 'https://via.placeholder.com/300x300/FF6B6B/FFFFFF?text=Dress+Design';
-    const newMessage: Message = {
-      id: String(messages.length + 1),
-      sender: 'customer',
-      media: {
-        type: 'image',
-        uri: mockImageUri,
-      },
-      time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
-    };
-    setMessages([...messages, newMessage]);
-
-    // Simulate tailor response with image
-    setTimeout(() => {
-      const tailorResponse: Message = {
-        id: String(messages.length + 2),
-        sender: 'tailor',
-        text: 'Nice design! I can definitely make this for you.',
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert('Permission Required', 'Gallery access is needed to select images.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'] as any,
+      allowsEditing: false,
+      quality: 0.8,
+    });
+    if (!result.canceled) {
+      const newMessage: Message = {
+        id: String(messages.length + 1),
+        sender: 'customer',
+        media: {
+          type: 'image',
+          uri: result.assets[0].uri,
+        },
         time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
       };
-      setMessages((prev) => [...prev, tailorResponse]);
-    }, 2000);
+      setMessages(prev => [...prev, newMessage]);
+
+      // Simulate tailor response
+      setTimeout(() => {
+        const tailorResponse: Message = {
+          id: String(Date.now()),
+          sender: 'tailor',
+          text: 'Nice design! I can definitely make this for you.',
+          time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+        };
+        setMessages(prev => [...prev, tailorResponse]);
+      }, 2000);
+    }
   };
 
-  const handlePickVideo = () => {
+  const handlePickVideo = async () => {
     setShowAttach(false);
-    // Mock video selection
-    const mockVideoUri = '📹 Video_Design_Reference.mp4';
-    const newMessage: Message = {
-      id: String(messages.length + 1),
-      sender: 'customer',
-      media: {
-        type: 'video',
-        uri: mockVideoUri,
-      },
-      time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
-    };
-    setMessages([...messages, newMessage]);
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert('Permission Required', 'Gallery access is needed to select videos.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['videos'] as any,
+      quality: 1,
+    });
+    if (!result.canceled) {
+      const newMessage: Message = {
+        id: String(messages.length + 1),
+        sender: 'customer',
+        media: {
+          type: 'video',
+          uri: result.assets[0].uri,
+        },
+        time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+      };
+      setMessages((prev) => [...prev, newMessage]);
+    }
   };
 
   if (!conversation) {
@@ -205,17 +242,21 @@ export default function ChatConversation() {
                 {msg.media ? (
                   <View>
                     {msg.media.type === 'image' ? (
-                      <Image
-                        source={{ uri: msg.media.uri }}
-                        style={styles.mediaImage}
-                      />
+                      <Pressable onPress={() => openImageViewer(msg.media!.uri)}>
+                        <Image
+                          source={{ uri: msg.media.uri }}
+                          style={styles.mediaImage}
+                        />
+                      </Pressable>
                     ) : (
-                      <View style={styles.videoPlaceholder}>
-                        <ThemedText style={{ fontSize: 32, marginBottom: 8 }}>🎥</ThemedText>
-                        <ThemedText style={{ fontSize: 12, textAlign: 'center', color: msg.sender === 'customer' ? '#fff' : '#000' }}>
-                          {msg.media.uri}
-                        </ThemedText>
-                      </View>
+                      <Pressable onPress={() => openVideo(msg.media!.uri)}>
+                        <View style={styles.videoPlaceholder}>
+                          <ThemedText style={{ fontSize: 32, marginBottom: 8 }}>🎥</ThemedText>
+                          <ThemedText style={{ fontSize: 12, textAlign: 'center', color: msg.sender === 'customer' ? '#fff' : '#000' }}>
+                            {getMediaLabel(msg.media.uri)}
+                          </ThemedText>
+                        </View>
+                      </Pressable>
                     )}
                   </View>
                 ) : (
@@ -276,6 +317,32 @@ export default function ChatConversation() {
           </Pressable>
         </View>
       </KeyboardAvoidingView>
+
+      <Modal visible={imageViewerVisible} transparent animationType="fade" onRequestClose={() => setImageViewerVisible(false)}>
+        <View style={styles.viewerBackdrop}>
+          <Pressable style={styles.viewerClose} onPress={() => setImageViewerVisible(false)}>
+            <Ionicons name="close" size={28} color="#fff" />
+          </Pressable>
+          {selectedImageUri ? <Image source={{ uri: selectedImageUri }} style={styles.viewerImage} resizeMode="contain" /> : null}
+        </View>
+      </Modal>
+
+      <Modal visible={videoViewerVisible} transparent animationType="fade" onRequestClose={() => setVideoViewerVisible(false)}>
+        <View style={styles.viewerBackdrop}>
+          <Pressable style={styles.viewerClose} onPress={() => setVideoViewerVisible(false)}>
+            <Ionicons name="close" size={28} color="#fff" />
+          </Pressable>
+          {selectedVideoUri ? (
+            <Video
+              source={{ uri: selectedVideoUri }}
+              style={styles.viewerVideo}
+              useNativeControls
+              resizeMode={ResizeMode.CONTAIN}
+              shouldPlay
+            />
+          ) : null}
+        </View>
+      </Modal>
     </ThemedView>
   );
 }
@@ -379,6 +446,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: '#f3f4f6',
   },
+  viewerBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.92)', alignItems: 'center', justifyContent: 'center', padding: 16 },
+  viewerImage: { width: '100%', height: '85%' },
+  viewerVideo: { width: '100%', height: '60%' },
+  viewerClose: { position: 'absolute', top: 44, right: 18, zIndex: 10, padding: 6 },
   backButton: {
     width: 44,
     height: 44,
