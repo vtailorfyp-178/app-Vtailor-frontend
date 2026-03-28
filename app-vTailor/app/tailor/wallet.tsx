@@ -1,22 +1,40 @@
 import { ThemedText } from '@/components/themed-text';
+import { useAuth } from '@/contexts/AuthContext';
 import { useThemeColor } from '@/hooks/use-theme-color';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import React from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-
-const transactions = [
-  { id: 1, type: 'credit', description: 'Payment from Ali Hassan', amount: 8500, date: '25 Dec' },
-  { id: 2, type: 'debit', description: 'Late Delivery Penalty', amount: 425, date: '24 Dec', isPenalty: true },
-  { id: 3, type: 'credit', description: 'Payment from Zara Khan', amount: 12000, date: '22 Dec' },
-  { id: 4, type: 'credit', description: 'Payment from Fatima Bibi', amount: 6000, date: '18 Dec' },
-  { id: 5, type: 'debit', description: 'Withdrawal to Bank', amount: 50000, date: '15 Dec' },
-];
+import { getWalletSummary, WalletSummary } from '@/services/walletApi';
 
 export default function TailorWallet() {
   const bg = useThemeColor({}, 'background');
   const cardBg = useThemeColor({}, 'card');
   const tint = useThemeColor({}, 'tint');
   const router = useRouter();
+  const { token } = useAuth();
+  const [wallet, setWallet] = React.useState<WalletSummary | null>(null);
+
+  const loadWallet = React.useCallback(async () => {
+    if (!token) return;
+    try {
+      const data = await getWalletSummary(token, 30);
+      setWallet(data);
+    } catch {
+      // keep existing UI when API call fails
+    }
+  }, [token]);
+
+  React.useEffect(() => {
+    loadWallet();
+  }, [loadWallet]);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      loadWallet();
+      const timer = setInterval(loadWallet, 10000);
+      return () => clearInterval(timer);
+    }, [loadWallet])
+  );
 
   return (
       <View style={[styles.container, { backgroundColor: bg }]}> 
@@ -30,7 +48,7 @@ export default function TailorWallet() {
               </View>
               <View>
                 <Text style={styles.balanceLabel}>Available Balance</Text>
-                <Text style={styles.balanceAmount}>Rs. 45,575</Text>
+                <Text style={styles.balanceAmount}>Rs. {(wallet?.balance ?? 0).toLocaleString()}</Text>
               </View>
             </View>
 
@@ -62,20 +80,27 @@ export default function TailorWallet() {
             <Text style={styles.muted}>🕘</Text>
           </View>
 
-          {transactions.map((tx) => (
-            <View key={tx.id} style={[styles.txCard, tx.isPenalty ? styles.txPenalty : null, { backgroundColor: cardBg }]}> 
-              <View style={[styles.txIcon, tx.isPenalty ? { backgroundColor: '#fde8ea' } : tx.type === 'credit' ? { backgroundColor: '#ecfdf5' } : { backgroundColor: '#fff7ed' }]}>
-                <Text>{tx.isPenalty ? '⚠️' : tx.type === 'credit' ? '⬇️' : '⬆️'}</Text>
+          {(wallet?.transactions ?? []).map((tx) => (
+            <View key={tx.id} style={[styles.txCard, { backgroundColor: cardBg }]}> 
+              <View style={[styles.txIcon, tx.transaction_type === 'add' ? { backgroundColor: '#ecfdf5' } : { backgroundColor: '#fff7ed' }]}>
+                <Text>{tx.transaction_type === 'add' ? '⬇️' : '⬆️'}</Text>
               </View>
               <View style={{ flex: 1, marginHorizontal: 12 }}>
-                <Text style={styles.txDesc}>{tx.description}</Text>
-                <Text style={styles.txDate}>{tx.date}</Text>
+                <Text style={styles.txDesc}>{tx.transaction_type === 'add' ? `Wallet Top-up via ${tx.payment_method}` : `Withdrawal via ${tx.payment_method}`}</Text>
+                <Text style={styles.txDate}>{new Date(tx.created_at).toLocaleString()}</Text>
+                <Text style={styles.txDate}>Account: {tx.phone || 'Not provided'}</Text>
               </View>
-              <Text style={[styles.txAmount, tx.isPenalty ? { color: '#ef4444' } : tx.type === 'credit' ? { color: '#059669' } : { color: '#111827' }]}>
-                {tx.type === 'credit' ? '+' : '-'}Rs. {tx.amount.toLocaleString()}
+              <Text style={[styles.txAmount, tx.transaction_type === 'add' ? { color: '#059669' } : { color: '#111827' }]}>
+                {tx.transaction_type === 'add' ? '+' : '-'}Rs. {tx.amount.toLocaleString()}
               </Text>
             </View>
           ))}
+
+          {(wallet?.transactions?.length ?? 0) === 0 && (
+            <View style={[styles.txCard, { backgroundColor: cardBg }]}> 
+              <Text style={styles.txDate}>No transactions yet</Text>
+            </View>
+          )}
         </ScrollView>
       </View>
   );

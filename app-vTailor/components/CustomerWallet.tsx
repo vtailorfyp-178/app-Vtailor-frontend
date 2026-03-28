@@ -1,20 +1,17 @@
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { ThemedText } from './themed-text';
+import { useAuth } from '@/contexts/AuthContext';
+import { getWalletSummary, WalletSummary } from '@/services/walletApi';
 
 const CustomerWallet = () => {
-  const transactions = [
-    { id: 1, type: 'debit', description: 'Payment to Ahmad Tailor', amount: 8500, date: '25 Dec' },
-    { id: 2, type: 'credit', description: 'Wallet Top-up', amount: 20000, date: '20 Dec' },
-    { id: 3, type: 'debit', description: 'Payment to Classic Stitches', amount: 3500, date: '15 Dec' },
-    { id: 4, type: 'credit', description: 'Refund - Order Cancelled', amount: 5000, date: '10 Dec' },
-  ];
-
   const [penalties, setPenalties] = useState<any[]>([]);
+  const [wallet, setWallet] = useState<WalletSummary | null>(null);
+  const { token } = useAuth();
 
   // Load penalty data from AsyncStorage
   useEffect(() => {
@@ -42,6 +39,28 @@ const CustomerWallet = () => {
 
   const [mode, setMode] = useState<'add' | 'withdraw'>('add');
 
+  const loadWallet = React.useCallback(async () => {
+    if (!token) return;
+    try {
+      const data = await getWalletSummary(token, 30);
+      setWallet(data);
+    } catch {
+      // keep existing UI state on transient API failures
+    }
+  }, [token]);
+
+  useEffect(() => {
+    loadWallet();
+  }, [loadWallet]);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      loadWallet();
+      const timer = setInterval(loadWallet, 10000);
+      return () => clearInterval(timer);
+    }, [loadWallet])
+  );
+
   return (
     <View style={[styles.container, { backgroundColor: background }]}> 
       <View style={[styles.headerSection, { backgroundColor: tint }] }>
@@ -51,7 +70,7 @@ const CustomerWallet = () => {
             <View style={[styles.walletIcon, { backgroundColor: '#fbbf24' }]}><ThemedText style={styles.walletEmoji}>💰</ThemedText></View>
             <View>
               <ThemedText style={styles.balanceLabel}>Available Balance</ThemedText>
-              <ThemedText style={styles.balanceAmount}>Rs. 15,500</ThemedText>
+              <ThemedText style={styles.balanceAmount}>Rs. {(wallet?.balance ?? 0).toLocaleString()}</ThemedText>
             </View>
           </View>
           <View style={styles.actionRow}>
@@ -164,20 +183,26 @@ const CustomerWallet = () => {
             <ThemedText style={styles.historyIcon}>📜</ThemedText>
           </View>
           <View style={styles.transactionsList}>
-            {transactions.map((tx) => (
+            {(wallet?.transactions ?? []).map((tx) => (
               <View key={tx.id} style={styles.transactionCard}>
-                <View style={[styles.txIcon, { backgroundColor: tx.type === 'credit' ? '#d1fae5' : '#fee2e2' }]}>
-                  <ThemedText style={styles.txArrowIcon}>{tx.type === 'credit' ? '↓' : '↑'}</ThemedText>
+                <View style={[styles.txIcon, { backgroundColor: tx.transaction_type === 'add' ? '#d1fae5' : '#fee2e2' }]}>
+                  <ThemedText style={styles.txArrowIcon}>{tx.transaction_type === 'add' ? '↓' : '↑'}</ThemedText>
                 </View>
                 <View style={styles.txContent}>
-                  <ThemedText style={styles.txDescription}>{tx.description}</ThemedText>
-                  <ThemedText style={styles.txDate}>{tx.date}</ThemedText>
+                  <ThemedText style={styles.txDescription}>{tx.transaction_type === 'add' ? `Wallet Top-up via ${tx.payment_method}` : `Withdrawal via ${tx.payment_method}`}</ThemedText>
+                  <ThemedText style={styles.txDate}>{new Date(tx.created_at).toLocaleString()}</ThemedText>
+                  <ThemedText style={styles.txDate}>Account: {tx.phone || 'Not provided'}</ThemedText>
                 </View>
-                <ThemedText style={[styles.txAmount, { color: tx.type === 'credit' ? '#14b8a6' : '#000000' }]}>
-                  {tx.type === 'credit' ? '+' : '-'}Rs. {tx.amount.toLocaleString()}
+                <ThemedText style={[styles.txAmount, { color: tx.transaction_type === 'add' ? '#14b8a6' : '#000000' }]}>
+                  {tx.transaction_type === 'add' ? '+' : '-'}Rs. {tx.amount.toLocaleString()}
                 </ThemedText>
               </View>
             ))}
+            {(wallet?.transactions?.length ?? 0) === 0 && (
+              <View style={styles.transactionCard}>
+                <ThemedText style={styles.txDate}>No transactions yet</ThemedText>
+              </View>
+            )}
           </View>
         </View>
         <View style={styles.bottomPadding} />

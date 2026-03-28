@@ -1,7 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useMemo, useState } from 'react';
-import { Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Linking, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useAuth } from '@/contexts/AuthContext';
+import { confirmWalletTransaction, createWalletTransaction, getWalletSummary } from '@/services/walletApi';
 
 const WalletTransactionScreen = () => {
   const router = useRouter();
@@ -9,27 +11,102 @@ const WalletTransactionScreen = () => {
   const transactionType = (params?.transactionType as string) || 'add';
   const paymentMethod = (params?.paymentMethod as string) || 'EasyPaisa';
   const role = (params?.role as string) || 'customer';
+  const { token } = useAuth();
 
   const startingBalance = useMemo(() => (role === 'tailor' ? 45575 : 15500), [role]);
 
   const [amount, setAmount] = useState('');
-  const [phone, setPhone] = useState((params?.phone as string) || '03XXXXXXXXX');
+  const [phone, setPhone] = useState((params?.phone as string) || '');
   const [balance, setBalance] = useState(startingBalance);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [error, setError] = useState('');
+  const [pendingTxId, setPendingTxId] = useState('');
+  const [pendingUrl, setPendingUrl] = useState('');
 
-  const onProceed = () => {
+  React.useEffect(() => {
+    let mounted = true;
+    const loadWallet = async () => {
+      if (!token) return;
+      try {
+        const summary = await getWalletSummary(token, 20);
+        if (mounted) setBalance(summary.balance);
+      } catch {
+        // keep fallback balance
+      }
+    };
+    loadWallet();
+    return () => {
+      mounted = false;
+    };
+  }, [token]);
+
+  const onProceed = async () => {
     if (loading || !amount.trim()) return;
+    const numericAmount = parseFloat(amount) || 0;
+    if (numericAmount <= 0) {
+      setError('Please enter a valid amount');
+      return;
+    }
+    if (!token) {
+      setError('Please login again');
+      return;
+    }
+
+    setError('');
     setLoading(true);
     setSuccess(false);
+    setPendingTxId('');
+    setPendingUrl('');
 
-    setTimeout(() => {
-      const numericAmount = parseFloat(amount) || 0;
-      const updatedBalance = transactionType === 'withdraw' ? balance - numericAmount : balance + numericAmount;
-      setBalance(updatedBalance);
+    try {
+      const result = await createWalletTransaction(token, {
+        transaction_type: transactionType === 'withdraw' ? 'withdraw' : 'add',
+        amount: numericAmount,
+        payment_method: paymentMethod,
+        phone,
+      });
+
+      if (result.status === 'pending' && result.transaction?.id) {
+        setPendingTxId(result.transaction.id);
+        const url = result.next_action_url || result.transaction.payment_url || '';
+        setPendingUrl(url);
+        const isInternalApiUrl =
+          url.includes('/app/api/v1/wallet/transactions/') ||
+          url.includes('/app/api/v1/wallet/gateway/callback/');
+        if (url && !isInternalApiUrl) {
+          Linking.openURL(url).catch(() => {
+            setError('Could not open provider payment page. Use Verify Payment after completing it.');
+          });
+        }
+      } else {
+        setBalance(result.wallet.balance);
+        setAmount('');
+        setSuccess(true);
+      }
+    } catch (e: any) {
+      setError(e?.message || 'Transaction failed');
+    } finally {
       setLoading(false);
+    }
+  };
+
+  const onVerifyPayment = async () => {
+    if (!token || !pendingTxId || loading) return;
+    setLoading(true);
+    setError('');
+    try {
+      const result = await confirmWalletTransaction(token, pendingTxId);
+      setBalance(result.wallet.balance);
+      setPendingTxId('');
+      setPendingUrl('');
+      setAmount('');
       setSuccess(true);
-    }, 1000);
+    } catch (e: any) {
+      setError(e?.message || 'Verification failed. Please complete payment and try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -90,6 +167,28 @@ const WalletTransactionScreen = () => {
           </View>
         )}
 
+        {!!error && (
+          <View style={styles.errorBox}>
+            <Ionicons name="alert-circle" size={20} color="#b91c1c" />
+            <Text style={styles.errorText}>{error}</Text>
+          </View>
+        )}
+
+        {!!pendingTxId && (
+          <View style={styles.pendingBox}>
+            <Ionicons name="time" size={20} color="#a16207" />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.pendingTitle}>Payment Pending</Text>
+              <Text style={styles.pendingText}>Complete payment on {paymentMethod}, then tap Verify Payment.</Text>
+            </View>
+            {!!pendingUrl && (
+              <Pressable style={styles.pendingLinkBtn} onPress={() => Linking.openURL(pendingUrl)}>
+                <Text style={styles.pendingLinkText}>Open</Text>
+              </Pressable>
+            )}
+          </View>
+        )}
+
         <Pressable
           style={[styles.proceedBtn, (!amount.trim() || loading) && { opacity: 0.6 }]}
           disabled={!amount.trim() || loading}
@@ -97,6 +196,16 @@ const WalletTransactionScreen = () => {
         >
           <Text style={styles.proceedText}>{loading ? 'Processing...' : 'Proceed Payment'}</Text>
         </Pressable>
+
+        {!!pendingTxId && (
+          <Pressable
+            style={[styles.verifyBtn, loading && { opacity: 0.6 }]}
+            disabled={loading}
+            onPress={onVerifyPayment}
+          >
+            <Text style={styles.verifyText}>{loading ? 'Verifying...' : 'Verify Payment'}</Text>
+          </Pressable>
+        )}
       </ScrollView>
     </View>
   );
@@ -196,6 +305,53 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#166534',
   },
+  errorBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fef2f2',
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#fecaca',
+    marginBottom: 16,
+    gap: 8,
+  },
+  errorText: {
+    color: '#b91c1c',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  pendingBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fefce8',
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#fde68a',
+    marginBottom: 16,
+    gap: 8,
+  },
+  pendingTitle: {
+    color: '#854d0e',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  pendingText: {
+    color: '#92400e',
+    fontSize: 11,
+  },
+  pendingLinkBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: '#f59e0b',
+  },
+  pendingLinkText: {
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: '700',
+  },
   proceedBtn: {
     backgroundColor: '#2563eb',
     paddingVertical: 14,
@@ -203,6 +359,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   proceedText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  verifyBtn: {
+    backgroundColor: '#0f766e',
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  verifyText: {
     color: '#fff',
     fontSize: 15,
     fontWeight: '700',
