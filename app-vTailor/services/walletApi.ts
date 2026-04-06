@@ -1,6 +1,7 @@
 import { Platform } from 'react-native';
+import Constants from 'expo-constants';
 
-const DEV_HOST = '192.168.100.4';
+const expoHost = Constants.expoConfig?.hostUri?.split(':')[0];
 const EMULATOR_ANDROID_HOST = '10.0.2.2';
 const EXPO_API_BASE = (process.env.EXPO_PUBLIC_API_BASE_URL || '').trim();
 
@@ -16,12 +17,11 @@ function getCandidateBaseUrls() {
     ];
   }
 
-  // Try emulator host first, then local LAN host fallback for physical devices.
-  return [
-    `http://${EMULATOR_ANDROID_HOST}:8000/app/api/v1`,
-    `http://${DEV_HOST}:8000/app/api/v1`,
-    'http://127.0.0.1:8000/app/api/v1',
-  ];
+  const urls: string[] = [];
+  if (Platform.OS === 'android') urls.push(`http://${EMULATOR_ANDROID_HOST}:8000/app/api/v1`);
+  if (expoHost) urls.push(`http://${expoHost}:8000/app/api/v1`);
+  urls.push('http://127.0.0.1:8000/app/api/v1');
+  return urls;
 }
 
 async function fetchWithFallback(path: string, init?: RequestInit) {

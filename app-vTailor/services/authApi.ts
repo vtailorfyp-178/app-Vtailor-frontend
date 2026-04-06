@@ -1,16 +1,12 @@
 import { Platform } from 'react-native';
+import Constants from 'expo-constants';
 
-// Default host for development. Adjust `DEV_HOST` to your machine's LAN IP when
-// testing on a physical device. For Android emulators use 10.0.2.2 (Android
-// emulator) which maps to host machine's localhost.
-const DEV_HOST = '192.168.100.4';
+// Auto-detect the dev machine's IP from Expo's debugger host.
+// This removes the need to hardcode your LAN IP — it updates automatically.
+const expoHost = Constants.expoConfig?.hostUri?.split(':')[0];
 const EMULATOR_ANDROID_HOST = '10.0.2.2';
 const EXPO_API_BASE = (process.env.EXPO_PUBLIC_API_BASE_URL || '').trim();
 
-// Choose host based on platform:
-// - Android emulator: use emulator host mapping
-// - Web: use the page's hostname (works for `expo web` / local webserver)
-// - Other (iOS device / simulator): use DEV_HOST (your machine LAN IP)
 function getCandidateBaseUrls() {
   if (EXPO_API_BASE) return [EXPO_API_BASE];
 
@@ -23,11 +19,11 @@ function getCandidateBaseUrls() {
     ];
   }
 
-  return [
-    `http://${EMULATOR_ANDROID_HOST}:8000/app/api/v1`,
-    `http://${DEV_HOST}:8000/app/api/v1`,
-    'http://127.0.0.1:8000/app/api/v1',
-  ];
+  const urls: string[] = [];
+  if (Platform.OS === 'android') urls.push(`http://${EMULATOR_ANDROID_HOST}:8000/app/api/v1`);
+  if (expoHost) urls.push(`http://${expoHost}:8000/app/api/v1`);
+  urls.push('http://127.0.0.1:8000/app/api/v1');
+  return urls;
 }
 
 async function fetchWithFallback(path: string, init?: RequestInit) {
