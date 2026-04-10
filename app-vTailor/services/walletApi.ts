@@ -120,3 +120,24 @@ export async function confirmWalletTransaction(
   }
   return data;
 }
+
+export async function failWalletTransaction(
+  token: string,
+  transactionId: string,
+  reason?: string
+): Promise<{ status: string; message: string; wallet: WalletSummary; transaction: WalletTransaction }> {
+  const response = await fetchWithFallback(`/wallet/transactions/${transactionId}/fail`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ reason }),
+  });
+
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data?.detail || 'Failed to mark transaction as failed');
+  }
+  return data;
+}

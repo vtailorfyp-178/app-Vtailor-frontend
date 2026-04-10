@@ -25,6 +25,11 @@ const WalletPaymentMethodScreen = () => {
   const params = useLocalSearchParams();
   const transactionType = (params?.transactionType as string) || 'add';
   const role = (params?.role as string) || 'customer';
+  const isTailor = role === 'tailor';
+  const actionLabel = transactionType === 'withdraw'
+    ? (isTailor ? 'withdraw earnings' : 'withdraw funds')
+    : (isTailor ? 'add wallet funds' : 'add money');
+  const screenTitle = isTailor ? 'Tailor Payment Method' : 'Customer Payment Method';
   const walletPath = role === 'tailor' ? '/tailor?tab=wallet' : '/customer?tab=wallet';
 
   const goBackToWallet = () => {
@@ -57,8 +62,8 @@ const WalletPaymentMethodScreen = () => {
             <Ionicons name="arrow-back" size={22} color="#111827" />
           </Pressable>
           <View style={{ flex: 1 }}>
-            <Text style={styles.title}>Select Payment Method</Text>
-            <Text style={styles.subtitle}>Choose how you want to {transactionType === 'withdraw' ? 'withdraw funds' : 'add money'}.</Text>
+            <Text style={styles.title}>{screenTitle}</Text>
+            <Text style={styles.subtitle}>Choose how you want to {actionLabel} using a simulated JazzCash-style payment flow.</Text>
           </View>
         </View>
 

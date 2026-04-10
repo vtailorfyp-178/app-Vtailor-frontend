@@ -3,7 +3,13 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useMemo, useState } from 'react';
 import { Linking, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useAuth } from '@/contexts/AuthContext';
-import { confirmWalletTransaction, createWalletTransaction, getWalletSummary } from '@/services/walletApi';
+import { confirmWalletTransaction, createWalletTransaction, failWalletTransaction, getWalletSummary } from '@/services/walletApi';
+
+type SimulationStep = 'idle' | 'connecting' | 'processing' | 'verifying' | 'success' | 'failed';
+
+const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const isValidPakMobile = (phone: string) => /^(03\d{9}|\+923\d{9})$/.test(phone.replace(/\s+/g, ''));
 
 const WalletTransactionScreen = () => {
   const router = useRouter();
@@ -12,8 +18,17 @@ const WalletTransactionScreen = () => {
   const paymentMethod = (params?.paymentMethod as string) || 'EasyPaisa';
   const role = (params?.role as string) || 'customer';
   const { token } = useAuth();
+  const walletPath = role === 'tailor' ? '/tailor?tab=wallet' : '/customer?tab=wallet';
 
   const startingBalance = useMemo(() => (role === 'tailor' ? 45575 : 15500), [role]);
+  const isTailor = role === 'tailor';
+  const isWithdraw = transactionType === 'withdraw';
+  const providerLabel = paymentMethod.trim();
+  const screenTitle = isTailor ? 'Tailor Wallet Transaction' : 'Customer Wallet Transaction';
+  const screenSubtitle = isTailor
+    ? (isWithdraw ? 'Withdraw tailor earnings through a simulated JazzCash-style flow' : 'Add wallet funds through a simulated JazzCash-style flow')
+    : (isWithdraw ? 'Withdraw customer funds through a simulated JazzCash-style flow' : 'Add money through a simulated JazzCash-style flow');
+  const actionLabel = isWithdraw ? 'withdrawal' : 'top-up';
 
   const [amount, setAmount] = useState('');
   const [phone, setPhone] = useState((params?.phone as string) || '');
@@ -22,7 +37,19 @@ const WalletTransactionScreen = () => {
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
   const [pendingTxId, setPendingTxId] = useState('');
+  const [receiptTxId, setReceiptTxId] = useState('');
   const [pendingUrl, setPendingUrl] = useState('');
+  const [simulationStep, setSimulationStep] = useState<SimulationStep>('idle');
+  const [statusText, setStatusText] = useState('');
+
+  React.useEffect(() => {
+    if (!success) return;
+    const timer = setTimeout(() => {
+      router.replace(walletPath as any);
+    }, 900);
+
+    return () => clearTimeout(timer);
+  }, [router, success, walletPath]);
 
   React.useEffect(() => {
     let mounted = true;
@@ -52,16 +79,35 @@ const WalletTransactionScreen = () => {
       setError('Please login again');
       return;
     }
+    if (!phone.trim()) {
+      setError('Please enter a JazzCash phone number');
+      return;
+    }
+    if (!isValidPakMobile(phone)) {
+      setError('Enter a valid JazzCash phone number like 03XXXXXXXXX');
+      return;
+    }
+    if (isWithdraw && numericAmount > balance) {
+      setError('Insufficient wallet balance for withdrawal');
+      return;
+    }
 
     setError('');
     setLoading(true);
     setSuccess(false);
     setPendingTxId('');
+    setReceiptTxId('');
     setPendingUrl('');
+    setSimulationStep('connecting');
+    setStatusText(`Connecting to ${providerLabel}...`);
 
     try {
+      await delay(900);
+      setSimulationStep('processing');
+      setStatusText('Processing payment...');
+
       const result = await createWalletTransaction(token, {
-        transaction_type: transactionType === 'withdraw' ? 'withdraw' : 'add',
+        transaction_type: isWithdraw ? 'withdraw' : 'add',
         amount: numericAmount,
         payment_method: paymentMethod,
         phone,
@@ -69,8 +115,23 @@ const WalletTransactionScreen = () => {
 
       if (result.status === 'pending' && result.transaction?.id) {
         setPendingTxId(result.transaction.id);
+        setReceiptTxId(result.transaction.id);
         const url = result.next_action_url || result.transaction.payment_url || '';
         setPendingUrl(url);
+        setSimulationStep('verifying');
+        setStatusText('Verifying payment response...');
+
+        await delay(1100);
+        const confirmed = await confirmWalletTransaction(token, result.transaction.id);
+        setBalance(confirmed.wallet.balance);
+        setAmount('');
+        setPhone('');
+        setPendingTxId('');
+        setPendingUrl('');
+        setSuccess(true);
+        setSimulationStep('success');
+        setStatusText('Payment Successful');
+
         const isInternalApiUrl =
           url.includes('/app/api/v1/wallet/transactions/') ||
           url.includes('/app/api/v1/wallet/gateway/callback/');
@@ -82,9 +143,22 @@ const WalletTransactionScreen = () => {
       } else {
         setBalance(result.wallet.balance);
         setAmount('');
+        setReceiptTxId(result.transaction?.id || '');
         setSuccess(true);
+        setSimulationStep('success');
+        setStatusText('Payment Successful');
       }
     } catch (e: any) {
+      const txIdToFail = pendingTxId || receiptTxId;
+      if (txIdToFail) {
+        try {
+          await failWalletTransaction(token, txIdToFail, e?.message || 'JazzCash simulation failed');
+        } catch {
+          // ignore cleanup failure
+        }
+      }
+      setSimulationStep('failed');
+      setStatusText('Payment Failed');
       setError(e?.message || 'Transaction failed');
     } finally {
       setLoading(false);
@@ -95,14 +169,21 @@ const WalletTransactionScreen = () => {
     if (!token || !pendingTxId || loading) return;
     setLoading(true);
     setError('');
+    setSimulationStep('verifying');
+    setStatusText('Verifying payment response...');
     try {
       const result = await confirmWalletTransaction(token, pendingTxId);
       setBalance(result.wallet.balance);
       setPendingTxId('');
       setPendingUrl('');
       setAmount('');
+      setReceiptTxId(result.transaction?.id || pendingTxId);
       setSuccess(true);
+      setSimulationStep('success');
+      setStatusText('Payment Successful');
     } catch (e: any) {
+      setSimulationStep('failed');
+      setStatusText('Payment Failed');
       setError(e?.message || 'Verification failed. Please complete payment and try again.');
     } finally {
       setLoading(false);
@@ -117,15 +198,23 @@ const WalletTransactionScreen = () => {
             <Ionicons name="arrow-back" size={22} color="#111827" />
           </Pressable>
           <View style={{ flex: 1 }}>
-            <Text style={styles.title}>Wallet Transaction</Text>
-            <Text style={styles.subtitle}>Complete your {transactionType === 'withdraw' ? 'withdrawal' : 'top-up'} via {paymentMethod}</Text>
+            <Text style={styles.title}>{screenTitle}</Text>
+            <Text style={styles.subtitle}>{screenSubtitle}</Text>
           </View>
+        </View>
+
+        <View style={styles.flowCard}>
+          <View style={styles.flowRow}>
+            <View style={[styles.flowDot, simulationStep !== 'idle' && styles.flowDotActive]} />
+            <Text style={styles.flowText}>{statusText || `Ready to start ${actionLabel}`}</Text>
+          </View>
+          <Text style={styles.flowMeta}>Provider: {providerLabel} · Role: {role}</Text>
         </View>
 
         <View style={styles.summaryCard}>
           <View style={styles.rowBetween}>
             <Text style={styles.label}>Transaction Type</Text>
-            <Text style={styles.value}>{transactionType === 'withdraw' ? 'Withdraw' : 'Add Money'}</Text>
+            <Text style={styles.value}>{isWithdraw ? 'Withdraw' : 'Add Money'}</Text>
           </View>
           <View style={styles.rowBetween}>
             <Text style={styles.label}>Payment Method</Text>
@@ -157,12 +246,34 @@ const WalletTransactionScreen = () => {
           />
         </View>
 
+        {simulationStep === 'connecting' && (
+          <View style={styles.statusBox}>
+            <Ionicons name="phone-portrait-outline" size={20} color="#0f766e" />
+            <Text style={styles.statusText}>Connecting to {providerLabel}...</Text>
+          </View>
+        )}
+
+        {simulationStep === 'processing' && (
+          <View style={styles.statusBox}>
+            <Ionicons name="sync-outline" size={20} color="#0f766e" />
+            <Text style={styles.statusText}>Processing payment...</Text>
+          </View>
+        )}
+
+        {simulationStep === 'verifying' && (
+          <View style={styles.statusBox}>
+            <Ionicons name="shield-checkmark-outline" size={20} color="#0f766e" />
+            <Text style={styles.statusText}>Verifying payment response...</Text>
+          </View>
+        )}
+
         {success && (
           <View style={styles.successBox}>
             <Ionicons name="checkmark-circle" size={22} color="#10b981" />
             <View style={{ marginLeft: 10 }}>
               <Text style={styles.successTitle}>Transaction Successful</Text>
               <Text style={styles.successText}>Updated Balance: Rs {balance.toLocaleString()}</Text>
+              {!!receiptTxId && <Text style={styles.successText}>Transaction ID: {receiptTxId}</Text>}
             </View>
           </View>
         )}
@@ -179,7 +290,7 @@ const WalletTransactionScreen = () => {
             <Ionicons name="time" size={20} color="#a16207" />
             <View style={{ flex: 1 }}>
               <Text style={styles.pendingTitle}>Payment Pending</Text>
-              <Text style={styles.pendingText}>Complete payment on {paymentMethod}, then tap Verify Payment.</Text>
+              <Text style={styles.pendingText}>Complete payment on {paymentMethod}, then tap Verify Payment if needed.</Text>
             </View>
             {!!pendingUrl && (
               <Pressable style={styles.pendingLinkBtn} onPress={() => Linking.openURL(pendingUrl)}>
@@ -194,7 +305,7 @@ const WalletTransactionScreen = () => {
           disabled={!amount.trim() || loading}
           onPress={onProceed}
         >
-          <Text style={styles.proceedText}>{loading ? 'Processing...' : 'Proceed Payment'}</Text>
+          <Text style={styles.proceedText}>{loading ? 'Processing...' : `Proceed ${isWithdraw ? 'Withdrawal' : 'Payment'}`}</Text>
         </Pressable>
 
         {!!pendingTxId && (
@@ -285,6 +396,54 @@ const styles = StyleSheet.create({
     padding: 12,
     backgroundColor: '#f9fafb',
     fontSize: 14,
+  },
+  flowCard: {
+    backgroundColor: '#ecfeff',
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#a5f3fc',
+    marginBottom: 16,
+  },
+  flowRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  flowDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#67e8f9',
+  },
+  flowDotActive: {
+    backgroundColor: '#0f766e',
+  },
+  flowText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#0f172a',
+  },
+  flowMeta: {
+    marginTop: 6,
+    fontSize: 11,
+    color: '#0f766e',
+  },
+  statusBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ecfeff',
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#a5f3fc',
+    marginBottom: 16,
+    gap: 8,
+  },
+  statusText: {
+    color: '#0f766e',
+    fontSize: 13,
+    fontWeight: '600',
   },
   successBox: {
     flexDirection: 'row',
