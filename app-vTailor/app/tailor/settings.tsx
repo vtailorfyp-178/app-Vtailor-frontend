@@ -6,6 +6,7 @@ import { ThemedText } from '@/components/themed-text';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { deleteAccount } from '@/services/authApi';
 
 export default function TailorSettings() {
   const auth = useAuth();
@@ -43,7 +44,21 @@ export default function TailorSettings() {
         { text: 'Cancel', onPress: () => {}, style: 'cancel' },
         {
           text: 'Delete',
-          onPress: () => Alert.alert('Account deleted successfully'),
+          onPress: async () => {
+            if (!auth.token || !auth.userId) {
+              Alert.alert('Session expired', 'Please log in again.');
+              return;
+            }
+
+            try {
+              await deleteAccount(auth.token, auth.userId);
+              auth.logout();
+              router.replace('/auth');
+            } catch (error) {
+              console.error('Delete account failed:', error);
+              Alert.alert('Delete failed', 'Unable to delete account right now.');
+            }
+          },
           style: 'destructive',
         },
       ]

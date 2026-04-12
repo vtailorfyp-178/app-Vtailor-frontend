@@ -11,12 +11,17 @@ interface ProtectedRouteProps {
 
 export const ProtectedRoute = ({ children, requiredRole }: ProtectedRouteProps) => {
   const router = useRouter();
-  const { isProfileCompleted, userRole, isAuthLoading } = useAuth();
+  const { isProfileCompleted, userRole, token, isAuthLoading } = useAuth();
   const tint = useThemeColor({}, 'tint');
 
   useEffect(() => {
     // Wait until AsyncStorage values are loaded before making routing decisions
     if (isAuthLoading) return;
+
+    if (!token || !userRole) {
+      (router as any).replace('/auth');
+      return;
+    }
 
     if (!isProfileCompleted) {
       (router as any).replace('/profile-setup');
@@ -32,7 +37,7 @@ export const ProtectedRoute = ({ children, requiredRole }: ProtectedRouteProps) 
         (router as any).replace('/auth');
       }
     }
-  }, [isAuthLoading, isProfileCompleted, userRole, requiredRole, router]);
+  }, [isAuthLoading, isProfileCompleted, userRole, token, requiredRole, router]);
 
   if (isAuthLoading) {
     return (

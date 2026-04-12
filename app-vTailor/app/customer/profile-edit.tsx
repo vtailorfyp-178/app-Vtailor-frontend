@@ -7,10 +7,11 @@ import { useThemeColor } from '@/hooks/use-theme-color';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import { updateProfile as updateProfileApi } from '@/services/authApi';
 
 export default function CustomerProfileEdit() {
   const auth = useAuth();
-  const { user, loginEmail, updateProfile } = auth;
+  const { user, loginEmail, updateProfile, token, userId } = auth;
   const router = useRouter();
   const bg = useThemeColor({}, 'background');
   const cardBg = useThemeColor({}, 'card');
@@ -74,15 +75,33 @@ export default function CustomerProfileEdit() {
       Alert.alert('Error', 'Name is required');
       return;
     }
-    updateProfile({
+    if (!token || !userId) {
+      Alert.alert('Session expired', 'Please log in again.');
+      return;
+    }
+
+    updateProfileApi(token, userId, {
       name: name,
       email: email,
       phone: phone,
       address: address,
       avatar: profileImage ?? undefined,
-    });
-    Alert.alert('Success', 'Profile updated successfully!');
-    router.replace('/customer?tab=profile');
+    })
+      .then(() => {
+        updateProfile({
+          name: name,
+          email: email,
+          phone: phone,
+          address: address,
+          avatar: profileImage ?? undefined,
+        });
+        Alert.alert('Success', 'Profile updated successfully!');
+        router.replace('/customer?tab=profile');
+      })
+      .catch((error) => {
+        console.error('Profile save failed:', error);
+        Alert.alert('Save failed', 'Unable to save your profile to the database.');
+      });
   };
 
   return (

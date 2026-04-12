@@ -6,14 +6,12 @@ import { ThemedView } from '@/components/themed-view';
 import { useThemeColor } from '@/hooks/use-theme-color';
 
 const logo = require('../../assets/images/vTailorlogo.jpeg');
-const maxiImage = require('../../2d model/maxi.jpg');
-const gownImage = require('../../2d model/gown 2.jpg');
 const longFrockImage = require('../../2d model/long frock 2.jpg');
+const shortFrockImage = require('../../2d model/short frock.jpg');
 
 const formalDresses = [
-  { id: 'maxi', name: 'Maxi' },
-  { id: 'gown', name: 'Gown' },
   { id: 'long-frock', name: 'Long Frock' },
+  { id: 'short-frock-shalwar', name: 'Short Frock with Shalwar' },
 ];
 
 export default function FormalDresses() {
@@ -45,7 +43,7 @@ export default function FormalDresses() {
             style={[styles.card, { backgroundColor: card, borderColor: inputBorder }]}
           >
 
-            <Image source={dress.id === 'maxi' ? maxiImage : dress.id === 'gown' ? gownImage : dress.id === 'long-frock' ? longFrockImage : logo} style={styles.thumb} resizeMode={dress.id === 'maxi' || dress.id === 'gown' || dress.id === 'long-frock' ? 'contain' : 'cover'} />
+            <Image source={dress.id === 'long-frock' ? longFrockImage : dress.id === 'short-frock-shalwar' ? shortFrockImage : logo} style={styles.thumb} resizeMode="contain" />
             <ThemedText style={styles.dressName}>{dress.name}</ThemedText>
           </Pressable>
         ))}

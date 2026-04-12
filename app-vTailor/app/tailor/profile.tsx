@@ -25,7 +25,7 @@ export default function TailorProfile() {
       // @ts-ignore
       if (auth.logout) auth.logout();
     } catch {}
-    router.push('/');
+    router.replace('/auth');
   };
 
   return (

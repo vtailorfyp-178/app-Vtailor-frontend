@@ -7,12 +7,13 @@ import { useThemeColor } from '@/hooks/use-theme-color';
 import { useAuth } from '@/contexts/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import { updateProfile as updateProfileApi } from '@/services/authApi';
 
 const logo = require('../assets/images/vTailorlogo.jpeg');
 
 export default function ProfileSetup() {
   const router = useRouter();
-  const { user, loginEmail, updateProfile, userRole, markProfileCompleted } = useAuth();
+  const { user, loginEmail, updateProfile, userRole, markProfileCompleted, token, userId } = useAuth();
   const [profileImage, setProfileImage] = useState<string | null>(user?.avatar ?? null);
   // loginEmail is set by login() right after OTP verify succeeds, auto-fills the email field
   const [formData, setFormData] = useState({
@@ -74,6 +75,15 @@ export default function ProfileSetup() {
           }
         },
       },
+      ...(profileImage
+        ? [
+            {
+              text: 'Remove Photo',
+              onPress: () => setProfileImage(null),
+              style: 'destructive' as const,
+            },
+          ]
+        : []),
       { text: 'Cancel', onPress: () => {}, style: 'cancel' },
     ]);
   };
@@ -88,22 +98,42 @@ export default function ProfileSetup() {
   };
 
   const handleSubmit = async () => {
-    updateProfile({
-      name: formData.name,
-      email: formData.email,
-      phone: formData.phone,
-      address: formData.address,
-      experience: formData.experience,
-      specialization: formData.specialization,
-      description: formData.description,
-      avatar: profileImage ?? undefined,
-    });
-    
-    await markProfileCompleted();
-    
-    // navigate to role-based home
-    if (userRole === 'tailor') (router as any).replace('/tailor');
-    else (router as any).replace('/customer');
+    if (!token || !userId) {
+      Alert.alert('Session expired', 'Please log in again.');
+      return;
+    }
+
+    try {
+      await updateProfileApi(token, userId, {
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        address: formData.address,
+        experience: formData.experience,
+        specialization: formData.specialization,
+        description: formData.description,
+        avatar: profileImage ?? undefined,
+      });
+
+      updateProfile({
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        address: formData.address,
+        experience: formData.experience,
+        specialization: formData.specialization,
+        description: formData.description,
+        avatar: profileImage ?? undefined,
+      });
+
+      await markProfileCompleted();
+
+      if (userRole === 'tailor') (router as any).replace('/tailor');
+      else (router as any).replace('/customer');
+    } catch (error) {
+      console.error('Profile save failed:', error);
+      Alert.alert('Save failed', 'Unable to save your profile to the database. Please try again.');
+    }
   };
 
   const isTailor = userRole === 'tailor';
@@ -133,6 +163,11 @@ export default function ProfileSetup() {
           </View>
           <Pressable style={[styles.avatarButton, { backgroundColor: avatarBtn }]} onPress={handlePickProfileImage}>
             <Ionicons name="camera" size={18} color="#fff" />
+          </Pressable>
+          <Pressable style={[styles.addPhotoButton, { borderColor: tint }]} onPress={handlePickProfileImage}>
+            <ThemedText style={[styles.addPhotoButtonText, { color: tint }]}>
+              {profileImage ? 'Change Profile Picture' : 'Add Profile Picture'}
+            </ThemedText>
           </Pressable>
         </View>
 
@@ -234,6 +269,14 @@ const styles = StyleSheet.create({
   avatarPlaceholder: { width: 88, height: 88, borderRadius: 44, backgroundColor: '#f3f4f6', alignItems: 'center', justifyContent: 'center', marginBottom: 8, overflow: 'hidden' },
   avatarImage: { width: '100%', height: '100%' },
   avatarButton: { position: 'absolute', right: 24, bottom: -6, width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  addPhotoButton: {
+    marginTop: 10,
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  addPhotoButtonText: { fontWeight: '700' },
   fieldGroup: { marginBottom: 12 },
   label: { marginBottom: 6, fontWeight: '600' },
   input: { borderWidth: 1, borderColor: '#e6e7eb', borderRadius: 12, padding: 12, height: 48, marginBottom: 12 },

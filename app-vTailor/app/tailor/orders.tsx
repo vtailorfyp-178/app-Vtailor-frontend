@@ -54,7 +54,7 @@ const orders = [
     customerId: 6,
     customer: 'Hira Malik',
     phone: '+92 300 7778899',
-    garment: 'Maxi Dress',
+    garment: 'Short Frock with Shalwar',
     status: 'cancelled',
     amount: 4200,
     timeLeft: '-',

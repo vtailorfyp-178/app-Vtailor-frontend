@@ -5,7 +5,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { useAuth, UserRole } from '@/contexts/AuthContext';
-import { sendEmailOtp, verifyEmailOtp } from '@/services/authApi';
+import { getProfile, sendEmailOtp, verifyEmailOtp } from '@/services/authApi';
 
 const logo = require('../assets/images/vTailorlogo.jpeg');
 
@@ -13,7 +13,7 @@ type AuthStep = 'role' | 'email' | 'otp';
 
 export default function AuthScreen() {
   const router = useRouter();
-  const { login } = useAuth();
+  const { login, updateProfile, markProfileCompleted } = useAuth();
 
   const [step, setStep] = useState<AuthStep>('role');
   const [role, setRole] = useState<UserRole>(null);
@@ -62,7 +62,8 @@ export default function AuthScreen() {
       }
     } catch (err) {
       console.log('OTP send error', err);
-      Alert.alert('Network error', 'Unable to reach server. Check your connection and try again.');
+      const message = err instanceof Error ? err.message : 'Unable to reach server. Check your connection and try again.';
+      Alert.alert('Send OTP Failed', message);
     } finally {
       setSendingOtp(false);
     }
@@ -91,19 +92,49 @@ export default function AuthScreen() {
 
     setVerifyingOtp(true);
     try {
-      const result = await verifyEmailOtp(methodId, otpValue);
+      if (!role) {
+        Alert.alert('Role required', 'Please select a role and try again.');
+        return;
+      }
+
+      const result = await verifyEmailOtp(methodId, otpValue, role);
 
       if (result?.access_token) {
         // Pass the email so it is auto-populated in profile-setup and stored per-role
-        login(result.access_token, role, result.email ?? email);
-        router.replace('/profile-setup');
+        const resolvedRole: UserRole = result.role === 'tailor' ? 'tailor' : 'customer';
+        login(result.access_token, resolvedRole, result.email ?? email, result.user_id);
+
+        try {
+          const profile = await getProfile(result.access_token);
+          updateProfile({
+            name: profile?.name,
+            email: profile?.email,
+            phone: profile?.phone,
+            address: profile?.address,
+            experience: profile?.experience,
+            specialization: profile?.specialization,
+            description: profile?.description,
+            avatar: profile?.avatar,
+          });
+          const hasExistingProfile = Boolean(profile?.name && profile?.address);
+          if (hasExistingProfile) {
+            await markProfileCompleted(resolvedRole);
+            if (resolvedRole === 'tailor') router.replace('/tailor');
+            else router.replace('/customer');
+          } else {
+            router.replace('/profile-setup');
+          }
+        } catch {
+          router.replace('/profile-setup');
+        }
       } else {
         const msg = result?.detail || result?.message || 'Invalid or expired code.';
         Alert.alert('Verification failed', String(msg));
       }
     } catch (err) {
       console.log('OTP verify error', err);
-      Alert.alert('Network error', 'Unable to verify OTP. Please try again.');
+      const message = err instanceof Error ? err.message : 'Unable to verify OTP. Please try again.';
+      Alert.alert('Verification failed', message);
     } finally {
       setVerifyingOtp(false);
     }

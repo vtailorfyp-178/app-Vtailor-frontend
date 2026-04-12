@@ -7,11 +7,9 @@ import { useThemeColor } from '@/hooks/use-theme-color';
 
 const logo = require('../../assets/images/vTailorlogo.jpeg');
 const kurtiImage = require('../../2d model/kurti 3.jpg');
-const shortFrockImage = require('../../2d model/short frock.jpg');
 
 const casualDresses = [
-  { id: 'kurti', name: 'Kurti' },
-  { id: 'short-frock', name: 'Short Frock' },
+  { id: 'kurti-trouser', name: 'Kurti Trouser' },
 ];
 
 export default function CasualDresses() {
@@ -43,7 +41,7 @@ export default function CasualDresses() {
             style={[styles.card, { backgroundColor: card, borderColor: inputBorder }]}
           >
 
-            <Image source={dress.id === 'kurti' ? kurtiImage : dress.id === 'short-frock' ? shortFrockImage : logo} style={styles.thumb} resizeMode="contain" />
+            <Image source={dress.id === 'kurti-trouser' ? kurtiImage : logo} style={styles.thumb} resizeMode="contain" />
             <ThemedText style={styles.dressName}>{dress.name}</ThemedText>
           </Pressable>
         ))}

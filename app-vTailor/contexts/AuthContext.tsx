@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getProfile } from '@/services/authApi';
 
 export type UserRole = 'customer' | 'tailor' | null;
 
@@ -19,11 +20,16 @@ type AuthContextType = {
   acceptTerms: () => void;
   /** JWT access token */
   token: string | null;
+  /** backward-compat alias */
+  authToken: string | null;
+  userId: string | null;
   userPhone: string | null;       // backward-compat alias for token
   userRole: UserRole;
+  /** backward-compat alias */
+  role: UserRole;
   loginEmail: string | null;      // the email address used at OTP login — auto-fills forms
   /** Call after OTP verify. email comes from the /otp/verify response. */
-  login: (token: string, role: UserRole, email?: string) => void;
+  login: (token: string, role: UserRole, email?: string, userId?: string) => void;
   /** Customer profile (only populated when userRole === 'customer') */
   customerProfile: UserProfile | null;
   /** Tailor profile (only populated when userRole === 'tailor') */
@@ -34,7 +40,7 @@ type AuthContextType = {
   updateProfile: (profile: UserProfile) => void;
   isProfileCompleted: boolean;
   isAuthLoading: boolean;
-  markProfileCompleted: () => void;
+  markProfileCompleted: (roleOverride?: UserRole) => void;
   logout: () => void;
 };
 
@@ -47,6 +53,7 @@ const completedKey = (role: UserRole) => `profileCompleted_${role}`;
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [acceptedTerms, setAcceptedTerms]       = useState(false);
   const [token, setToken]                       = useState<string | null>(null);
+  const [userId, setUserId]                     = useState<string | null>(null);
   const [userRole, setUserRole]                 = useState<UserRole>(null);
   const [loginEmail, setLoginEmail]             = useState<string | null>(null);
   const [customerProfile, setCustomerProfile]   = useState<UserProfile | null>(null);
@@ -63,10 +70,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           AsyncStorage.getItem('userRole'),
           AsyncStorage.getItem('loginEmail'),
         ]);
+        const storedUserId = await AsyncStorage.getItem('userId');
 
         const role = (storedRole as UserRole) || null;
 
         if (storedToken) setToken(storedToken);
+        if (storedUserId) setUserId(storedUserId);
         if (role)        setUserRole(role);
         if (storedEmail) setLoginEmail(storedEmail);
 
@@ -82,6 +91,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
           if (completed === 'true') setIsProfileCompleted(true);
         }
+
+        if (storedToken) {
+          try {
+            const remoteProfile = await getProfile(storedToken);
+            if (remoteProfile?.user_id) setUserId(remoteProfile.user_id);
+            if (remoteProfile?.email) setLoginEmail(remoteProfile.email);
+            if (role) {
+              const profile: UserProfile = {
+                name: remoteProfile.name,
+                email: remoteProfile.email,
+                phone: remoteProfile.phone,
+                address: remoteProfile.address,
+                experience: remoteProfile.experience,
+                specialization: remoteProfile.specialization,
+                description: remoteProfile.description,
+                avatar: remoteProfile.avatar,
+              };
+              role === 'customer' ? setCustomerProfile(profile) : setTailorProfile(profile);
+              if (remoteProfile.name || remoteProfile.address || remoteProfile.phone) {
+                setIsProfileCompleted(true);
+              }
+            }
+          } catch (error) {
+            console.error('Failed to hydrate profile from backend:', error);
+          }
+        }
       } catch (error) {
         console.error('Error restoring auth session:', error);
       } finally {
@@ -93,8 +128,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const acceptTerms = () => setAcceptedTerms(true);
 
-  const login = (newToken: string, role: UserRole, email?: string) => {
+  const login = (newToken: string, role: UserRole, email?: string, newUserId?: string) => {
     setToken(newToken);
+    if (newUserId) setUserId(newUserId);
     setUserRole(role);
     // Reset completion for the new session so profile-setup is always shown on first login
     setIsProfileCompleted(false);
@@ -106,6 +142,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     AsyncStorage.setItem('authToken', newToken).catch(() => {});
     AsyncStorage.setItem('userRole', role ?? '').catch(() => {});
+    if (newUserId) AsyncStorage.setItem('userId', newUserId).catch(() => {});
     if (email) AsyncStorage.setItem('loginEmail', email).catch(() => {});
   };
 
@@ -118,6 +155,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsProfileCompleted(false);
     AsyncStorage.multiRemove([
       'authToken', 'userRole', 'loginEmail',
+      'userId',
       profileKey('customer'), completedKey('customer'),
       profileKey('tailor'),   completedKey('tailor'),
     ]).catch(() => {});
@@ -140,10 +178,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const markProfileCompleted = async () => {
+  const markProfileCompleted = async (roleOverride?: UserRole) => {
     setIsProfileCompleted(true);
+    const roleToWrite = roleOverride ?? userRole;
+    if (!roleToWrite) return;
     try {
-      await AsyncStorage.setItem(completedKey(userRole), 'true');
+      await AsyncStorage.setItem(completedKey(roleToWrite), 'true');
     } catch (error) {
       console.error('Error saving profile status:', error);
     }
@@ -156,8 +196,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     <AuthContext.Provider value={{
       acceptedTerms, acceptTerms,
       token,
+      authToken: token,
+      userId,
       userPhone: token,   // backward-compat alias
       userRole,
+      role: userRole,
       loginEmail,
       login,
       customerProfile,

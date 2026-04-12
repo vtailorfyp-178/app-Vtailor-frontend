@@ -1,354 +1,576 @@
-import React, { useState } from 'react';
-import { View, ScrollView, TextInput, Pressable, StyleSheet, KeyboardAvoidingView, Platform, Image, Alert, Linking, Modal } from 'react-native';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import React, { useEffect, useState, useRef } from 'react';
+import {
+  View,
+  StyleSheet,
+  TextInput,
+  Pressable,
+  FlatList,
+  KeyboardAvoidingView,
+  Platform,
+  ActivityIndicator,
+  Alert,
+  Image,
+} from 'react-native';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useThemeColor } from '@/hooks/use-theme-color';
+import { useAuth } from '@/contexts/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import { ResizeMode, Video } from 'expo-av';
+import { Video, ResizeMode } from 'expo-av';
+import {
+  Conversations,
+  Messages,
+  Media,
+  Calls,
+  ConversationSocket,
+  setAuthToken,
+  formatMessageTime,
+  type ChatMessage,
+  type CallType,
+} from '@/services/conversationApi';
 
-interface Message {
-  id: string;
-  sender: 'customer' | 'tailor';
-  text?: string;
-  media?: {
-    type: 'image' | 'video';
-    uri: string;
-  };
-  time: string;
+function buildDemoMessages(currentUserId: string): ChatMessage[] {
+  const now = Date.now();
+  return [
+    {
+      message_id: 'demo-1',
+      conversation_id: 'demo-conversation',
+      sender_id: 'tailor-demo',
+      sender_role: 'tailor',
+      content: 'Assalam o Alaikum! Please share your preferred design details.',
+      message_type: 'text',
+      status: 'read',
+      media_url: null,
+      media_mime: null,
+      media_size: null,
+      media_duration: null,
+      thumbnail_url: null,
+      reply_to_id: null,
+      reply_to_preview: null,
+      is_deleted: false,
+      created_at: new Date(now - 1000 * 60 * 20).toISOString(),
+      updated_at: new Date(now - 1000 * 60 * 20).toISOString(),
+    },
+    {
+      message_id: 'demo-2',
+      conversation_id: 'demo-conversation',
+      sender_id: currentUserId,
+      sender_role: 'customer',
+      content: 'Wa Alaikum Salam, I need a formal long frock with A-line style.',
+      message_type: 'text',
+      status: 'read',
+      media_url: null,
+      media_mime: null,
+      media_size: null,
+      media_duration: null,
+      thumbnail_url: null,
+      reply_to_id: null,
+      reply_to_preview: null,
+      is_deleted: false,
+      created_at: new Date(now - 1000 * 60 * 18).toISOString(),
+      updated_at: new Date(now - 1000 * 60 * 18).toISOString(),
+    },
+  ];
 }
-
-interface ChatConversation {
-  tailorId: number;
-  tailorName: string;
-  tailorAvatar: string;
-  messages: Message[];
-}
-
-const SAMPLE_CONVERSATIONS: Record<number, ChatConversation> = {
-  1: {
-    tailorId: 1,
-    tailorName: 'Ahmad Master Tailor',
-    tailorAvatar: '👨‍🔧',
-    messages: [
-      { id: '1', sender: 'tailor', text: 'Hello! Thanks for reaching out. How can I help you?', time: '10:30 AM' },
-      { id: '2', sender: 'customer', text: 'Hi! I want to order a Long Frock. Can you do it?', time: '10:32 AM' },
-      { id: '3', sender: 'tailor', text: 'Yes, absolutely! I specialize in formal wear. When do you need it?', time: '10:35 AM' },
-      { id: '4', sender: 'customer', text: 'By January 15th. Is that possible?', time: '10:36 AM' },
-      { id: '5', sender: 'tailor', text: 'Yes, that is definitely possible. Rs. 8,500 for a quality Long Frock.', time: '10:38 AM' },
-    ],
-  },
-  2: {
-    tailorId: 2,
-    tailorName: 'Karachi Tailoring House',
-    tailorAvatar: '🧵',
-    messages: [
-      { id: '1', sender: 'customer', text: 'Hi, I need a Kurti stitched', time: '9:15 AM' },
-      { id: '2', sender: 'tailor', text: 'Sure! We have great experience with Kurtas. What style do you prefer?', time: '9:20 AM' },
-    ],
-  },
-  3: {
-    tailorId: 3,
-    tailorName: 'Classic Stitchers',
-    tailorAvatar: '✂️',
-    messages: [
-      { id: '1', sender: 'tailor', text: 'Welcome! How can I assist you today?', time: '8:00 AM' },
-    ],
-  },
-};
 
 export default function ChatConversation() {
   const router = useRouter();
   const params = useLocalSearchParams();
-  const tailorId = parseInt(params.tailorId as string) || 1;
+  const conversationId = (params.conversation_id as string) || (params.id as string);
+  const tailorId = params.tailorId ? String(params.tailorId) : null;
+  const otherUserIdFromParams = (params.otherUserId as string) || tailorId;
+  const [otherUserName, setOtherUserName] = useState((params.otherUserName as string) || 'Conversation');
+  const otherUserAvatar = (params.otherUserAvatar as string) || '👥';
+  const demoModeParam = (params.demo as string) === '1';
+
+  const { userId, userRole, token } = useAuth();
   const tint = useThemeColor({}, 'tint');
   const card = useThemeColor({}, 'card');
-  const inputBorder = useThemeColor({}, 'inputBorder');
+  const text = useThemeColor({}, 'text');
   const muted = useThemeColor({}, 'muted');
 
-  const conversation = SAMPLE_CONVERSATIONS[tailorId];
-  const [messages, setMessages] = useState<Message[]>(conversation.messages);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputText, setInputText] = useState('');
-  const [showAttach, setShowAttach] = useState(false);
-  const [imageViewerVisible, setImageViewerVisible] = useState(false);
-  const [selectedImageUri, setSelectedImageUri] = useState<string | null>(null);
-  const [videoViewerVisible, setVideoViewerVisible] = useState(false);
-  const [selectedVideoUri, setSelectedVideoUri] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
+  const [showMediaOptions, setShowMediaOptions] = useState(false);
+  const [demoMode, setDemoMode] = useState(demoModeParam);
+  const [activeConversationId, setActiveConversationId] = useState<string | null>(
+    demoModeParam ? 'demo-conversation' : conversationId || null
+  );
+  const flatListRef = useRef<FlatList>(null);
+  const socketRef = useRef<ConversationSocket | null>(null);
 
-  const getMediaLabel = (uri: string) => uri.split('/').pop() || 'Selected media';
+  // Initialize WebSocket and load messages
+  useEffect(() => {
+    if (!userId) {
+      router.back();
+      return;
+    }
 
-  const openImageViewer = (uri: string) => {
-    setSelectedImageUri(uri);
-    setImageViewerVisible(true);
-  };
+    if (token) setAuthToken(token);
 
-  const openVideo = (uri: string) => {
-    setSelectedVideoUri(uri);
-    setVideoViewerVisible(true);
-  };
+    const initializeSocket = async () => {
+      try {
+        setLoading(true);
 
-  const handleSendMessage = () => {
-    if (inputText.trim()) {
-      const newMessage: Message = {
-        id: String(messages.length + 1),
-        sender: 'customer',
-        text: inputText,
-        time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+        if (demoModeParam) {
+          setMessages(buildDemoMessages(userId));
+          setLoading(false);
+          setDemoMode(true);
+          return;
+        }
+
+        let resolvedConversationId = conversationId;
+        if (!activeConversationId && tailorId && userRole === 'customer') {
+          const created = await Conversations.getOrCreate(tailorId, userId);
+          resolvedConversationId = created.conversation_id;
+          setOtherUserName(created.tailor_name || otherUserName);
+        }
+
+        if (!resolvedConversationId) {
+          Alert.alert('Missing conversation', 'This conversation could not be opened.');
+          router.back();
+          return;
+        }
+
+        setActiveConversationId(resolvedConversationId);
+        setDemoMode(false);
+
+        // Load initial messages
+        const loaded = await Messages.list(resolvedConversationId, userId, undefined, 40);
+        setMessages(loaded);
+
+        // Connect WebSocket
+        socketRef.current = new ConversationSocket(userId);
+        socketRef.current.onEvent('new_message', (event: any) => {
+          const data = event?.data;
+          if (data?.conversation_id === resolvedConversationId) {
+            setMessages((prev) =>
+              prev.some((m) => m.message_id === data?.message_id) ? prev : [...prev, data]
+            );
+          }
+        });
+
+        socketRef.current.onEvent('message_status', (event: any) => {
+          const data = event?.data;
+          setMessages((prev) =>
+            prev.map((msg) =>
+              msg.message_id === data?.message_id ? { ...msg, status: data.status } : msg
+            )
+          );
+        });
+
+        socketRef.current.connect();
+        setLoading(false);
+      } catch (error) {
+        console.error('Failed to initialize chat:', error);
+        setMessages(buildDemoMessages(userId));
+        setDemoMode(true);
+        setActiveConversationId('demo-conversation');
+        setLoading(false);
+        Alert.alert('Chat Fallback', 'Backend chat was unavailable, demo conversation loaded for prototype.');
+      }
+    };
+
+    initializeSocket();
+
+    return () => {
+      socketRef.current?.disconnect();
+    };
+  }, [userId, conversationId, tailorId, userRole, token]);
+
+  const handleSendMessage = async () => {
+    if (!inputText.trim() || !userId || sending || !activeConversationId) return;
+
+    setSending(true);
+    let optimisticId: string | null = null;
+    try {
+      if (demoMode) {
+        const msg: ChatMessage = {
+          message_id: `demo-${Date.now()}`,
+          conversation_id: activeConversationId,
+          sender_id: userId,
+          sender_role: userRole === 'tailor' ? 'tailor' : 'customer',
+          content: inputText.trim(),
+          message_type: 'text',
+          status: 'read',
+          media_url: null,
+          media_mime: null,
+          media_size: null,
+          media_duration: null,
+          thumbnail_url: null,
+          reply_to_id: null,
+          reply_to_preview: null,
+          is_deleted: false,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        };
+        setMessages((prev) => [...prev, msg]);
+        setInputText('');
+        setShowMediaOptions(false);
+        return;
+      }
+
+      optimisticId = `local-${Date.now()}`;
+      const optimisticMsg: ChatMessage = {
+        message_id: optimisticId,
+        conversation_id: activeConversationId,
+        sender_id: userId,
+        sender_role: userRole === 'tailor' ? 'tailor' : 'customer',
+        content: inputText.trim(),
+        message_type: 'text',
+        status: 'sent',
+        media_url: null,
+        media_mime: null,
+        media_size: null,
+        media_duration: null,
+        thumbnail_url: null,
+        reply_to_id: null,
+        reply_to_preview: null,
+        is_deleted: false,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       };
-      setMessages([...messages, newMessage]);
+      setMessages((prev) => [...prev, optimisticMsg]);
+      const textToSend = inputText.trim();
       setInputText('');
+      setShowMediaOptions(false);
 
-      // Simulate tailor response after 2 seconds
-      setTimeout(() => {
-        const tailorResponse: Message = {
-          id: String(messages.length + 2),
-          sender: 'tailor',
-          text: 'Thanks for the message! I will get back to you shortly.',
-          time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
-        };
-        setMessages((prev) => [...prev, tailorResponse]);
-      }, 2000);
+      const sentMessage = await Messages.sendText({
+        conversation_id: activeConversationId,
+        sender_id: userId,
+        content: textToSend,
+      });
+      setMessages((prev) => prev.map((m) => (m.message_id === optimisticId ? sentMessage : m)));
+    } catch (error) {
+      console.error('Failed to send message:', error);
+      if (optimisticId) {
+        setMessages((prev) => prev.filter((m) => m.message_id !== optimisticId));
+      }
+      Alert.alert('Error', 'Failed to send message');
+    } finally {
+      setSending(false);
     }
   };
 
-  const handlePickImage = async () => {
-    setShowAttach(false);
+  const sendPickedMedia = async (kind: 'image' | 'video') => {
+    setShowMediaOptions(false);
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
-      Alert.alert('Permission Required', 'Gallery access is needed to select images.');
+      Alert.alert('Permission Required', 'Please grant gallery access');
       return;
     }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'] as any,
-      allowsEditing: false,
-      quality: 0.8,
-    });
-    if (!result.canceled) {
-      const newMessage: Message = {
-        id: String(messages.length + 1),
-        sender: 'customer',
-        media: {
-          type: 'image',
-          uri: result.assets[0].uri,
-        },
-        time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
-      };
-      setMessages(prev => [...prev, newMessage]);
 
-      // Simulate tailor response
-      setTimeout(() => {
-        const tailorResponse: Message = {
-          id: String(Date.now()),
-          sender: 'tailor',
-          text: 'Nice design! I can definitely make this for you.',
-          time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes:
+        kind === 'image'
+          ? ImagePicker.MediaTypeOptions.Images
+          : ImagePicker.MediaTypeOptions.Videos,
+      quality: 0.7,
+    });
+
+    if (!result.canceled && userId && activeConversationId) {
+      setSending(true);
+      let tempId: string | null = null;
+      try {
+        const asset = result.assets[0];
+        const mime = asset.mimeType || (kind === 'image' ? 'image/jpeg' : 'video/mp4');
+        tempId = `local-${Date.now()}`;
+
+        const optimisticMedia: ChatMessage = {
+          message_id: tempId,
+          conversation_id: activeConversationId,
+          sender_id: userId,
+          sender_role: userRole === 'tailor' ? 'tailor' : 'customer',
+          content: kind === 'image' ? 'Image sent' : 'Video sent',
+          message_type: kind,
+          status: 'sent',
+          media_url: asset.uri,
+          media_mime: mime,
+          media_size: asset.fileSize || 0,
+          media_duration: null,
+          thumbnail_url: null,
+          reply_to_id: null,
+          reply_to_preview: null,
+          is_deleted: false,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
         };
-        setMessages(prev => [...prev, tailorResponse]);
-      }, 2000);
+        setMessages((prev) => [...prev, optimisticMedia]);
+
+        if (demoMode) {
+          setMessages((prev) =>
+            prev.map((m) => (m.message_id === tempId ? { ...m, status: 'read' } : m))
+          );
+          return;
+        }
+
+        const uploaded = await Media.upload({
+          conversation_id: activeConversationId,
+          sender_id: userId,
+          fileUri: asset.uri,
+          filename: asset.fileName || (kind === 'image' ? 'image.jpg' : 'video.mp4'),
+          content_type: mime,
+          file_size: asset.fileSize || 0,
+        });
+
+        const sentMedia = await Messages.sendMedia({
+          conversation_id: activeConversationId,
+          sender_id: userId,
+          message_type: kind,
+          media_url: uploaded.media_url,
+          media_key: uploaded.media_key,
+          media_mime: mime,
+          media_size: asset.fileSize || 0,
+        });
+
+        setMessages((prev) => prev.map((m) => (m.message_id === tempId ? sentMedia : m)));
+      } catch (error) {
+        console.error(`Failed to send ${kind}:`, error);
+        Alert.alert('Error', `Failed to send ${kind}`);
+        if (tempId) {
+          setMessages((prev) => prev.filter((m) => m.message_id !== tempId));
+        }
+      } finally {
+        setSending(false);
+      }
     }
   };
 
-  const handlePickVideo = async () => {
-    setShowAttach(false);
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) {
-      Alert.alert('Permission Required', 'Gallery access is needed to select videos.');
-      return;
-    }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['videos'] as any,
-      quality: 1,
-    });
-    if (!result.canceled) {
-      const newMessage: Message = {
-        id: String(messages.length + 1),
-        sender: 'customer',
-        media: {
-          type: 'video',
-          uri: result.assets[0].uri,
-        },
-        time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
-      };
-      setMessages((prev) => [...prev, newMessage]);
+  const handleSendImage = () => sendPickedMedia('image');
+  const handleSendVideo = () => sendPickedMedia('video');
+
+  const handleStartCall = async (callType: CallType) => {
+    if (!userId) return;
+
+    try {
+      if (demoMode || !activeConversationId || !otherUserIdFromParams) {
+        const demoCallMessage: ChatMessage = {
+          message_id: `demo-call-${Date.now()}`,
+          conversation_id: activeConversationId || 'demo-conversation',
+          sender_id: userId,
+          sender_role: userRole === 'tailor' ? 'tailor' : 'customer',
+          content: `📞 ${callType === 'video' ? 'Video' : 'Voice'} call initiated`,
+          message_type: 'call_log',
+          status: 'read',
+          media_url: null,
+          media_mime: null,
+          media_size: null,
+          media_duration: null,
+          thumbnail_url: null,
+          reply_to_id: null,
+          reply_to_preview: null,
+          is_deleted: false,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        };
+        setMessages((prev) => [...prev, demoCallMessage]);
+        return;
+      }
+
+      await Calls.initiate(activeConversationId, userId, otherUserIdFromParams, callType);
+      Alert.alert('Call', `${callType === 'video' ? 'Video' : 'Voice'} call initiated.`);
+    } catch (error) {
+      console.error('Failed to initiate call:', error);
+      Alert.alert('Call Error', 'Failed to initiate call');
     }
   };
 
-  if (!conversation) {
+  const renderMessage = ({ item }: { item: ChatMessage }) => {
+    const isOwn = item.sender_id === userId;
+    const timestamp = formatMessageTime(item.created_at);
+
+    return (
+      <View
+        style={[
+          styles.messageRow,
+          isOwn ? styles.ownMessageRow : styles.otherMessageRow,
+        ]}
+      >
+        <View
+          style={[
+            styles.messageBubble,
+            isOwn
+              ? { backgroundColor: tint }
+              : { backgroundColor: card, borderWidth: 1, borderColor: muted },
+          ]}
+        >
+          {item.message_type === 'text' && (
+            <ThemedText
+              style={[
+                styles.messageText,
+                isOwn ? { color: '#fff' } : { color: text },
+              ]}
+            >
+              {item.content}
+            </ThemedText>
+          )}
+          {item.message_type === 'image' && (
+            <View style={styles.mediaWrap}>
+              {item.media_url ? (
+                <Image source={{ uri: item.media_url }} style={styles.mediaPreview} resizeMode="cover" />
+              ) : (
+                <ThemedText style={{ fontSize: 14, color: isOwn ? '#fff' : text }}>
+                  📷 Image
+                </ThemedText>
+              )}
+              {item.content ? (
+                <ThemedText style={[styles.mediaCaption, { color: isOwn ? '#fff' : text }]}>{item.content}</ThemedText>
+              ) : null}
+            </View>
+          )}
+          {item.message_type === 'video' && (
+            <View style={styles.mediaWrap}>
+              {item.media_url ? (
+                <Video
+                  source={{ uri: item.media_url }}
+                  style={styles.mediaPreview}
+                  useNativeControls
+                  resizeMode={ResizeMode.COVER}
+                  isLooping={false}
+                />
+              ) : (
+                <ThemedText style={{ fontSize: 14, color: isOwn ? '#fff' : text }}>
+                  🎥 Video
+                </ThemedText>
+              )}
+              {item.content ? (
+                <ThemedText style={[styles.mediaCaption, { color: isOwn ? '#fff' : text }]}>{item.content}</ThemedText>
+              ) : null}
+            </View>
+          )}
+          {item.message_type === 'audio' && (
+            <ThemedText style={{ fontSize: 14, color: isOwn ? '#fff' : text }}>
+              🎙️ Audio
+            </ThemedText>
+          )}
+          {item.message_type === 'call_log' && (
+            <ThemedText style={{ fontSize: 14, color: isOwn ? '#fff' : text }}>
+              {item.content || '📞 Call event'}
+            </ThemedText>
+          )}
+        </View>
+        <ThemedText style={[styles.timestamp, { color: muted }]}>
+          {timestamp} {isOwn && item.status === 'read' && '✓✓'}
+          {isOwn && item.status === 'delivered' && '✓'}
+        </ThemedText>
+      </View>
+    );
+  };
+
+  if (loading) {
     return (
       <ThemedView style={styles.container}>
-        <View style={[styles.header, { backgroundColor: tint }]}>
-          <Pressable onPress={() => (router as any).back()}>
-            <ThemedText style={{ color: '#fff' }}>{'< Back'}</ThemedText>
-          </Pressable>
-          <ThemedText style={styles.headerTitle}>Chat Not Found</ThemedText>
-          <View style={{ width: 56 }} />
-        </View>
+        <ActivityIndicator size="large" color={tint} style={{ marginTop: 50 }} />
       </ThemedView>
     );
   }
-
-  const handleCall = () => {
-    const phone = '+92 300 1234567';
-    const url = `tel:${phone}`;
-    Linking.openURL(url).catch(() => Alert.alert('Call Failed', 'Unable to initiate call on this device.'));
-  };
 
   return (
     <ThemedView style={styles.container}>
       {/* Header */}
       <View style={[styles.header, { backgroundColor: tint }]}>
-        <Pressable onPress={() => (router as any).back()} style={styles.backButton}>
+        <Pressable
+          onPress={() => router.back()}
+          style={styles.backButton}
+        >
           <Ionicons name="chevron-back" size={28} color="#fff" />
         </Pressable>
-        <View style={styles.headerCenter}>
-          <ThemedText style={styles.tailorAvatar}>{conversation.tailorAvatar}</ThemedText>
-          <View style={{ marginLeft: 12 }}>
-            <ThemedText style={[styles.headerTitle, { color: '#fff' }]}>{conversation.tailorName}</ThemedText>
-            <ThemedText style={{ color: '#e5e7eb', fontSize: 12 }}>Online</ThemedText>
-          </View>
+        <View style={styles.headerTitle}>
+          <ThemedText style={{ color: '#fff', fontSize: 16, fontWeight: '600' }}>
+            {otherUserName}
+          </ThemedText>
+          <ThemedText style={{ color: '#e5e7eb', fontSize: 12 }}>
+            {otherUserAvatar}
+          </ThemedText>
         </View>
-        <Pressable onPress={handleCall} style={styles.callButton} hitSlop={8}>
-          <Ionicons name="call" size={22} color="#fff" />
-        </Pressable>
+        <View style={styles.headerActions}>
+          <Pressable onPress={() => handleStartCall('voice')} style={styles.headerActionBtn}>
+            <Ionicons name="call-outline" size={20} color="#fff" />
+          </Pressable>
+          <Pressable onPress={() => handleStartCall('video')} style={styles.headerActionBtn}>
+            <Ionicons name="videocam-outline" size={20} color="#fff" />
+          </Pressable>
+        </View>
       </View>
 
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardAvoid}
-        keyboardVerticalOffset={Platform.select({ ios: 0, android: 0, default: 0 })}
+        style={{ flex: 1 }}
       >
-        {/* Messages */}
-        <ScrollView
-          contentContainerStyle={styles.messagesContainer}
-          showsVerticalScrollIndicator={false}
-        >
-          {messages.map((msg) => (
-            <View
-              key={msg.id}
-              style={[
-                styles.messageWrapper,
-                msg.sender === 'customer' ? styles.customerMessageWrapper : styles.tailorMessageWrapper,
-              ]}
-            >
-              <View
-                style={[
-                  styles.messageBubble,
-                  msg.sender === 'customer'
-                    ? { backgroundColor: tint }
-                    : { backgroundColor: card, borderColor: inputBorder, borderWidth: 1 },
-                ]}
-              >
-                {msg.media ? (
-                  <View>
-                    {msg.media.type === 'image' ? (
-                      <Pressable onPress={() => openImageViewer(msg.media!.uri)}>
-                        <Image
-                          source={{ uri: msg.media.uri }}
-                          style={styles.mediaImage}
-                        />
-                      </Pressable>
-                    ) : (
-                      <Pressable onPress={() => openVideo(msg.media!.uri)}>
-                        <View style={styles.videoPlaceholder}>
-                          <ThemedText style={{ fontSize: 32, marginBottom: 8 }}>🎥</ThemedText>
-                          <ThemedText style={{ fontSize: 12, textAlign: 'center', color: msg.sender === 'customer' ? '#fff' : '#000' }}>
-                            {getMediaLabel(msg.media.uri)}
-                          </ThemedText>
-                        </View>
-                      </Pressable>
-                    )}
-                  </View>
-                ) : (
-                  <ThemedText
-                    style={[
-                      styles.messageText,
-                      msg.sender === 'customer' ? { color: '#fff' } : {},
-                    ]}
-                  >
-                    {msg.text}
-                  </ThemedText>
-                )}
-              </View>
-              <ThemedText style={[styles.messageTime, { color: muted }]}>{msg.time}</ThemedText>
-            </View>
-          ))}
-        </ScrollView>
+        <FlatList
+          ref={flatListRef}
+          data={messages}
+          renderItem={renderMessage}
+          keyExtractor={(item) => item.message_id}
+          contentContainerStyle={styles.messagesList}
+          onContentSizeChange={() =>
+            flatListRef.current?.scrollToEnd({ animated: true })
+          }
+        />
 
         {/* Input Area */}
-        <View style={[styles.inputContainer, { backgroundColor: card, borderTopColor: inputBorder }]}>
-          <View style={styles.mediaButtonsRow}>
-            <Pressable
-              onPress={() => setShowAttach((v) => !v)}
-              style={[styles.mediaButton, { borderColor: tint }]}
-            >
-              <Ionicons name={showAttach ? 'close' : 'add'} size={18} color={tint} />
-            </Pressable>
-            {showAttach && (
-              <View style={styles.attachMenu}>
-                <Pressable onPress={handlePickImage} style={[styles.attachItem, { borderColor: tint }]}> 
-                  <Ionicons name="image" size={18} color={tint} />
-                  <ThemedText style={styles.attachLabel}>Photo</ThemedText>
-                </Pressable>
-                <Pressable onPress={handlePickVideo} style={[styles.attachItem, { borderColor: tint }]}> 
-                  <Ionicons name="videocam" size={18} color={tint} />
-                  <ThemedText style={styles.attachLabel}>Video</ThemedText>
-                </Pressable>
-              </View>
-            )}
-          </View>
+        <View style={[styles.inputArea, { backgroundColor: card, borderTopColor: muted }]}>
+          <Pressable onPress={() => setShowMediaOptions((prev) => !prev)} disabled={sending}>
+            <Ionicons
+              name={showMediaOptions ? 'close' : 'add'}
+              size={24}
+              color={sending ? muted : tint}
+              style={styles.inputIcon}
+            />
+          </Pressable>
+          {showMediaOptions ? (
+            <View style={[styles.mediaOptionsMenu, { backgroundColor: card, borderColor: muted }]}>
+              <Pressable style={styles.mediaOptionBtn} onPress={handleSendImage} disabled={sending}>
+                <Ionicons name="image" size={18} color={tint} />
+                <ThemedText style={styles.mediaOptionText}>Image</ThemedText>
+              </Pressable>
+              <Pressable style={styles.mediaOptionBtn} onPress={handleSendVideo} disabled={sending}>
+                <Ionicons name="videocam" size={18} color={tint} />
+                <ThemedText style={styles.mediaOptionText}>Video</ThemedText>
+              </Pressable>
+            </View>
+          ) : null}
           <TextInput
-            style={[styles.messageInput, { borderColor: inputBorder, color: 'inherit' }]}
-            placeholder="Type a message..."
+            style={[
+              styles.input,
+              { color: text, borderColor: muted },
+            ]}
+            placeholder="Message..."
+            placeholderTextColor={muted}
             value={inputText}
             onChangeText={setInputText}
-            placeholderTextColor={muted}
+            editable={!sending}
             multiline
           />
           <Pressable
             onPress={handleSendMessage}
-            disabled={!inputText.trim()}
-            style={[
-              styles.sendButton,
-              { backgroundColor: inputText.trim() ? tint : '#d1d5db' },
-            ]}
+            disabled={!inputText.trim() || sending}
+            style={styles.sendButton}
           >
-            <Ionicons name="send" size={20} color="#fff" />
+            {sending ? (
+              <ActivityIndicator size="small" color={tint} />
+            ) : (
+              <Ionicons
+                name="send"
+                size={20}
+                color={inputText.trim() ? tint : muted}
+              />
+            )}
           </Pressable>
         </View>
       </KeyboardAvoidingView>
-
-      <Modal visible={imageViewerVisible} transparent animationType="fade" onRequestClose={() => setImageViewerVisible(false)}>
-        <View style={styles.viewerBackdrop}>
-          <Pressable style={styles.viewerClose} onPress={() => setImageViewerVisible(false)}>
-            <Ionicons name="close" size={28} color="#fff" />
-          </Pressable>
-          {selectedImageUri ? <Image source={{ uri: selectedImageUri }} style={styles.viewerImage} resizeMode="contain" /> : null}
-        </View>
-      </Modal>
-
-      <Modal visible={videoViewerVisible} transparent animationType="fade" onRequestClose={() => setVideoViewerVisible(false)}>
-        <View style={styles.viewerBackdrop}>
-          <Pressable style={styles.viewerClose} onPress={() => setVideoViewerVisible(false)}>
-            <Ionicons name="close" size={28} color="#fff" />
-          </Pressable>
-          {selectedVideoUri ? (
-            <Video
-              source={{ uri: selectedVideoUri }}
-              style={styles.viewerVideo}
-              useNativeControls
-              resizeMode={ResizeMode.CONTAIN}
-              shouldPlay
-            />
-          ) : null}
-        </View>
-      </Modal>
     </ThemedView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
+  container: {
+    flex: 1,
+  },
   header: {
     paddingTop: 40,
     paddingBottom: 12,
@@ -357,36 +579,41 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  headerCenter: {
-    flexDirection: 'row',
+  backButton: {
+    width: 44,
+    height: 44,
     alignItems: 'center',
-    flex: 1,
-    marginLeft: 12,
-  },
-  tailorAvatar: {
-    fontSize: 32,
+    justifyContent: 'center',
   },
   headerTitle: {
-    fontWeight: '700',
-    fontSize: 16,
-  },
-  keyboardAvoid: {
     flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  messagesContainer: {
+  headerActions: {
+    width: 72,
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 6,
+  },
+  headerActionBtn: {
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  messagesList: {
     paddingHorizontal: 12,
     paddingVertical: 12,
-    paddingBottom: 20,
   },
-  messageWrapper: {
+  messageRow: {
     marginBottom: 12,
     flexDirection: 'row',
-    alignItems: 'flex-end',
   },
-  customerMessageWrapper: {
+  ownMessageRow: {
     justifyContent: 'flex-end',
   },
-  tailorMessageWrapper: {
+  otherMessageRow: {
     justifyContent: 'flex-start',
   },
   messageBubble: {
@@ -399,12 +626,25 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
   },
-  messageTime: {
+  mediaWrap: {
+    minWidth: 180,
+  },
+  mediaPreview: {
+    width: 180,
+    height: 140,
+    borderRadius: 10,
+    backgroundColor: '#e5e7eb',
+  },
+  mediaCaption: {
+    marginTop: 6,
+    fontSize: 13,
+  },
+  timestamp: {
     fontSize: 11,
     marginHorizontal: 8,
     marginTop: 4,
   },
-  inputContainer: {
+  inputArea: {
     paddingHorizontal: 12,
     paddingVertical: 12,
     borderTopWidth: 1,
@@ -412,12 +652,36 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     gap: 10,
   },
-  mediaButtonsRow: { flexDirection: 'row', alignItems: 'center', gap: 8, position: 'relative' },
-  mediaButton: { width: 40, height: 40, borderRadius: 10, borderWidth: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'transparent' },
-  attachMenu: { position: 'absolute', bottom: 50, left: 0, flexDirection: 'column-reverse', alignItems: 'flex-start', gap: 8 },
-  attachItem: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 8, borderRadius: 10, borderWidth: 1 },
-  attachLabel: { fontSize: 12 },
-  messageInput: {
+  inputIcon: {
+    marginBottom: 6,
+  },
+  mediaOptionsMenu: {
+    position: 'absolute',
+    left: 12,
+    bottom: 62,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingVertical: 6,
+    minWidth: 130,
+    zIndex: 20,
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+  },
+  mediaOptionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  mediaOptionText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  input: {
     flex: 1,
     borderWidth: 1,
     borderRadius: 10,
@@ -432,34 +696,6 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  mediaImage: {
-    width: 200,
-    height: 200,
-    borderRadius: 8,
-  },
-  videoPlaceholder: {
-    width: 200,
-    height: 120,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#f3f4f6',
-  },
-  viewerBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.92)', alignItems: 'center', justifyContent: 'center', padding: 16 },
-  viewerImage: { width: '100%', height: '85%' },
-  viewerVideo: { width: '100%', height: '60%' },
-  viewerClose: { position: 'absolute', top: 44, right: 18, zIndex: 10, padding: 6 },
-  backButton: {
-    width: 44,
-    height: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  callButton: {
-    width: 44,
-    height: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
+    marginBottom: 4,
   },
 });

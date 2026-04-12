@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { ThemedText } from './themed-text';
 import { useThemeColor } from '@/hooks/use-theme-color';
+import ConversationListScreen from './ConversationList';
 
 interface CustomerChatProps {
   tailorId?: number;
@@ -39,6 +40,10 @@ const CustomerChat = ({ tailorId, tailorName }: CustomerChatProps) => {
   const muted = useThemeColor({}, 'muted');
   const tint = useThemeColor({}, 'tint');
 
+  if (!tailorId) {
+    return <ConversationListScreen />;
+  }
+
   return (
     <View style={[styles.container, { backgroundColor: background }]}> 
       <View style={[styles.headerSection, { borderBottomColor: inputBorder }] }>
@@ -60,7 +65,17 @@ const CustomerChat = ({ tailorId, tailorName }: CustomerChatProps) => {
           {filteredChats.map((chat) => (
             <Pressable 
               key={chat.id} 
-              onPress={() => (router as any).push({ pathname: '/customer/chat-conversation', params: { tailorId: chat.id } })}
+              onPress={() =>
+                (router as any).push({
+                  pathname: '/customer/chat-conversation',
+                  params: {
+                    tailorId: chat.id,
+                    otherUserId: String(chat.id),
+                    otherUserName: chat.name,
+                    otherUserAvatar: chat.avatar,
+                  },
+                })
+              }
               style={[styles.chatCard, { backgroundColor: card, borderColor: inputBorder }] }>
               <View style={[styles.avatar, { backgroundColor: useThemeColor({}, 'iconBg') }]}>
                 <ThemedText style={[styles.avatarText, { color: tint }]}>{chat.avatar}</ThemedText>

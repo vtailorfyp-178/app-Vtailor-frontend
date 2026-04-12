@@ -22,9 +22,21 @@ export const FASHION_QUICK_PROMPTS: string[] = [
   "What's trending this season?",
 ];
 
-const expoHost = Constants.expoConfig?.hostUri?.split(':')[0];
+const expoHostCandidates = [
+  Constants.expoConfig?.hostUri,
+  (Constants as any).expoGoConfig?.hostUri,
+  (Constants as any).expoConfig?.debuggerHost,
+  (Constants as any).expoGoConfig?.debuggerHost,
+]
+  .filter(Boolean)
+  .map((value) => String(value).replace(/^.*?:\/\//, '').replace(/:\d+$/, '').trim())
+  .filter(Boolean);
 const EMULATOR_ANDROID_HOST = '10.0.2.2';
 const EXPO_API_BASE = (process.env.EXPO_PUBLIC_API_BASE_URL || '').trim();
+
+function buildBaseUrl(host: string) {
+  return `http://${host}:8000/app/api/v1`;
+}
 
 function getCandidateBaseUrls() {
   if (EXPO_API_BASE) return [EXPO_API_BASE];
@@ -39,9 +51,10 @@ function getCandidateBaseUrls() {
   }
 
   const urls: string[] = [];
-  if (Platform.OS === 'android') urls.push(`http://${EMULATOR_ANDROID_HOST}:8000/app/api/v1`);
-  if (expoHost) urls.push(`http://${expoHost}:8000/app/api/v1`);
-  urls.push('http://127.0.0.1:8000/app/api/v1');
+  if (Platform.OS === 'android') urls.push(buildBaseUrl(EMULATOR_ANDROID_HOST));
+  urls.push(...expoHostCandidates.map(buildBaseUrl));
+  urls.push(buildBaseUrl('127.0.0.1'));
+  urls.push(buildBaseUrl('localhost'));
   return urls;
 }
 

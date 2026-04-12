@@ -23,16 +23,20 @@ export default function PreviewCustomization() {
   const inputBorder = useThemeColor({}, 'inputBorder');
 
   const imageSource =
-    modelId === 'maxi'
-      ? require('../../2d model/Maxi 1.jpeg')
-      : modelId === 'kurti'
+    modelId === 'kurti'
+      ? require('../../2d model/kurti 2.jpeg')
+      : modelId === 'kurti-trouser'
       ? require('../../2d model/kurti 2.jpeg')
       : modelId === 'short-frock'
+      ? require('../../2d model/short frock.jpeg')
+      : modelId === 'short-frock-shalwar'
       ? require('../../2d model/short frock.jpeg')
       : modelId === 'long-frock'
       ? require('../../2d model/long frock 1.jpeg')
       : modelId === 'shalwar-kameez'
       ? require('../../2d model/shalwar kameez 1.jpeg')
+      : modelId === 'sharara'
+      ? require('../../2d model/shrara.jpg')
       : null;
 
   return (
