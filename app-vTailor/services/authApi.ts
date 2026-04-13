@@ -1,4 +1,4 @@
-import { Platform } from 'react-native';
+import { NativeModules, Platform } from 'react-native';
 import Constants from 'expo-constants';
 
 const expoHostCandidates = [
@@ -14,6 +14,21 @@ const EMULATOR_ANDROID_HOST = '10.0.2.2';
 const EXPO_API_BASE = (process.env.EXPO_PUBLIC_API_BASE_URL || '').trim();
 const REQUEST_TIMEOUT_MS = 15000;
 let cachedBaseUrl: string | null = EXPO_API_BASE || null;
+
+function extractHostFromScriptUrl() {
+  try {
+    const scriptURL: string | undefined = (NativeModules as any)?.SourceCode?.scriptURL;
+    if (!scriptURL) return null;
+    const host = String(scriptURL)
+      .replace(/^.*?:\/\//, '')
+      .split('/')[0]
+      .replace(/:\d+$/, '')
+      .trim();
+    return host || null;
+  } catch {
+    return null;
+  }
+}
 
 function buildBaseUrl(host: string) {
   return `http://${host}:8000/app/api/v1`;
@@ -33,11 +48,13 @@ function getCandidateBaseUrls() {
   }
 
   const urls: string[] = [];
+  const scriptHost = extractHostFromScriptUrl();
+  if (scriptHost) urls.push(buildBaseUrl(scriptHost));
   if (Platform.OS === 'android') urls.push(buildBaseUrl(EMULATOR_ANDROID_HOST));
   urls.push(...expoHostCandidates.map(buildBaseUrl));
   urls.push(buildBaseUrl('127.0.0.1'));
   urls.push(buildBaseUrl('localhost'));
-  return urls;
+  return Array.from(new Set(urls));
 }
 
 async function fetchWithFallback(path: string, init?: RequestInit) {
@@ -63,7 +80,10 @@ async function fetchWithFallback(path: string, init?: RequestInit) {
     }
   }
 
-  throw lastError || new Error('Failed to fetch');
+  const reason = lastError instanceof Error ? lastError.message : 'Failed to fetch';
+  throw new Error(
+    `${reason}. If using Expo Go on phone, run backend on 0.0.0.0 and set EXPO_PUBLIC_API_BASE_URL to your PC LAN IP, e.g. http://192.168.x.x:8000/app/api/v1`
+  );
 }
 
 export async function sendEmailOtp(email: string) {

@@ -80,8 +80,12 @@ export default function ChatConversation() {
   const params = useLocalSearchParams();
   const conversationId = (params.conversation_id as string) || (params.id as string);
   const tailorId = params.tailorId ? String(params.tailorId) : null;
+  const tailorNameFromParams =
+    (params.tailorName as string) ||
+    (params.otherUserName as string) ||
+    '';
   const otherUserIdFromParams = (params.otherUserId as string) || tailorId;
-  const [otherUserName, setOtherUserName] = useState((params.otherUserName as string) || 'Conversation');
+  const [otherUserName, setOtherUserName] = useState(tailorNameFromParams || 'Tailor');
   const otherUserAvatar = (params.otherUserAvatar as string) || '👥';
   const demoModeParam = (params.demo as string) === '1';
 
@@ -127,7 +131,7 @@ export default function ChatConversation() {
         if (!activeConversationId && tailorId && userRole === 'customer') {
           const created = await Conversations.getOrCreate(tailorId, userId);
           resolvedConversationId = created.conversation_id;
-          setOtherUserName(created.tailor_name || otherUserName);
+          setOtherUserName(created.tailor_name || tailorNameFromParams || 'Tailor');
         }
 
         if (!resolvedConversationId) {
@@ -381,6 +385,7 @@ export default function ChatConversation() {
 
   const renderMessage = ({ item }: { item: ChatMessage }) => {
     const isOwn = item.sender_id === userId;
+    const senderLabel = isOwn ? 'You' : otherUserName;
     const timestamp = formatMessageTime(item.created_at);
 
     return (
@@ -398,6 +403,14 @@ export default function ChatConversation() {
               : { backgroundColor: card, borderWidth: 1, borderColor: muted },
           ]}
         >
+          <ThemedText
+            style={[
+              styles.senderLabel,
+              isOwn ? { color: '#e5e7eb' } : { color: muted },
+            ]}
+          >
+            {senderLabel}
+          </ThemedText>
           {item.message_type === 'text' && (
             <ThemedText
               style={[
@@ -621,6 +634,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
     borderRadius: 12,
+  },
+  senderLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    marginBottom: 4,
   },
   messageText: {
     fontSize: 14,

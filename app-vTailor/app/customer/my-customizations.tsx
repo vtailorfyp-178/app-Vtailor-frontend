@@ -1,15 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import { View, ScrollView, Pressable, StyleSheet, Image } from 'react-native';
 import { useRouter } from 'expo-router';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useThemeColor } from '@/hooks/use-theme-color';
+import { useAuth } from '@/contexts/AuthContext';
+import { getUserCustomizations } from '@/services/userDataService';
 
 type Item = { id: string; modelId: string; modelName: string; selections: Record<string, string | null>; createdAt: string };
 
 export default function MyCustomizations() {
   const router = useRouter();
+  const { userId } = useAuth();
   const tint = useThemeColor({}, 'tint');
   const card = useThemeColor({}, 'card');
   const inputBorder = useThemeColor({}, 'inputBorder');
@@ -19,15 +21,19 @@ export default function MyCustomizations() {
   useEffect(() => {
     const load = async () => {
       try {
-        const raw = await AsyncStorage.getItem('CUSTOMIZATIONS');
-        const list = raw ? JSON.parse(raw) : [];
-        setItems(list.reverse());
+        // Load from user-specific storage if userId exists
+        if (userId) {
+          const list = await getUserCustomizations(userId);
+          setItems(list.reverse());
+        } else {
+          setItems([]);
+        }
       } catch (e) {
         setItems([]);
       }
     };
     load();
-  }, []);
+  }, [userId]);
 
   const imageFor = (modelId: string) => {
     if (modelId === 'kurti') return require('../../2d model/kurti 2.jpeg');

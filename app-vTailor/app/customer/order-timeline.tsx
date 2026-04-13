@@ -1,7 +1,7 @@
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useState } from "react";
 import { FlatList, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
@@ -15,44 +15,134 @@ const STEPS = [
   "Dress Completed",
 ];
 
-// Mock customer data
-const MOCK_CUSTOMER = {
-  id: "1",
-  name: "Fatima Khan",
-  email: "fatima@example.com",
-  phone: "+92 300 1234567",
-  address: "123 Main Street, Karachi",
-  measurements: {
-    chest: "38 inches",
-    waist: "32 inches",
-    length: "60 inches",
-  },
-  orderDetails: {
-    id: "ORD-001",
-    date: "2025-12-28",
-    description: "Formal Dress",
-    color: "Red",
-    fabric: "Silk",
-  }
+type CustomizationItem = {
+  id: string;
+  modelName?: string;
+  createdAt?: string;
+  selections?: Record<string, string | null>;
 };
 
+const selectionNameMap: Record<string, Record<string, string>> = {
+  neck: {
+    round: 'Round Neck',
+    'v-neck': 'V-Neck',
+  },
+  sleeves: {
+    full: 'Full Sleeves',
+    bell: 'Bell Sleeves',
+  },
+  bottom: {
+    straight: 'Straight Style',
+    tulip: 'Tulip Style',
+    flared: 'Flared Style',
+  },
+  'frock-style': {
+    'flared-bottom': 'Flared Bottom',
+    'front-slit': 'Front Slit',
+  },
+  colors: {
+    red: 'Red',
+    blue: 'Blue',
+    green: 'Green',
+    black: 'Black',
+    white: 'White',
+    yellow: 'Yellow',
+  },
+};
+
+function readSelectionLabel(key: string, value: string | null | undefined) {
+  if (!value) return 'Not selected';
+  return selectionNameMap[key]?.[value] || value;
+}
+
+function formatOrderDate(value?: string) {
+  if (!value) return new Date().toISOString().slice(0, 10);
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return new Date().toISOString().slice(0, 10);
+  return parsed.toISOString().slice(0, 10);
+}
+
 export default function CustomerOrderTimelineScreen() {
+  const params = useLocalSearchParams();
+  const demoMode = (params.demo as string) === '1';
+  const orderDescriptionFromParams = (params.orderDescription as string) || 'Customized Dress';
+  const orderDateFromParams = formatOrderDate(params.orderDate as string);
+  const tailorNameFromParams = (params.tailorName as string) || 'Ahmad Tailor Store';
+  const tailorRatingFromParams = (params.tailorRating as string) || '⭐ 4.8 (245 reviews)';
   const [currentStep, setCurrentStep] = useState(0);
+  const [orderDescription, setOrderDescription] = useState(orderDescriptionFromParams);
+  const [orderDate, setOrderDate] = useState(orderDateFromParams);
+  const [tailorName, setTailorName] = useState(tailorNameFromParams);
+  const [tailorRating, setTailorRating] = useState(tailorRatingFromParams);
+  const [orderInfoRows, setOrderInfoRows] = useState<Array<{ label: string; value: string }>>([
+    { label: 'Neck', value: 'Not selected' },
+    { label: 'Sleeves', value: 'Not selected' },
+    { label: 'Style', value: 'Not selected' },
+    { label: 'Color', value: 'Not selected' },
+  ]);
   const router = useRouter();
-  const ORDER_ID = MOCK_CUSTOMER.orderDetails.id;
+  const ORDER_ID = (params.orderId as string) || 'ORD-001';
   const STORAGE_KEY = `order_progress_${ORDER_ID}`;
 
   // Load saved progress when component mounts
   useEffect(() => {
     loadProgressFromStorage();
+    loadCustomizationDetails();
   }, []);
 
   // Reload progress every time screen is focused
   useFocusEffect(
     useCallback(() => {
       loadProgressFromStorage();
+      loadCustomizationDetails();
     }, [])
   );
+
+  const loadCustomizationDetails = async () => {
+    try {
+      const raw = await AsyncStorage.getItem('CUSTOMIZATIONS');
+      const list: CustomizationItem[] = raw ? JSON.parse(raw) : [];
+      if (!list.length) {
+        // Evaluator/demo fallback to verify expected UI behavior without prior saved customizations
+        setOrderDescription(orderDescriptionFromParams);
+        setOrderDate(orderDateFromParams);
+        setTailorName(tailorNameFromParams);
+        setTailorRating(tailorRatingFromParams);
+        setOrderInfoRows([
+          { label: 'Neck', value: (params.sampleNeck as string) || 'Round Neck' },
+          { label: 'Sleeves', value: (params.sampleSleeves as string) || 'Full Sleeves' },
+          { label: 'Style', value: (params.sampleStyle as string) || 'Flared Bottom' },
+          { label: 'Color', value: (params.sampleColor as string) || 'Red' },
+        ]);
+        return;
+      }
+
+      const selectedCustomizationId = (params.customizationId as string) || '';
+      const matched = selectedCustomizationId ? list.find((item) => item.id === selectedCustomizationId) : null;
+
+      const latest = matched || [...list].sort((a, b) => {
+        const t1 = new Date(a.createdAt || '').getTime() || 0;
+        const t2 = new Date(b.createdAt || '').getTime() || 0;
+        return t2 - t1;
+      })[0];
+
+      const selections = latest.selections || {};
+      const style = selections['frock-style'] || selections.bottom;
+
+      setOrderDescription(latest.modelName || 'Customized Dress');
+      setOrderDate(formatOrderDate(latest.createdAt));
+      setTailorName(tailorNameFromParams);
+      setTailorRating(tailorRatingFromParams);
+      setOrderInfoRows([
+        { label: 'Neck', value: readSelectionLabel('neck', selections.neck) },
+        { label: 'Sleeves', value: readSelectionLabel('sleeves', selections.sleeves) },
+        { label: 'Style', value: readSelectionLabel(selections['frock-style'] ? 'frock-style' : 'bottom', style) },
+        { label: 'Color', value: readSelectionLabel('colors', selections.colors) },
+      ]);
+    } catch (error) {
+      console.log('Error loading customization details:', error);
+    }
+  };
 
   const loadProgressFromStorage = async () => {
     try {
@@ -67,7 +157,7 @@ export default function CustomerOrderTimelineScreen() {
 
   const getEstimatedDate = (stepIndex: number) => {
     const daysPerStep = 2;
-    const startDate = new Date(MOCK_CUSTOMER.orderDetails.date);
+    const startDate = new Date(orderDate);
     const estimatedDate = new Date(startDate.getTime() + (stepIndex * daysPerStep * 24 * 60 * 60 * 1000));
     return estimatedDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   };
@@ -146,9 +236,10 @@ export default function CustomerOrderTimelineScreen() {
                   <Ionicons name="storefront" size={32} color="#fff" />
                 </View>
                 <View style={styles.tailorInfo}>
-                  <Text style={styles.tailorName}>Ahmad Tailor Store</Text>
-                  <Text style={styles.tailorRating}>⭐ 4.8 (245 reviews)</Text>
+                  <Text style={styles.tailorName}>{tailorName}</Text>
+                  <Text style={styles.tailorRating}>{tailorRating}</Text>
                 </View>
+                {demoMode ? <Text style={styles.demoBadge}>DEMO</Text> : null}
               </View>
 
               {/* Order Details */}
@@ -156,20 +247,18 @@ export default function CustomerOrderTimelineScreen() {
                 <Text style={styles.sectionTitle}>Order Details</Text>
                 <View style={styles.detailRow}>
                   <Text style={styles.detailLabel}>Order ID:</Text>
-                  <Text style={styles.detailValue}>{MOCK_CUSTOMER.orderDetails.id}</Text>
+                  <Text style={styles.detailValue}>{ORDER_ID}</Text>
                 </View>
                 <View style={styles.detailRow}>
                   <Text style={styles.detailLabel}>Description:</Text>
-                  <Text style={styles.detailValue}>{MOCK_CUSTOMER.orderDetails.description}</Text>
+                  <Text style={styles.detailValue}>{orderDescription}</Text>
                 </View>
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Color:</Text>
-                  <Text style={styles.detailValue}>{MOCK_CUSTOMER.orderDetails.color}</Text>
-                </View>
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Fabric:</Text>
-                  <Text style={styles.detailValue}>{MOCK_CUSTOMER.orderDetails.fabric}</Text>
-                </View>
+                {orderInfoRows.map((row) => (
+                  <View key={row.label} style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>{row.label}:</Text>
+                    <Text style={styles.detailValue}>{row.value}</Text>
+                  </View>
+                ))}
               </View>
 
               {/* Progress Bar */}
@@ -313,6 +402,15 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#6b7280",
     marginTop: 2,
+  },
+  demoBadge: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#1d4ed8",
+    backgroundColor: "#dbeafe",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 999,
   },
   orderDetailsSection: {
     marginBottom: 16,

@@ -5,6 +5,8 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useThemeColor } from '@/hooks/use-theme-color';
+import { useAuth } from '@/contexts/AuthContext';
+import { saveUserCustomization } from '@/services/userDataService';
 
 type TabId = 'neck' | 'sleeves' | 'bottom' | 'frock-style' | 'colors';
 
@@ -70,6 +72,7 @@ const options: Record<TabId, Array<{ id: string; name: string; color?: string; e
 export default function Customize3D() {
   const router = useRouter();
   const params = useLocalSearchParams();
+  const { userId } = useAuth();
   const modelId = (params.modelId as string) || '';
   const tint = useThemeColor({}, 'tint');
   const card = useThemeColor({}, 'card');
@@ -120,8 +123,6 @@ export default function Customize3D() {
 
   const saveCustomization = async () => {
     try {
-      const listRaw = await AsyncStorage.getItem('CUSTOMIZATIONS');
-      const list = listRaw ? JSON.parse(listRaw) : [];
       const item = {
         id: Date.now().toString(),
         modelId,
@@ -129,8 +130,17 @@ export default function Customize3D() {
         selections,
         createdAt: new Date().toISOString(),
       };
+
+      // Save to global storage for backward compat
+      const listRaw = await AsyncStorage.getItem('CUSTOMIZATIONS');
+      const list = listRaw ? JSON.parse(listRaw) : [];
       list.push(item);
       await AsyncStorage.setItem('CUSTOMIZATIONS', JSON.stringify(list));
+
+      // Also save to user-specific storage if userId exists
+      if (userId) {
+        await saveUserCustomization(userId, item);
+      }
     } catch (e) {
       // ignore storage errors for now
     }

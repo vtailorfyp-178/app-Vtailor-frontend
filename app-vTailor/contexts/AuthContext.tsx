@@ -50,6 +50,11 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const profileKey   = (role: UserRole) => `profile_${role}`;
 const completedKey = (role: UserRole) => `profileCompleted_${role}`;
 
+// User-specific storage keys (keyed by userId to support multiple accounts on one device)
+const userCustomizationsKey = (userId: string) => `customizations_${userId}`;
+const userMeasurementsKey = (userId: string) => `measurements_${userId}`;
+const userOrdersKey = (userId: string) => `orders_${userId}`;
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [acceptedTerms, setAcceptedTerms]       = useState(false);
   const [token, setToken]                       = useState<string | null>(null);
@@ -132,8 +137,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setToken(newToken);
     if (newUserId) setUserId(newUserId);
     setUserRole(role);
-    // Reset completion for the new session so profile-setup is always shown on first login
-    setIsProfileCompleted(false);
+    // Don't reset completion here — let the auth.tsx flow determine if profile-setup is needed
+    // based on whether the profile exists on the backend.
     if (email) {
       setLoginEmail(email);
       // Pre-seed the email field in whichever profile slot this role uses
@@ -147,6 +152,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = () => {
+    const currentUserId = userId;
     setToken(null);
     setUserRole(null);
     setLoginEmail(null);

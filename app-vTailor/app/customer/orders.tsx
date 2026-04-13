@@ -15,10 +15,46 @@ const stats = [
 ];
 
 const orders = [
-  { id: 1, name: 'Long Frock', tailor: 'Ahmad Tailor', status: 'In Progress', date: '25 Dec', price: 8500 },
-  { id: 2, name: 'Shalwar Kameez', tailor: 'Master Tailors', status: 'Cutting', date: '20 Dec', price: 25000 },
-  { id: 3, name: 'Kurti', tailor: 'Classic Stitches', status: 'Delivered', date: '15 Dec', price: 3500 },
-  { id: 4, name: 'Lehenga', tailor: 'Ahmad Tailor', status: 'Delivered', date: '10 Dec', price: 6000 },
+  {
+    id: 1,
+    name: 'Long Frock',
+    tailor: 'Ahmad Tailor',
+    rating: '⭐ 4.8 (245 reviews)',
+    status: 'In Progress',
+    date: '2026-12-25',
+    price: 8500,
+    sample: { neck: 'Round Neck', sleeves: 'Full Sleeves', style: 'Flared Bottom', color: 'Red' },
+  },
+  {
+    id: 2,
+    name: 'Shalwar Kameez',
+    tailor: 'Master Tailors',
+    rating: '⭐ 4.6 (180 reviews)',
+    status: 'Cutting',
+    date: '2026-12-20',
+    price: 25000,
+    sample: { neck: 'V-Neck', sleeves: 'Bell Sleeves', style: 'Straight Style', color: 'Blue' },
+  },
+  {
+    id: 3,
+    name: 'Kurti',
+    tailor: 'Classic Stitches',
+    rating: '⭐ 4.7 (132 reviews)',
+    status: 'Delivered',
+    date: '2026-12-15',
+    price: 3500,
+    sample: { neck: 'Round Neck', sleeves: 'Full Sleeves', style: 'Tulip Style', color: 'Green' },
+  },
+  {
+    id: 4,
+    name: 'Lehenga',
+    tailor: 'Ahmad Tailor',
+    rating: '⭐ 4.8 (245 reviews)',
+    status: 'Delivered',
+    date: '2026-12-10',
+    price: 6000,
+    sample: { neck: 'V-Neck', sleeves: 'Bell Sleeves', style: 'Flared Style', color: 'Black' },
+  },
 ];
 
 const getStatusColors = (status: string) => {
@@ -39,6 +75,25 @@ export default function CustomerOrders() {
   const bg = useThemeColor({}, 'background');
   const card = useThemeColor({}, 'card');
   const router = useRouter();
+
+  const openTimeline = (order: (typeof orders)[number]) => {
+    router.push({
+      pathname: '/customer/order-timeline',
+      params: {
+        orderId: `ORD-${String(order.id).padStart(3, '0')}`,
+        demo: '1',
+        orderDescription: order.name,
+        orderDate: order.date,
+        tailorName: order.tailor,
+        tailorRating: order.rating,
+        statusLabel: order.status,
+        sampleNeck: order.sample.neck,
+        sampleSleeves: order.sample.sleeves,
+        sampleStyle: order.sample.style,
+        sampleColor: order.sample.color,
+      },
+    });
+  };
 
   return (
     <ProtectedRoute requiredRole="customer">
@@ -69,7 +124,7 @@ export default function CustomerOrders() {
               <TouchableOpacity 
                 key={order.id} 
                 style={[styles.card, { backgroundColor: card }]}
-                onPress={() => router.push('/customer/order-timeline')}
+                onPress={() => openTimeline(order)}
                 activeOpacity={0.7}
               > 
                 <View style={styles.cardTop}>
@@ -89,7 +144,7 @@ export default function CustomerOrders() {
                   </View>
                   <TouchableOpacity 
                     style={styles.viewButton}
-                    onPress={() => router.push('/customer/order-timeline')}
+                    onPress={() => openTimeline(order)}
                   >
                     <Ionicons name="arrow-forward" size={18} color="#3b82f6" />
                   </TouchableOpacity>

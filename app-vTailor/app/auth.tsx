@@ -6,6 +6,7 @@ import { ThemedView } from '@/components/themed-view';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { useAuth, UserRole } from '@/contexts/AuthContext';
 import { getProfile, sendEmailOtp, verifyEmailOtp } from '@/services/authApi';
+import { migrateCustomizationsToUser } from '@/services/userDataService';
 
 const logo = require('../assets/images/vTailorlogo.jpeg');
 
@@ -102,7 +103,13 @@ export default function AuthScreen() {
       if (result?.access_token) {
         // Pass the email so it is auto-populated in profile-setup and stored per-role
         const resolvedRole: UserRole = result.role === 'tailor' ? 'tailor' : 'customer';
-        login(result.access_token, resolvedRole, result.email ?? email, result.user_id);
+        const userId = result.user_id;
+        login(result.access_token, resolvedRole, result.email ?? email, userId);
+
+        // Migrate user's customizations from global storage to user-specific storage
+        if (userId) {
+          await migrateCustomizationsToUser(userId);
+        }
 
         try {
           const profile = await getProfile(result.access_token);
