@@ -4,29 +4,36 @@
     "slug": "app-vTailor",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/vTailorlogo.jpeg",
+    "icon": "./assets/images/vTailorlogo.png",
     "scheme": "appvtailor",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": false,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "vTailor uses your location to find nearby tailors and update tailor availability on the map."
+      }
     },
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/images/vTailorlogo.jpeg",
-        "backgroundImage": "./assets/images/vTailorlogo.jpeg",
-        "monochromeImage": "./assets/images/vTailorlogo.jpeg"
+        "foregroundImage": "./assets/images/vTailorlogo.png",
+        "backgroundImage": "./assets/images/vTailorlogo.png",
+        "monochromeImage": "./assets/images/vTailorlogo.png"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION"
+      ]
     },
     "web": {
       "output": "static",
       "favicon": "./assets/images/vTailorlogo.jpeg"
     },
     "splash": {
-      "image": "./assets/images/vTailorlogo.jpeg",
+      "image": "./assets/images/vTailorlogo.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff",
       "dark": {
@@ -36,9 +43,15 @@
     "plugins": [
       "expo-router",
       [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "vTailor uses your location to show nearby tailors and keep tailor location updated."
+        }
+      ],
+      [
         "expo-splash-screen",
         {
-          "image": "./assets/images/vTailorlogo.jpeg",
+          "image": "./assets/images/vTailorlogo.png",
           "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#ffffff",

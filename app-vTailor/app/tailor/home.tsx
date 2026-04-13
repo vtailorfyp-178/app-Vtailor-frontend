@@ -1,11 +1,13 @@
 import { ThemedText } from '@/components/themed-text';
 import { useAuth } from '@/contexts/AuthContext';
 import { useThemeColor } from '@/hooks/use-theme-color';
+import { updateTailorAvailability, updateTailorLocation } from '@/services/tailorsApi';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import * as Location from 'expo-location';
+import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 
 // Storage key used across wallet / penalty screens
 const STORAGE_KEY = 'vtailor_penalty_orders';
@@ -60,12 +62,15 @@ const orders = [
 ];
 
 export default function TailorHome() {
-  const { user } = useAuth();
+  const { user, token, userRole } = useAuth();
   const router = useRouter();
   const card = useThemeColor({}, 'card');
   const inputBorder = useThemeColor({}, 'inputBorder');
   const tint = '#f9c8d8';
   const [penaltiesMap, setPenaltiesMap] = useState<Record<string, number>>({});
+  const [isOpen, setIsOpen] = useState<boolean>(false);
+  const [syncingPresence, setSyncingPresence] = useState(false);
+  const [lastSyncAt, setLastSyncAt] = useState<string | null>(null);
 
   const getStatusStyle = (status: string) => {
     if (status === 'ready') return { backgroundColor: '#ecfdf3', color: '#15803d' };
@@ -120,6 +125,66 @@ export default function TailorHome() {
     })();
   }, []);
 
+  useEffect(() => {
+    if (!token || userRole !== 'tailor') return;
+
+    let active = true;
+    let intervalId: ReturnType<typeof setInterval> | null = null;
+
+    const syncLocation = async (availability?: boolean) => {
+      try {
+        const permission = await Location.requestForegroundPermissionsAsync();
+        if (permission.status !== 'granted') return;
+
+        const current = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+        if (!active) return;
+
+        await updateTailorLocation(token, {
+          latitude: current.coords.latitude,
+          longitude: current.coords.longitude,
+          is_available: typeof availability === 'boolean' ? availability : isOpen,
+        });
+        setLastSyncAt(new Date().toLocaleTimeString());
+      } catch {
+        // ignore background sync errors and keep dashboard responsive
+      }
+    };
+
+    syncLocation();
+    intervalId = setInterval(() => {
+      syncLocation();
+    }, 45000);
+
+    return () => {
+      active = false;
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [token, userRole, isOpen]);
+
+  const handleAvailabilityToggle = async (nextValue: boolean) => {
+    if (!token || userRole !== 'tailor') return;
+
+    setSyncingPresence(true);
+    try {
+      await updateTailorAvailability(token, nextValue);
+      const permission = await Location.requestForegroundPermissionsAsync();
+      if (permission.status === 'granted') {
+        const current = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+        await updateTailorLocation(token, {
+          latitude: current.coords.latitude,
+          longitude: current.coords.longitude,
+          is_available: nextValue,
+        });
+      }
+      setIsOpen(nextValue);
+      setLastSyncAt(new Date().toLocaleTimeString());
+    } catch {
+      // no-op, keep previous status if API fails
+    } finally {
+      setSyncingPresence(false);
+    }
+  };
+
   return (
     <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.container}>
       <View style={[styles.headerWrap, { backgroundColor: tint }]}> 
@@ -131,6 +196,24 @@ export default function TailorHome() {
           <Ionicons name="notifications-outline" size={22} color="#111" />
           <View style={styles.badge}><Text style={styles.badgeText}>3</Text></View>
         </Pressable>
+      </View>
+
+      <View style={[styles.presenceCard, { borderColor: inputBorder, backgroundColor: card }]}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.presenceTitle}>Shop Status</Text>
+          <Text style={[styles.presenceSubtitle, { color: isOpen ? '#15803d' : '#6b7280' }]}>
+            {isOpen ? 'Open and visible on customer map' : 'Closed and hidden from open-only filter'}
+          </Text>
+          <Text style={styles.syncMeta}>
+            {syncingPresence ? 'Syncing status...' : `Location auto-sync every 45s${lastSyncAt ? ` • Last ${lastSyncAt}` : ''}`}
+          </Text>
+        </View>
+        <Switch
+          value={isOpen}
+          onValueChange={handleAvailabilityToggle}
+          thumbColor="#ffffff"
+          trackColor={{ false: '#d1d5db', true: '#22c55e' }}
+        />
       </View>
 
       <View style={styles.quickRow}>
@@ -296,6 +379,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   badgeText: { color: '#fff', fontSize: 11, fontWeight: '700' },
+  presenceCard: {
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: 12,
+    marginBottom: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  presenceTitle: { fontSize: 14, fontWeight: '800', color: '#111827', marginBottom: 4 },
+  presenceSubtitle: { fontSize: 12, fontWeight: '600', marginBottom: 4 },
+  syncMeta: { fontSize: 11, color: '#6b7280' },
   quickRow: { flexDirection: 'row', gap: 10, marginBottom: 16 },
   quickCard: {
     flex: 1,

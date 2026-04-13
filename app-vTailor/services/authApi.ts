@@ -12,12 +12,15 @@ const expoHostCandidates = [
   .filter(Boolean);
 const EMULATOR_ANDROID_HOST = '10.0.2.2';
 const EXPO_API_BASE = (process.env.EXPO_PUBLIC_API_BASE_URL || '').trim();
+const REQUEST_TIMEOUT_MS = 15000;
+let cachedBaseUrl: string | null = EXPO_API_BASE || null;
 
 function buildBaseUrl(host: string) {
   return `http://${host}:8000/app/api/v1`;
 }
 
 function getCandidateBaseUrls() {
+  if (cachedBaseUrl) return [cachedBaseUrl];
   if (EXPO_API_BASE) return [EXPO_API_BASE];
 
   if (Platform.OS === 'web') {
@@ -43,7 +46,18 @@ async function fetchWithFallback(path: string, init?: RequestInit) {
 
   for (const base of baseUrls) {
     try {
-      return await fetch(`${base}${path}`, init);
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+      try {
+        const response = await fetch(`${base}${path}`, {
+          ...init,
+          signal: controller.signal,
+        });
+        cachedBaseUrl = base;
+        return response;
+      } finally {
+        clearTimeout(timeoutId);
+      }
     } catch (error) {
       lastError = error;
     }

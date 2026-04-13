@@ -39,12 +39,12 @@ const frockStyleOptions = [
 ];
 
 const colorOptions = [
-  { id: 'red', name: 'Red', color: '#ef4444' },
-  { id: 'blue', name: 'Blue', color: '#3b82f6' },
-  { id: 'green', name: 'Green', color: '#22c55e' },
-  { id: 'black', name: 'Black', color: '#111827' },
-  { id: 'white', name: 'White', color: '#ffffff' },
-  { id: 'yellow', name: 'Yellow', color: '#facc15' },
+  { id: 'red', name: 'Red', emoji: '🔴' },
+  { id: 'blue', name: 'Blue', emoji: '🔵' },
+  { id: 'green', name: 'Green', emoji: '🟢' },
+  { id: 'black', name: 'Black', emoji: '⚫' },
+  { id: 'white', name: 'White', emoji: '⚪' },
+  { id: 'yellow', name: 'Yellow', emoji: '🟡' },
 ];
 
 const optionImages: Record<string, any> = {
@@ -59,7 +59,7 @@ const optionImages: Record<string, any> = {
   'front-slit': require('../../2d model/variations/front-slit-frock.png'),
 };
 
-const options: Record<TabId, Array<{ id: string; name: string; color?: string }>> = {
+const options: Record<TabId, Array<{ id: string; name: string; color?: string; emoji?: string }>> = {
   neck: neckOptions,
   sleeves: sleeveOptions,
   bottom: bottomOptions,
@@ -185,10 +185,13 @@ export default function Customize3D() {
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 12 }}>
             {getOptions(activeTab).map((opt) => (
               <Pressable key={opt.id} onPress={() => handleSelect(activeTab, opt.id)} style={[styles.optCard, selections[activeTab] === opt.id && { borderColor: tint, borderWidth: 2 }]}> 
-                <Image source={optionImages[opt.id] || imageSource || require('../../assets/images/vTailorlogo.jpeg')} style={styles.optImage} resizeMode="cover" />
                 {activeTab === 'colors' ? (
-                  <View style={[styles.colorSwatch, { backgroundColor: opt.color || '#e5e7eb' }]} />
-                ) : null}
+                  <View style={styles.colorEmojiWrap}>
+                    <ThemedText style={styles.colorEmoji}>{opt.emoji || '🎨'}</ThemedText>
+                  </View>
+                ) : (
+                  <Image source={optionImages[opt.id] || imageSource || require('../../assets/images/vTailorlogo.jpeg')} style={styles.optImage} resizeMode="cover" />
+                )}
                 <ThemedText style={{ fontSize: 12, textAlign: 'center', marginTop: 8 }}>{opt.name}</ThemedText>
               </Pressable>
             ))}
@@ -227,7 +230,8 @@ const styles = StyleSheet.create({
   tabBtn: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, marginRight: 8, alignItems: 'center', borderWidth: 1, borderColor: 'transparent' },
   optCard: { width: 92, padding: 6, borderRadius: 12, marginRight: 8, borderWidth: 1, alignItems: 'center' },
   optImage: { width: '100%', height: 56, borderRadius: 10, backgroundColor: '#f3f4f6' },
-  colorSwatch: { width: 22, height: 22, borderRadius: 11, marginTop: 6, borderWidth: 1, borderColor: '#d1d5db' },
+  colorEmojiWrap: { width: '100%', height: 56, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: '#f8fafc' },
+  colorEmoji: { fontSize: 24 },
   footer: { padding: 12 },
   proceed: { padding: 14, borderRadius: 12, alignItems: 'center' },
 });
