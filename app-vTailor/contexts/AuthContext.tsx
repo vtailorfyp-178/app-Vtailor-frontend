@@ -36,19 +36,19 @@ type AuthContextType = {
   tailorProfile: UserProfile | null;
   /** Convenience: whichever profile belongs to the current role */
   user: UserProfile | null;
-  /** Persists profile under the key for the current role */
-  updateProfile: (profile: UserProfile) => void;
+  /** Persists profile under the key for the current user + role */
+  updateProfile: (profile: UserProfile, roleOverride?: UserRole, userIdOverride?: string | null) => void;
   isProfileCompleted: boolean;
   isAuthLoading: boolean;
-  markProfileCompleted: (roleOverride?: UserRole) => void;
+  markProfileCompleted: (roleOverride?: UserRole, userIdOverride?: string | null) => Promise<void>;
   logout: () => void;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 // AsyncStorage key helpers — one set of keys per role so data never mixes
-const profileKey   = (role: UserRole) => `profile_${role}`;
-const completedKey = (role: UserRole) => `profileCompleted_${role}`;
+const profileKey = (role: UserRole, id?: string | null) => id ? `profile_${role}_${id}` : `profile_${role}`;
+const completedKey = (role: UserRole, id?: string | null) => id ? `profileCompleted_${role}_${id}` : `profileCompleted_${role}`;
 
 // User-specific storage keys (keyed by userId to support multiple accounts on one device)
 const userCustomizationsKey = (userId: string) => `customizations_${userId}`;
@@ -87,8 +87,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Load the role-specific profile and completion flag
         if (role) {
           const [storedProfile, completed] = await Promise.all([
-            AsyncStorage.getItem(profileKey(role)),
-            AsyncStorage.getItem(completedKey(role)),
+            AsyncStorage.getItem(profileKey(role, storedUserId)).then((value) => value ?? AsyncStorage.getItem(profileKey(role))),
+            AsyncStorage.getItem(completedKey(role, storedUserId)).then((value) => value ?? AsyncStorage.getItem(completedKey(role))),
           ]);
           if (storedProfile) {
             const parsed = JSON.parse(storedProfile) as UserProfile;
@@ -102,7 +102,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             const remoteProfile = await getProfile(storedToken);
             if (remoteProfile?.user_id) setUserId(remoteProfile.user_id);
             if (remoteProfile?.email) setLoginEmail(remoteProfile.email);
-            if (role) {
+            const profileRole = (remoteProfile.role as UserRole) || role;
+            if (profileRole) {
               const profile: UserProfile = {
                 name: remoteProfile.name,
                 email: remoteProfile.email,
@@ -113,9 +114,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 description: remoteProfile.description,
                 avatar: remoteProfile.avatar,
               };
-              role === 'customer' ? setCustomerProfile(profile) : setTailorProfile(profile);
+              profileRole === 'customer' ? setCustomerProfile(profile) : setTailorProfile(profile);
+              await AsyncStorage.setItem(profileKey(profileRole, remoteProfile.user_id || storedUserId), JSON.stringify(profile));
               if (remoteProfile.name || remoteProfile.address || remoteProfile.phone) {
                 setIsProfileCompleted(true);
+                await AsyncStorage.setItem(completedKey(profileRole, remoteProfile.user_id || storedUserId), 'true');
               }
             }
           } catch (error) {
@@ -144,6 +147,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Pre-seed the email field in whichever profile slot this role uses
       const seed: UserProfile = { email };
       role === 'customer' ? setCustomerProfile(seed) : setTailorProfile(seed);
+      if (role) {
+        AsyncStorage.setItem(profileKey(role, newUserId), JSON.stringify(seed)).catch(() => {});
+      }
     }
     AsyncStorage.setItem('authToken', newToken).catch(() => {});
     AsyncStorage.setItem('userRole', role ?? '').catch(() => {});
@@ -164,32 +170,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       'userId',
       profileKey('customer'), completedKey('customer'),
       profileKey('tailor'),   completedKey('tailor'),
+      ...(currentUserId
+        ? [
+            profileKey('customer', currentUserId), completedKey('customer', currentUserId),
+            profileKey('tailor', currentUserId), completedKey('tailor', currentUserId),
+          ]
+        : []),
     ]).catch(() => {});
   };
 
   /** Saves to the role-specific profile key so customer and tailor data never overlap */
-  const updateProfile = (profile: UserProfile) => {
-    if (userRole === 'customer') {
+  const updateProfile = (profile: UserProfile, roleOverride?: UserRole, userIdOverride?: string | null) => {
+    const roleToWrite = roleOverride ?? userRole;
+    const idToWrite = userIdOverride ?? userId;
+
+    if (roleToWrite === 'customer') {
       setCustomerProfile((prev) => {
         const next = { ...(prev || {}), ...profile };
-        AsyncStorage.setItem(profileKey('customer'), JSON.stringify(next)).catch(() => {});
+        AsyncStorage.setItem(profileKey('customer', idToWrite), JSON.stringify(next)).catch(() => {});
         return next;
       });
-    } else if (userRole === 'tailor') {
+    } else if (roleToWrite === 'tailor') {
       setTailorProfile((prev) => {
         const next = { ...(prev || {}), ...profile };
-        AsyncStorage.setItem(profileKey('tailor'), JSON.stringify(next)).catch(() => {});
+        AsyncStorage.setItem(profileKey('tailor', idToWrite), JSON.stringify(next)).catch(() => {});
         return next;
       });
     }
   };
 
-  const markProfileCompleted = async (roleOverride?: UserRole) => {
+  const markProfileCompleted = async (roleOverride?: UserRole, userIdOverride?: string | null) => {
     setIsProfileCompleted(true);
     const roleToWrite = roleOverride ?? userRole;
+    const idToWrite = userIdOverride ?? userId;
     if (!roleToWrite) return;
     try {
-      await AsyncStorage.setItem(completedKey(roleToWrite), 'true');
+      await AsyncStorage.setItem(completedKey(roleToWrite, idToWrite), 'true');
     } catch (error) {
       console.error('Error saving profile status:', error);
     }

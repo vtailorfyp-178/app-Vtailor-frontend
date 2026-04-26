@@ -119,6 +119,7 @@ export default function FindTailorsWebScreen() {
           otherUserId: tailor.user_id,
           otherUserName: tailor.name,
           otherUserAvatar: tailor.avatar || initials(tailor.name),
+          otherUserPhone: tailor.phone || '',
         },
       });
     } catch {
@@ -129,6 +130,7 @@ export default function FindTailorsWebScreen() {
           otherUserId: tailor.user_id,
           otherUserName: tailor.name,
           otherUserAvatar: tailor.avatar || initials(tailor.name),
+          otherUserPhone: tailor.phone || '',
           demo: '1',
         },
       });
@@ -185,7 +187,24 @@ export default function FindTailorsWebScreen() {
       </View>
 
       <View style={styles.actionsRow}>
-        <Pressable style={[styles.actionBtn, { borderColor: inputBorder }]} onPress={() => (router as any).push(`/customer/tailor/${item.user_id}`)}>
+        <Pressable
+          style={[styles.actionBtn, { borderColor: inputBorder }]}
+          onPress={() =>
+            (router as any).push({
+              pathname: '/customer/tailor/[id]',
+              params: {
+                id: item.user_id,
+                name: item.name,
+                address: item.address || '',
+                specialization: (item.specialization || []).join(','),
+                rating: String(item.rating),
+                reviews: String(item.review_count),
+                distance: `${item.distance_km?.toFixed?.(1) || '0.0'} km`,
+                isAvailable: String(item.is_available),
+              },
+            })
+          }
+        >
           <ThemedText style={styles.actionText}>View</ThemedText>
         </Pressable>
         <Pressable style={[styles.actionBtnFilled, { backgroundColor: tint }]} onPress={() => onMessagePress(item)}>

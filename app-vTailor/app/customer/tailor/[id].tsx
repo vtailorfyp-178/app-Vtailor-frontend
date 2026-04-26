@@ -7,7 +7,7 @@ import { useThemeColor } from '@/hooks/use-theme-color';
 import { Ionicons } from '@expo/vector-icons';
 
 type TailorData = {
-  id: number;
+  id: string;
   name: string;
   rating: number;
   reviews: number;
@@ -16,26 +16,44 @@ type TailorData = {
   specialization: string[];
   avatar: string;
   isAvailable: boolean;
+  address?: string;
 };
 
 type RequestStatus = 'idle' | 'sending' | 'accepted' | 'declined';
 
-const TAILORS: Record<number, TailorData> = {
-  1: { id: 1, name: 'Ahmad Master Tailor', rating: 4.9, reviews: 156, experience: 15, distance: '0.8 km', specialization: ['Formal', 'Wedding'], avatar: '👨‍🔧', isAvailable: true },
-  2: { id: 2, name: 'Karachi Tailoring House', rating: 4.7, reviews: 89, experience: 10, distance: '1.2 km', specialization: ['Casual'], avatar: '🧵', isAvailable: true },
-  3: { id: 3, name: 'Classic Stitchers', rating: 4.8, reviews: 210, experience: 20, distance: '2.5 km', specialization: ['Traditional'], avatar: '✂️', isAvailable: false },
+const TAILORS: Record<string, TailorData> = {
+  '1': { id: '1', name: 'Ahmad Master Tailor', rating: 4.9, reviews: 156, experience: 15, distance: '0.8 km', specialization: ['Formal', 'Wedding'], avatar: 'AT', isAvailable: true, address: 'Tariq Road, PECHS, Karachi' },
+  '2': { id: '2', name: 'Karachi Tailoring House', rating: 4.7, reviews: 89, experience: 10, distance: '1.2 km', specialization: ['Casual'], avatar: 'KT', isAvailable: true, address: 'Clifton Block 8, Karachi' },
+  '3': { id: '3', name: 'Classic Stitchers', rating: 4.8, reviews: 210, experience: 20, distance: '2.5 km', specialization: ['Traditional'], avatar: 'CS', isAvailable: false, address: 'Bahadurabad Market, Karachi' },
 };
 
 export default function TailorDetail() {
   const router = useRouter();
-  const { id } = useLocalSearchParams();
+  const params = useLocalSearchParams();
+  const { id } = params;
   const tint = useThemeColor({}, 'tint');
   const card = useThemeColor({}, 'card');
   const inputBorder = useThemeColor({}, 'inputBorder');
   const muted = useThemeColor({}, 'muted');
 
-  const tailorId = parseInt(id as string);
-  const tailor = TAILORS[tailorId];
+  const tailorId = String(id || '');
+  const tailorFromParams = typeof params.name === 'string'
+    ? {
+        id: tailorId,
+        name: params.name,
+        rating: Number(params.rating || 0),
+        reviews: Number(params.reviews || 0),
+        experience: 5,
+        distance: String(params.distance || ''),
+        specialization: typeof params.specialization === 'string' && params.specialization
+          ? params.specialization.split(',').filter(Boolean)
+          : ['General tailoring'],
+        avatar: params.name.split(' ').slice(0, 2).map((part) => part[0]).join('').toUpperCase(),
+        isAvailable: String(params.isAvailable) === 'true',
+        address: typeof params.address === 'string' ? params.address : undefined,
+      }
+    : null;
+  const tailor = tailorFromParams || TAILORS[tailorId];
   const [requestStatus, setRequestStatus] = useState<RequestStatus>('idle');
 
   const handleSendRequest = () => {
@@ -177,6 +195,13 @@ export default function TailorDetail() {
                   </View>
                 ))}
               </View>
+            </View>
+
+            <View style={[styles.sectionCard, { backgroundColor: card, borderColor: inputBorder }]}>
+              <ThemedText style={styles.sectionTitle}>Address</ThemedText>
+              <ThemedText style={{ color: muted, lineHeight: 20 }}>
+                {tailor.address || 'Address not available'}
+              </ThemedText>
             </View>
 
             <View style={styles.footer}>

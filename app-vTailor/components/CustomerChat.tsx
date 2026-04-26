@@ -39,6 +39,8 @@ const CustomerChat = ({ tailorId, tailorName }: CustomerChatProps) => {
   const inputBorder = useThemeColor({}, 'inputBorder');
   const muted = useThemeColor({}, 'muted');
   const tint = useThemeColor({}, 'tint');
+  const textColor = useThemeColor({}, 'text');
+  const iconBgColor = useThemeColor({}, 'iconBg');
 
   if (!tailorId) {
     return <ConversationListScreen />;
@@ -49,14 +51,14 @@ const CustomerChat = ({ tailorId, tailorName }: CustomerChatProps) => {
       <View style={[styles.headerSection, { borderBottomColor: inputBorder }] }>
         <View style={styles.headerTop}>
           <Pressable onPress={() => (router as any).back()} style={styles.backButton}>
-            <Ionicons name="chevron-back" size={28} color={useThemeColor({}, 'text')} />
+            <Ionicons name="chevron-back" size={28} color={textColor} />
           </Pressable>
           <ThemedText style={styles.headerTitle}>Messages</ThemedText>
           <View style={styles.headerSpacer} />
         </View>
         <View style={[styles.searchContainer, { backgroundColor: card, borderColor: inputBorder }] }>
           <ThemedText style={styles.searchIcon}>🔍</ThemedText>
-          <TextInput placeholder="Search conversations..." placeholderTextColor={muted} style={[styles.searchInput, { color: useThemeColor({}, 'text') }]} />
+          <TextInput placeholder="Search conversations..." placeholderTextColor={muted} style={[styles.searchInput, { color: textColor }]} />
         </View>
       </View>
 
@@ -77,7 +79,7 @@ const CustomerChat = ({ tailorId, tailorName }: CustomerChatProps) => {
                 })
               }
               style={[styles.chatCard, { backgroundColor: card, borderColor: inputBorder }] }>
-              <View style={[styles.avatar, { backgroundColor: useThemeColor({}, 'iconBg') }]}>
+              <View style={[styles.avatar, { backgroundColor: iconBgColor }]}>
                 <ThemedText style={[styles.avatarText, { color: tint }]}>{chat.avatar}</ThemedText>
               </View>
               <View style={styles.chatContent}>

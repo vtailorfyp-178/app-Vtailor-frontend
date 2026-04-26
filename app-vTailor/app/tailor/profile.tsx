@@ -1,10 +1,22 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Alert, Image } from 'react-native';
+import React, { useCallback, useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, Pressable, Image } from 'react-native';
 import { useAuth } from '@/contexts/AuthContext';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { ThemedText } from '@/components/themed-text';
 import { useThemeColor } from '@/hooks/use-theme-color';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+interface MediaItem {
+  id: string;
+  type: 'image' | 'video';
+  uri?: string;
+  thumbnail?: string;
+  name: string;
+}
+
+const SAMPLE_WORK_STORAGE_KEY = 'TAILOR_SAMPLE_WORK';
 
 export default function TailorProfile() {
   const auth = useAuth();
@@ -12,6 +24,7 @@ export default function TailorProfile() {
   const bg = useThemeColor({}, 'background');
   const cardBg = useThemeColor({}, 'card');
   const router = useRouter();
+  const [savedSampleWork, setSavedSampleWork] = useState<MediaItem[]>([]);
 
   const specializations = ['Formal Dresses', 'Wedding Attire', 'Traditional'];
   const sampleWork = [1, 2, 3, 4, 5, 6];
@@ -27,6 +40,21 @@ export default function TailorProfile() {
     } catch {}
     router.replace('/auth');
   };
+
+  useFocusEffect(
+    useCallback(() => {
+      const loadSampleWork = async () => {
+        try {
+          const saved = await AsyncStorage.getItem(SAMPLE_WORK_STORAGE_KEY);
+          setSavedSampleWork(saved ? JSON.parse(saved) : []);
+        } catch {
+          setSavedSampleWork([]);
+        }
+      };
+
+      loadSampleWork();
+    }, [])
+  );
 
   return (
     <ProtectedRoute requiredRole="tailor">
@@ -82,11 +110,23 @@ export default function TailorProfile() {
             <View style={styles.sampleHeader}><Text style={styles.sectionLabel}>Sample Work</Text>
             <Pressable onPress={() => router.push('/tailor/sample-work-edit')}><Text style={styles.linkText}>Edit</Text></Pressable></View>
             <View style={styles.grid}>
-              {sampleWork.map((i) => (
-                <View key={i} style={[styles.sampleBox, { backgroundColor: '#f3f4f6' }]}>
-                  <Text style={styles.sampleText}>Sample {i}</Text>
-                </View>
-              ))}
+              {savedSampleWork.length > 0
+                ? savedSampleWork.map((item) => (
+                  <View key={item.id} style={[styles.sampleBox, { backgroundColor: '#f3f4f6' }]}>
+                    {item.type === 'image' && item.uri ? (
+                      <Image source={{ uri: item.uri }} style={styles.sampleImage} />
+                    ) : (
+                      <View style={styles.videoSample}>
+                        <Ionicons name="play-circle" size={28} color="#fff" />
+                      </View>
+                    )}
+                  </View>
+                ))
+                : sampleWork.map((i) => (
+                  <View key={i} style={[styles.sampleBox, { backgroundColor: '#f3f4f6' }]}>
+                    <Text style={styles.sampleText}>Sample {i}</Text>
+                  </View>
+                ))}
             </View>
           </View>
 
@@ -137,7 +177,9 @@ const styles = StyleSheet.create({
   infoValue: { fontWeight: '700' },
   sampleHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
   grid: { flexDirection: 'row', flexWrap: 'wrap' },
-  sampleBox: { width: '32%', aspectRatio: 1, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
+  sampleBox: { width: '32%', aspectRatio: 1, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginBottom: 8, marginRight: 4, overflow: 'hidden' },
+  sampleImage: { width: '100%', height: '100%' },
+  videoSample: { width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center', backgroundColor: '#1f2937' },
   sampleText: { color: '#6b7280', fontSize: 12 },
   menuItem: { flexDirection: 'row', alignItems: 'center', padding: 12, borderRadius: 12, marginBottom: 8 },
   menuIcon: { width: 32, textAlign: 'center' },

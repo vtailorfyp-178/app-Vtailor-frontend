@@ -3,7 +3,7 @@ import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useState } from "react";
-import { FlatList, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Alert, FlatList, Linking, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 const STEPS = [
   "Order Accepted",
@@ -68,6 +68,14 @@ export default function CustomerOrderTimelineScreen() {
   const orderDescriptionFromParams = (params.orderDescription as string) || 'Customized Dress';
   const orderDateFromParams = formatOrderDate(params.orderDate as string);
   const tailorNameFromParams = (params.tailorName as string) || 'Ahmad Tailor Store';
+  const tailorIdFromParams = (params.tailorId as string) || 'sample-tailor-aliya-formal';
+  const tailorPhoneFromParams = (params.tailorPhone as string) || '+923001234567';
+  const tailorAvatarFromParams = (params.tailorAvatar as string) || tailorNameFromParams
+    .split(' ')
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join('')
+    .toUpperCase();
   const tailorRatingFromParams = (params.tailorRating as string) || '⭐ 4.8 (245 reviews)';
   const [currentStep, setCurrentStep] = useState(0);
   const [orderDescription, setOrderDescription] = useState(orderDescriptionFromParams);
@@ -83,6 +91,26 @@ export default function CustomerOrderTimelineScreen() {
   const router = useRouter();
   const ORDER_ID = (params.orderId as string) || 'ORD-001';
   const STORAGE_KEY = `order_progress_${ORDER_ID}`;
+
+  const handleContactTailor = () => {
+    router.push({
+      pathname: '/customer/chat-conversation',
+      params: {
+        tailorId: tailorIdFromParams,
+        otherUserId: tailorIdFromParams,
+        otherUserName: tailorName,
+        otherUserAvatar: tailorAvatarFromParams,
+        otherUserPhone: tailorPhoneFromParams,
+      },
+    });
+  };
+
+  const handleCallTailor = () => {
+    const dialNumber = tailorPhoneFromParams.replace(/\s+/g, '');
+    Linking.openURL(`tel:${dialNumber}`).catch(() => {
+      Alert.alert('Call Failed', `Unable to open dialer for ${tailorPhoneFromParams}.`);
+    });
+  };
 
   // Load saved progress when component mounts
   useEffect(() => {
@@ -311,14 +339,21 @@ export default function CustomerOrderTimelineScreen() {
             </View>
           </ScrollView>
 
-          {/* Action Button */}
+          {/* Action Buttons */}
           <View style={styles.buttonContainer}>
             <TouchableOpacity 
               style={styles.contactButton}
-              onPress={() => {}}
+              onPress={handleContactTailor}
             >
-              <Ionicons name="call" size={20} color="#3b82f6" />
+              <Ionicons name="chatbubble-ellipses-outline" size={20} color="#3b82f6" />
               <Text style={styles.contactButtonText}>Contact Tailor</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.callButton}
+              onPress={handleCallTailor}
+            >
+              <Ionicons name="call" size={20} color="#fff" />
+              <Text style={styles.callButtonText}>Call Tailor</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -566,6 +601,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
     borderTopWidth: 1,
     borderTopColor: "#e5e7eb",
+    gap: 10,
   },
   contactButton: {
     flexDirection: "row",
@@ -580,6 +616,21 @@ const styles = StyleSheet.create({
   },
   contactButtonText: {
     color: "#3b82f6",
+    fontSize: 16,
+    fontWeight: "700",
+  },
+  callButton: {
+    flexDirection: "row",
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    backgroundColor: "#3b82f6",
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+  callButtonText: {
+    color: "#fff",
     fontSize: 16,
     fontWeight: "700",
   },

@@ -1,24 +1,21 @@
-import NotificationBell from '@/components/NotificationBell';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { ThemedText } from '@/components/themed-text';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import { Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
-const stats = [
-  { emoji: '🎁', label: 'Total', value: 8, bg: '#fff0f6', tint: '#ec4899' },
-  { emoji: '🕒', label: 'In Progress', value: 2, bg: '#fffbeb', tint: '#b45309' },
-  { emoji: '✅', label: 'Delivered', value: 5, bg: '#ecfdf5', tint: '#059669' },
-  { emoji: '❌', label: 'Cancelled', value: 1, bg: '#fff1f2', tint: '#dc2626' },
-];
+type OrderStatusFilter = 'All' | 'Active' | 'Delivered' | 'Canceled';
 
 const orders = [
   {
     id: 1,
     name: 'Long Frock',
-    tailor: 'Ahmad Tailor',
+    tailorId: 'sample-tailor-aliya-formal',
+    tailor: 'Aliya Formal Dresses',
+    tailorPhone: '+923215560190',
+    tailorAvatar: 'AF',
     rating: '⭐ 4.8 (245 reviews)',
     status: 'In Progress',
     date: '2026-12-25',
@@ -28,7 +25,10 @@ const orders = [
   {
     id: 2,
     name: 'Shalwar Kameez',
-    tailor: 'Master Tailors',
+    tailorId: 'sample-tailor-fatima-traditional',
+    tailor: 'Fatima Traditional Wear',
+    tailorPhone: '+923129018820',
+    tailorAvatar: 'FT',
     rating: '⭐ 4.6 (180 reviews)',
     status: 'Cutting',
     date: '2026-12-20',
@@ -38,7 +38,10 @@ const orders = [
   {
     id: 3,
     name: 'Kurti',
-    tailor: 'Classic Stitches',
+    tailorId: 'sample-tailor-noor-party',
+    tailor: 'Noor Party Wear Studio',
+    tailorPhone: '+923332198744',
+    tailorAvatar: 'NP',
     rating: '⭐ 4.7 (132 reviews)',
     status: 'Delivered',
     date: '2026-12-15',
@@ -48,24 +51,43 @@ const orders = [
   {
     id: 4,
     name: 'Lehenga',
-    tailor: 'Ahmad Tailor',
+    tailorId: 'sample-tailor-zainab-bridal',
+    tailor: 'Zainab Bridal Couture',
+    tailorPhone: '+923004102231',
+    tailorAvatar: 'ZB',
     rating: '⭐ 4.8 (245 reviews)',
     status: 'Delivered',
     date: '2026-12-10',
     price: 6000,
     sample: { neck: 'V-Neck', sleeves: 'Bell Sleeves', style: 'Flared Style', color: 'Black' },
   },
+  {
+    id: 5,
+    name: 'Party Maxi',
+    tailor: 'Hira Party Couture',
+    tailorId: 'sample-tailor-hira-party',
+    tailorPhone: '+923457740091',
+    tailorAvatar: 'HP',
+    rating: '⭐ 4.4 (98 reviews)',
+    status: 'Canceled',
+    date: '2026-12-05',
+    price: 12000,
+    sample: { neck: 'Boat Neck', sleeves: 'Half Sleeves', style: 'A-Line', color: 'Pink' },
+  },
 ];
+
+const FILTERS: OrderStatusFilter[] = ['All', 'Active', 'Delivered', 'Canceled'];
 
 const getStatusColors = (status: string) => {
   switch (status) {
     case 'Delivered':
       return { bg: '#ecfdf5', color: '#059669' };
     case 'In Progress':
+      return { bg: '#e0f2fe', color: '#0e7490' };
     case 'Cutting':
       return { bg: '#fffbeb', color: '#b45309' };
-    case 'Cancelled':
-      return { bg: '#fff1f2', color: '#dc2626' };
+    case 'Canceled':
+      return { bg: '#e0f2fe', color: '#0369a1' };
     default:
       return { bg: '#f3f4f6', color: '#6b7280' };
   }
@@ -75,6 +97,25 @@ export default function CustomerOrders() {
   const bg = useThemeColor({}, 'background');
   const card = useThemeColor({}, 'card');
   const router = useRouter();
+  const [selectedFilter, setSelectedFilter] = useState<OrderStatusFilter>('All');
+
+  const filteredOrders = useMemo(() => {
+    if (selectedFilter === 'All') return orders;
+    if (selectedFilter === 'Active') {
+      return orders.filter((order) => order.status === 'In Progress' || order.status === 'Cutting');
+    }
+    if (selectedFilter === 'Delivered') {
+      return orders.filter((order) => order.status === 'Delivered');
+    }
+    return orders.filter((order) => order.status === 'Canceled');
+  }, [selectedFilter]);
+
+  const filterCounts = useMemo<Record<OrderStatusFilter, number>>(() => ({
+    All: orders.length,
+    Active: orders.filter((order) => order.status === 'In Progress' || order.status === 'Cutting').length,
+    Delivered: orders.filter((order) => order.status === 'Delivered').length,
+    Canceled: orders.filter((order) => order.status === 'Canceled').length,
+  }), []);
 
   const openTimeline = (order: (typeof orders)[number]) => {
     router.push({
@@ -85,6 +126,9 @@ export default function CustomerOrders() {
         orderDescription: order.name,
         orderDate: order.date,
         tailorName: order.tailor,
+        tailorId: order.tailorId,
+        tailorPhone: order.tailorPhone,
+        tailorAvatar: order.tailorAvatar,
         tailorRating: order.rating,
         statusLabel: order.status,
         sampleNeck: order.sample.neck,
@@ -100,28 +144,45 @@ export default function CustomerOrders() {
       <View style={[styles.container, { backgroundColor: bg }]}> 
         <View style={styles.header}> 
           <View style={styles.headerRow}>
-            <ThemedText style={styles.title}>My Orders</ThemedText>
-            <NotificationBell count={2} basePath="customer" />
+            <TouchableOpacity style={styles.backButton} onPress={() => router.back()} activeOpacity={0.8}>
+              <Ionicons name="arrow-back" size={26} color="#111827" />
+            </TouchableOpacity>
+            <ThemedText style={styles.title}>All Orders</ThemedText>
+            <View style={styles.headerSpacer} />
           </View>
 
-          <View style={styles.statsRow}>
-            {stats.map((s) => (
-              <View key={s.label} style={styles.statItem}>
-                <View style={[styles.statIcon, { backgroundColor: s.bg }]}>
-                  <Text style={[styles.statEmoji, { color: s.tint }]}>{s.emoji}</Text>
-                </View>
-                <Text style={styles.statValue}>{s.value}</Text>
-                <Text style={styles.statLabel}>{s.label}</Text>
-              </View>
-            ))}
-          </View>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filtersRow}>
+            {FILTERS.map((filter) => {
+              const active = selectedFilter === filter;
+              return (
+                <TouchableOpacity
+                  key={filter}
+                  onPress={() => setSelectedFilter(filter)}
+                  style={[
+                    styles.filterChip,
+                    active ? styles.filterChipActive : styles.filterChipInactive,
+                  ]}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[styles.filterText, active ? styles.filterTextActive : styles.filterTextInactive]}>
+                    {filter} ({filterCounts[filter]})
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
         </View>
 
-        <ScrollView style={styles.list} contentContainerStyle={{ padding: 16, paddingBottom: 120 }}>
-          {orders.map((order) => {
+        <ScrollView style={styles.list} contentContainerStyle={styles.listContent}>
+          {filteredOrders.length === 0 ? (
+            <View style={[styles.emptyCard, { backgroundColor: card }]}>
+              <Text style={styles.emptyText}>No orders found for {selectedFilter}.</Text>
+            </View>
+          ) : null}
+          {filteredOrders.map((order) => {
             const statusStyle = getStatusColors(order.status);
             return (
-              <TouchableOpacity 
+              <TouchableOpacity
                 key={order.id} 
                 style={[styles.card, { backgroundColor: card }]}
                 onPress={() => openTimeline(order)}
@@ -137,17 +198,19 @@ export default function CustomerOrders() {
                   </View>
                 </View>
 
-                <View style={styles.cardBottom}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.dateText}>{order.date}</Text>
+                <View style={styles.detailsRow}>
+                  <View style={styles.detailColumn}>
+                    <Text style={styles.detailLabel}>Price</Text>
                     <Text style={styles.priceText}>Rs. {order.price.toLocaleString()}</Text>
                   </View>
-                  <TouchableOpacity 
-                    style={styles.viewButton}
-                    onPress={() => openTimeline(order)}
-                  >
-                    <Ionicons name="arrow-forward" size={18} color="#3b82f6" />
-                  </TouchableOpacity>
+                  <View style={styles.detailColumn}>
+                    <Text style={styles.detailLabel}>Date</Text>
+                    <Text style={styles.dateText}>{order.date}</Text>
+                  </View>
+                  <View style={styles.detailColumn}>
+                    <Text style={styles.detailLabel}>Contact</Text>
+                    <Text style={styles.contactText}>{order.tailorPhone}</Text>
+                  </View>
                 </View>
               </TouchableOpacity>
             );
@@ -160,24 +223,36 @@ export default function CustomerOrders() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: { paddingHorizontal: 16, paddingTop: Platform.select({ ios: 64, android: 36, default: 36 }), paddingBottom: 12, borderBottomWidth: 1, borderColor: '#eee' },
-  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-  title: { fontSize: 20, fontWeight: '700' },
-  statsRow: { flexDirection: 'row', justifyContent: 'space-between' },
-  statItem: { flex: 1, alignItems: 'center' },
-  statIcon: { width: 44, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginBottom: 6 },
-  statEmoji: { fontSize: 20 },
-  statValue: { fontSize: 16, fontWeight: '700' },
-  statLabel: { fontSize: 11, color: '#6b7280' },
+  header: { paddingHorizontal: 18, paddingTop: Platform.select({ ios: 64, android: 36, default: 36 }), paddingBottom: 16 },
+  headerRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
+  backButton: { width: 46, height: 46, borderRadius: 12, backgroundColor: '#f5f5f5', alignItems: 'center', justifyContent: 'center' },
+  headerSpacer: { width: 46 },
+  title: { flex: 1, textAlign: 'center', fontSize: 22, fontWeight: '800', color: '#111827' },
+  filtersRow: { gap: 16, paddingRight: 12 },
+  filterChip: {
+    borderRadius: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+  },
+  filterChipActive: { backgroundColor: '#111827' },
+  filterChipInactive: { backgroundColor: '#f7f7f7' },
+  filterText: { fontSize: 13, fontWeight: '800' },
+  filterTextActive: { color: '#fff' },
+  filterTextInactive: { color: '#4b5563' },
   list: { flex: 1 },
-  card: { padding: 12, borderRadius: 14, borderWidth: 1, borderColor: '#eaeaea', marginBottom: 10 },
-  cardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 },
-  orderName: { fontSize: 15, fontWeight: '700' },
-  tailorName: { fontSize: 12, color: '#6b7280' },
-  statusBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999 },
-  statusText: { fontSize: 12, fontWeight: '700' },
-  cardBottom: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  dateText: { color: '#6b7280' },
-  priceText: { fontWeight: '800' },
-  viewButton: { padding: 8, borderRadius: 8, backgroundColor: '#eff6ff', marginLeft: 8 },
+  listContent: { paddingHorizontal: 18, paddingTop: 2, paddingBottom: 120 },
+  emptyCard: { padding: 18, borderRadius: 14, borderWidth: 1, borderColor: '#f1dfe7', marginBottom: 12, alignItems: 'center' },
+  emptyText: { color: '#6b7280', fontWeight: '600' },
+  card: { padding: 14, borderRadius: 14, borderWidth: 1, borderColor: '#f1dfe7', marginBottom: 14, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 2 },
+  cardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 },
+  orderName: { fontSize: 20, fontWeight: '800', color: '#111827' },
+  tailorName: { fontSize: 12, color: '#6b7280', marginTop: 3, fontWeight: '600' },
+  statusBadge: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999 },
+  statusText: { fontSize: 13, fontWeight: '800' },
+  detailsRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 8 },
+  detailColumn: { flex: 1 },
+  detailLabel: { color: '#6b7280', fontSize: 12, fontWeight: '600', marginBottom: 5 },
+  dateText: { color: '#be4b5b', fontWeight: '800', fontSize: 13 },
+  priceText: { fontWeight: '900', fontSize: 17, color: '#111827' },
+  contactText: { color: '#4b5563', fontWeight: '600', fontSize: 13 },
 });

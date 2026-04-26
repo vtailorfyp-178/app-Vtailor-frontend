@@ -61,6 +61,11 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 export type NearbyTailor = {
   user_id: string;
   name: string;
+  shop_name?: string | null;
+  address?: string | null;
+  bio?: string | null;
+  working_hours?: string | null;
+  phone?: string | null;
   avatar?: string | null;
   specialization: string[];
   experience?: string | null;
@@ -96,7 +101,7 @@ export type NearbyTailorQuery = {
   minRating?: number;
   availability?: boolean;
   queryText?: string;
-  sortBy?: 'distance' | 'rating' | 'reviews';
+  sortBy?: 'distance' | 'rating' | 'reviews' | 'review_count';
   limit?: number;
 };
 
@@ -105,7 +110,7 @@ export async function getNearbyTailors(params: NearbyTailorQuery): Promise<Nearb
     latitude: String(params.latitude),
     longitude: String(params.longitude),
     radius_km: String(params.radiusKm ?? 10),
-    sort_by: params.sortBy ?? 'distance',
+    sort_by: params.sortBy === 'reviews' ? 'review_count' : (params.sortBy ?? 'distance'),
     limit: String(params.limit ?? 60),
   });
 
@@ -120,6 +125,15 @@ export async function getNearbyTailors(params: NearbyTailorQuery): Promise<Nearb
     method: 'GET',
     headers: {
       Authorization: `Bearer ${params.token}`,
+    },
+  });
+}
+
+export async function getTailorProfile(token: string, tailorId: string): Promise<NearbyTailor> {
+  return request<NearbyTailor>(`/tailors/${encodeURIComponent(tailorId)}`, {
+    method: 'GET',
+    headers: {
+      Authorization: `Bearer ${token}`,
     },
   });
 }

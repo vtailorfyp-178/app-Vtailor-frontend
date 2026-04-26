@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  Linking,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ThemedText } from '@/components/themed-text';
@@ -18,28 +19,45 @@ import { useThemeColor } from '@/hooks/use-theme-color';
 import { useAuth } from '@/contexts/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import { Video, ResizeMode } from 'expo-av';
+import { VideoView, useVideoPlayer } from 'expo-video';
 import {
   Conversations,
   Messages,
   Media,
-  Calls,
   ConversationSocket,
   setAuthToken,
   formatMessageTime,
   type ChatMessage,
-  type CallType,
 } from '@/services/conversationApi';
 
-function buildDemoMessages(currentUserId: string): ChatMessage[] {
+function ChatVideoPreview({ uri, style }: { uri: string; style: any }) {
+  const player = useVideoPlayer(uri, (videoPlayer) => {
+    videoPlayer.play();
+  });
+
+  return <VideoView player={player} style={style} nativeControls contentFit="contain" />;
+}
+
+function buildDemoMessages(currentUserId: string, tailorName = 'Aliya Formal Dresses'): ChatMessage[] {
   const now = Date.now();
+  const tailorId = tailorName.toLowerCase().includes('zainab')
+    ? 'sample-tailor-zainab-bridal'
+    : tailorName.toLowerCase().includes('noor')
+      ? 'sample-tailor-noor-party'
+      : 'sample-tailor-aliya-formal';
+  const tailorOpening = tailorName.toLowerCase().includes('zainab')
+    ? 'Your bridal formal dress measurements are noted. Please confirm the dupatta border.'
+    : tailorName.toLowerCase().includes('noor')
+      ? 'We can stitch your party maxi in pink organza with light embellishment.'
+      : 'Your formal long frock sample is ready for review.';
+
   return [
     {
       message_id: 'demo-1',
       conversation_id: 'demo-conversation',
-      sender_id: 'tailor-demo',
+      sender_id: tailorId,
       sender_role: 'tailor',
-      content: 'Assalam o Alaikum! Please share your preferred design details.',
+      content: `Assalam o Alaikum, this is ${tailorName}. ${tailorOpening}`,
       message_type: 'text',
       status: 'read',
       media_url: null,
@@ -58,7 +76,7 @@ function buildDemoMessages(currentUserId: string): ChatMessage[] {
       conversation_id: 'demo-conversation',
       sender_id: currentUserId,
       sender_role: 'customer',
-      content: 'Wa Alaikum Salam, I need a formal long frock with A-line style.',
+      content: 'Wa Alaikum Salam, please keep the fitting elegant and comfortable.',
       message_type: 'text',
       status: 'read',
       media_url: null,
@@ -72,7 +90,35 @@ function buildDemoMessages(currentUserId: string): ChatMessage[] {
       created_at: new Date(now - 1000 * 60 * 18).toISOString(),
       updated_at: new Date(now - 1000 * 60 * 18).toISOString(),
     },
+    {
+      message_id: 'demo-3',
+      conversation_id: 'demo-conversation',
+      sender_id: tailorId,
+      sender_role: 'tailor',
+      content: 'Sure, I will share the final stitching update before delivery.',
+      message_type: 'text',
+      status: 'read',
+      media_url: null,
+      media_mime: null,
+      media_size: null,
+      media_duration: null,
+      thumbnail_url: null,
+      reply_to_id: null,
+      reply_to_preview: null,
+      is_deleted: false,
+      created_at: new Date(now - 1000 * 60 * 12).toISOString(),
+      updated_at: new Date(now - 1000 * 60 * 12).toISOString(),
+    },
   ];
+}
+
+function initials(name: string) {
+  return name
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() || '')
+    .join('') || 'T';
 }
 
 export default function ChatConversation() {
@@ -84,9 +130,9 @@ export default function ChatConversation() {
     (params.tailorName as string) ||
     (params.otherUserName as string) ||
     '';
-  const otherUserIdFromParams = (params.otherUserId as string) || tailorId;
   const [otherUserName, setOtherUserName] = useState(tailorNameFromParams || 'Tailor');
   const otherUserAvatar = (params.otherUserAvatar as string) || '👥';
+  const otherUserPhone = ((params.otherUserPhone as string) || (params.phone as string) || '').trim();
   const demoModeParam = (params.demo as string) === '1';
 
   const { userId, userRole, token } = useAuth();
@@ -121,7 +167,7 @@ export default function ChatConversation() {
         setLoading(true);
 
         if (demoModeParam) {
-          setMessages(buildDemoMessages(userId));
+          setMessages(buildDemoMessages(userId, tailorNameFromParams || otherUserName));
           setLoading(false);
           setDemoMode(true);
           return;
@@ -169,13 +215,11 @@ export default function ChatConversation() {
 
         socketRef.current.connect();
         setLoading(false);
-      } catch (error) {
-        console.error('Failed to initialize chat:', error);
-        setMessages(buildDemoMessages(userId));
+      } catch {
+        setMessages(buildDemoMessages(userId, tailorNameFromParams || otherUserName));
         setDemoMode(true);
         setActiveConversationId('demo-conversation');
         setLoading(false);
-        Alert.alert('Chat Fallback', 'Backend chat was unavailable, demo conversation loaded for prototype.');
       }
     };
 
@@ -345,42 +389,16 @@ export default function ChatConversation() {
   };
 
   const handleSendImage = () => sendPickedMedia('image');
-  const handleSendVideo = () => sendPickedMedia('video');
-
-  const handleStartCall = async (callType: CallType) => {
-    if (!userId) return;
-
-    try {
-      if (demoMode || !activeConversationId || !otherUserIdFromParams) {
-        const demoCallMessage: ChatMessage = {
-          message_id: `demo-call-${Date.now()}`,
-          conversation_id: activeConversationId || 'demo-conversation',
-          sender_id: userId,
-          sender_role: userRole === 'tailor' ? 'tailor' : 'customer',
-          content: `📞 ${callType === 'video' ? 'Video' : 'Voice'} call initiated`,
-          message_type: 'call_log',
-          status: 'read',
-          media_url: null,
-          media_mime: null,
-          media_size: null,
-          media_duration: null,
-          thumbnail_url: null,
-          reply_to_id: null,
-          reply_to_preview: null,
-          is_deleted: false,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        };
-        setMessages((prev) => [...prev, demoCallMessage]);
-        return;
-      }
-
-      await Calls.initiate(activeConversationId, userId, otherUserIdFromParams, callType);
-      Alert.alert('Call', `${callType === 'video' ? 'Video' : 'Voice'} call initiated.`);
-    } catch (error) {
-      console.error('Failed to initiate call:', error);
-      Alert.alert('Call Error', 'Failed to initiate call');
+  const handleStartCall = () => {
+    if (!otherUserPhone) {
+      Alert.alert('Phone number unavailable', 'This tailor has not shared a phone number yet.');
+      return;
     }
+
+    const dialNumber = otherUserPhone.replace(/\s+/g, '');
+    Linking.openURL(`tel:${dialNumber}`).catch(() => {
+      Alert.alert('Call Failed', `Unable to open dialer for ${otherUserPhone}.`);
+    });
   };
 
   const renderMessage = ({ item }: { item: ChatMessage }) => {
@@ -395,22 +413,22 @@ export default function ChatConversation() {
           isOwn ? styles.ownMessageRow : styles.otherMessageRow,
         ]}
       >
+        {!isOwn ? (
+          <View style={[styles.messageAvatar, { backgroundColor: `${tint}22` }]}>
+            <ThemedText style={[styles.messageAvatarText, { color: tint }]}>{initials(otherUserName)}</ThemedText>
+          </View>
+        ) : null}
         <View
           style={[
             styles.messageBubble,
             isOwn
               ? { backgroundColor: tint }
-              : { backgroundColor: card, borderWidth: 1, borderColor: muted },
+              : { backgroundColor: card, borderWidth: 1, borderColor: '#e5e7eb' },
           ]}
         >
-          <ThemedText
-            style={[
-              styles.senderLabel,
-              isOwn ? { color: '#e5e7eb' } : { color: muted },
-            ]}
-          >
-            {senderLabel}
-          </ThemedText>
+          {!isOwn ? (
+            <ThemedText style={[styles.senderLabel, { color: muted }]}>{senderLabel}</ThemedText>
+          ) : null}
           {item.message_type === 'text' && (
             <ThemedText
               style={[
@@ -438,13 +456,7 @@ export default function ChatConversation() {
           {item.message_type === 'video' && (
             <View style={styles.mediaWrap}>
               {item.media_url ? (
-                <Video
-                  source={{ uri: item.media_url }}
-                  style={styles.mediaPreview}
-                  useNativeControls
-                  resizeMode={ResizeMode.COVER}
-                  isLooping={false}
-                />
+                <ChatVideoPreview uri={item.media_url} style={styles.mediaPreview} />
               ) : (
                 <ThemedText style={{ fontSize: 14, color: isOwn ? '#fff' : text }}>
                   🎥 Video
@@ -465,11 +477,11 @@ export default function ChatConversation() {
               {item.content || '📞 Call event'}
             </ThemedText>
           )}
+          <ThemedText style={[styles.timestamp, isOwn ? { color: '#dbeafe' } : { color: muted }]}>
+            {timestamp} {isOwn && item.status === 'read' && '✓✓'}
+            {isOwn && item.status === 'delivered' && '✓'}
+          </ThemedText>
         </View>
-        <ThemedText style={[styles.timestamp, { color: muted }]}>
-          {timestamp} {isOwn && item.status === 'read' && '✓✓'}
-          {isOwn && item.status === 'delivered' && '✓'}
-        </ThemedText>
       </View>
     );
   };
@@ -493,19 +505,23 @@ export default function ChatConversation() {
           <Ionicons name="chevron-back" size={28} color="#fff" />
         </Pressable>
         <View style={styles.headerTitle}>
+          <View style={styles.headerProfileRow}>
+            <View style={styles.headerAvatar}>
+              <ThemedText style={styles.headerAvatarText}>{initials(otherUserName)}</ThemedText>
+            </View>
+            <View style={{ flex: 1 }}>
           <ThemedText style={{ color: '#fff', fontSize: 16, fontWeight: '600' }}>
             {otherUserName}
           </ThemedText>
           <ThemedText style={{ color: '#e5e7eb', fontSize: 12 }}>
-            {otherUserAvatar}
+            {otherUserPhone || otherUserAvatar}
           </ThemedText>
+            </View>
+          </View>
         </View>
         <View style={styles.headerActions}>
-          <Pressable onPress={() => handleStartCall('voice')} style={styles.headerActionBtn}>
+          <Pressable onPress={handleStartCall} style={styles.headerActionBtn}>
             <Ionicons name="call-outline" size={20} color="#fff" />
-          </Pressable>
-          <Pressable onPress={() => handleStartCall('video')} style={styles.headerActionBtn}>
-            <Ionicons name="videocam-outline" size={20} color="#fff" />
           </Pressable>
         </View>
       </View>
@@ -540,10 +556,6 @@ export default function ChatConversation() {
               <Pressable style={styles.mediaOptionBtn} onPress={handleSendImage} disabled={sending}>
                 <Ionicons name="image" size={18} color={tint} />
                 <ThemedText style={styles.mediaOptionText}>Image</ThemedText>
-              </Pressable>
-              <Pressable style={styles.mediaOptionBtn} onPress={handleSendVideo} disabled={sending}>
-                <Ionicons name="videocam" size={18} color={tint} />
-                <ThemedText style={styles.mediaOptionText}>Video</ThemedText>
               </Pressable>
             </View>
           ) : null}
@@ -585,8 +597,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    paddingTop: 40,
-    paddingBottom: 12,
+    paddingTop: 54,
+    paddingBottom: 14,
     paddingHorizontal: 16,
     flexDirection: 'row',
     alignItems: 'center',
@@ -601,10 +613,29 @@ const styles = StyleSheet.create({
   headerTitle: {
     flex: 1,
     justifyContent: 'center',
+    alignItems: 'flex-start',
+  },
+  headerProfileRow: {
+    flexDirection: 'row',
     alignItems: 'center',
+    maxWidth: '100%',
+  },
+  headerAvatar: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.22)',
+    marginRight: 10,
+  },
+  headerAvatarText: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '800',
   },
   headerActions: {
-    width: 72,
+    width: 44,
     flexDirection: 'row',
     justifyContent: 'flex-end',
     gap: 6,
@@ -617,11 +648,13 @@ const styles = StyleSheet.create({
   },
   messagesList: {
     paddingHorizontal: 12,
-    paddingVertical: 12,
+    paddingTop: 22,
+    paddingBottom: 18,
   },
   messageRow: {
-    marginBottom: 12,
     flexDirection: 'row',
+    alignItems: 'flex-end',
+    marginBottom: 10,
   },
   ownMessageRow: {
     justifyContent: 'flex-end',
@@ -629,11 +662,25 @@ const styles = StyleSheet.create({
   otherMessageRow: {
     justifyContent: 'flex-start',
   },
+  messageAvatar: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 7,
+    marginBottom: 15,
+  },
+  messageAvatarText: {
+    fontSize: 11,
+    fontWeight: '800',
+  },
   messageBubble: {
-    maxWidth: '75%',
+    maxWidth: '78%',
     paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 12,
+    paddingTop: 9,
+    paddingBottom: 7,
+    borderRadius: 18,
   },
   senderLabel: {
     fontSize: 11,
@@ -658,13 +705,14 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
   timestamp: {
-    fontSize: 11,
-    marginHorizontal: 8,
-    marginTop: 4,
+    fontSize: 10,
+    marginTop: 5,
+    alignSelf: 'flex-end',
   },
   inputArea: {
     paddingHorizontal: 12,
-    paddingVertical: 12,
+    paddingTop: 10,
+    paddingBottom: Platform.select({ ios: 18, android: 12, default: 12 }),
     borderTopWidth: 1,
     flexDirection: 'row',
     alignItems: 'flex-end',
@@ -702,7 +750,7 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     borderWidth: 1,
-    borderRadius: 10,
+    borderRadius: 20,
     paddingHorizontal: 12,
     paddingVertical: 10,
     maxHeight: 100,
@@ -711,7 +759,7 @@ const styles = StyleSheet.create({
   sendButton: {
     width: 44,
     height: 44,
-    borderRadius: 10,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 4,

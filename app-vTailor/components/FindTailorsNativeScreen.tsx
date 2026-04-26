@@ -3,9 +3,7 @@ import {
   ActivityIndicator,
   FlatList,
   Image,
-  Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   TextInput,
   View,
@@ -21,11 +19,9 @@ import { Conversations, setAuthToken } from '@/services/conversationApi';
 import { getNearbyTailors, type NearbyTailor } from '@/services/tailorsApi';
 import MapView, { Marker } from '@/components/MapPrimitives';
 
-type ViewMode = 'map' | 'list';
 type SortMode = 'distance' | 'rating' | 'reviews';
-type PriceRange = 'all' | 'budget' | 'mid' | 'premium';
-type RatingFilter = 'all' | '4.0' | '4.5';
-type AvailabilityFilter = 'all' | 'open';
+type DistanceFilter = 2 | 3 | 5 | null;
+type RatingFilter = 'all' | '3' | '4';
 
 type Region = {
   latitude: number;
@@ -38,10 +34,17 @@ function toRegion(latitude: number, longitude: number): Region {
   return {
     latitude,
     longitude,
-    latitudeDelta: 0.09,
-    longitudeDelta: 0.06,
+    latitudeDelta: 0.035,
+    longitudeDelta: 0.025,
   };
 }
+
+function isSameArea(a: Region, b: Region) {
+  return Math.abs(a.latitude - b.latitude) < 0.0005 && Math.abs(a.longitude - b.longitude) < 0.0005;
+}
+
+const DEFAULT_REGION = toRegion(31.5204, 74.3587);
+const SPECIALTY_OPTIONS = ['all', 'Formal', 'Party', 'Traditional'];
 
 function initials(name: string) {
   return name
@@ -50,13 +53,6 @@ function initials(name: string) {
     .slice(0, 2)
     .map((part) => part[0]?.toUpperCase() || '')
     .join('');
-}
-
-function priceBounds(range: PriceRange): { min?: number; max?: number } {
-  if (range === 'budget') return { max: 1500 };
-  if (range === 'mid') return { min: 1500, max: 3500 };
-  if (range === 'premium') return { min: 3500 };
-  return {};
 }
 
 export default function FindTailorsNativeScreen() {
@@ -70,15 +66,18 @@ export default function FindTailorsNativeScreen() {
   const text = useThemeColor({}, 'text');
 
   const [query, setQuery] = useState('');
-  const [viewMode, setViewMode] = useState<ViewMode>('map');
   const [sortBy, setSortBy] = useState<SortMode>('distance');
-  const [priceRange, setPriceRange] = useState<PriceRange>('all');
+  const [distanceKm, setDistanceKm] = useState<DistanceFilter>(5);
   const [minRating, setMinRating] = useState<RatingFilter>('all');
-  const [availability, setAvailability] = useState<AvailabilityFilter>('all');
   const [specialty, setSpecialty] = useState<string>('all');
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [draftSortBy, setDraftSortBy] = useState<SortMode>('distance');
+  const [draftDistanceKm, setDraftDistanceKm] = useState<DistanceFilter>(5);
+  const [draftMinRating, setDraftMinRating] = useState<RatingFilter>('all');
+  const [draftSpecialty, setDraftSpecialty] = useState<string>('all');
 
   const [locationReady, setLocationReady] = useState(false);
-  const [region, setRegion] = useState<Region | null>(null);
+  const [searchRegion, setSearchRegion] = useState<Region>(DEFAULT_REGION);
   const [tailors, setTailors] = useState<NearbyTailor[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -86,55 +85,86 @@ export default function FindTailorsNativeScreen() {
   const [errorText, setErrorText] = useState<string | null>(null);
 
   const mapRef = useRef<any>(null);
-  const bottomListRef = useRef<FlatList<NearbyTailor> | null>(null);
+  const listRef = useRef<FlatList<NearbyTailor> | null>(null);
+  const focusingTailorRef = useRef(false);
 
-  const specialtyOptions = useMemo(() => {
-    const set = new Set<string>();
-    for (const tailor of tailors) {
-      for (const item of tailor.specialization || []) {
-        if (item) set.add(item);
-      }
-    }
-    return ['all', ...Array.from(set).slice(0, 10)];
-  }, [tailors]);
+  const filterSummary = useMemo(() => {
+    const parts = [
+      distanceKm ? `${distanceKm} km` : 'Any distance',
+      minRating === 'all' ? null : `${minRating}+ rating`,
+      sortBy === 'distance' ? 'Nearest' : 'Top rated',
+      specialty === 'all' ? null : specialty,
+    ].filter(Boolean);
+    return parts.join(' • ');
+  }, [distanceKm, minRating, sortBy, specialty]);
+
+  const openFilters = () => {
+    setDraftDistanceKm(distanceKm);
+    setDraftMinRating(minRating);
+    setDraftSortBy(sortBy);
+    setDraftSpecialty(specialty);
+    setFiltersOpen((current) => !current);
+  };
+
+  const applyFilters = () => {
+    setDistanceKm(draftDistanceKm);
+    setMinRating(draftMinRating);
+    setSortBy(draftSortBy);
+    setSpecialty(draftSpecialty);
+    setFiltersOpen(false);
+  };
+
+  const resetDraftFilters = () => {
+    setDraftDistanceKm(5);
+    setDraftMinRating('all');
+    setDraftSortBy('distance');
+    setDraftSpecialty('all');
+  };
 
   const loadTailors = useCallback(
     async (isRefresh = false) => {
-      if (!token || !region) return;
+      if (!token) return;
       if (isRefresh) setRefreshing(true);
       else setLoading(true);
 
       try {
         setErrorText(null);
-        const bounds = priceBounds(priceRange);
-        const data = await getNearbyTailors({
-          token,
-          latitude: region.latitude,
-          longitude: region.longitude,
-          radiusKm: 10,
-          specialty: specialty !== 'all' ? specialty : undefined,
-          priceMin: bounds.min,
-          priceMax: bounds.max,
-          minRating: minRating === 'all' ? undefined : Number(minRating),
-          availability: availability === 'open' ? true : undefined,
-          queryText: query,
-          sortBy,
-          limit: 80,
-        });
-        setTailors(data.results || []);
-        if (data.results && data.results.length > 0) {
-          setSelectedTailorId((prev) => prev || data.results[0].user_id);
+
+        const fetchForRegion = (targetRegion: Region) =>
+          getNearbyTailors({
+            token,
+            latitude: targetRegion.latitude,
+            longitude: targetRegion.longitude,
+            radiusKm: distanceKm ?? 10,
+            specialty: specialty !== 'all' ? specialty : undefined,
+            minRating: minRating === 'all' ? undefined : Number(minRating),
+            queryText: query,
+            sortBy,
+            limit: 80,
+          });
+
+        let data = await fetchForRegion(searchRegion);
+        if ((data.results || []).length === 0 && (searchRegion.latitude !== DEFAULT_REGION.latitude || searchRegion.longitude !== DEFAULT_REGION.longitude)) {
+          data = await fetchForRegion(DEFAULT_REGION);
+          setSearchRegion((current) => (isSameArea(current, DEFAULT_REGION) ? current : DEFAULT_REGION));
+          mapRef.current?.animateToRegion(DEFAULT_REGION, 450);
+        }
+
+        const results = data.results || [];
+        setTailors(results);
+        if (results.length > 0) {
+          setSelectedTailorId((prev) => (prev && results.some((item) => item.user_id === prev) ? prev : results[0].user_id));
         } else {
           setSelectedTailorId(null);
         }
       } catch {
-        setErrorText('Unable to load nearby tailors right now.');
+        setErrorText('Unable to load nearby tailors right now. Check your connection and try again.');
       } finally {
         setLoading(false);
         setRefreshing(false);
       }
     },
-    [token, region, priceRange, specialty, minRating, availability, query, sortBy]
+    [token, searchRegion, distanceKm, specialty, minRating, query, sortBy]
   );
 
   useEffect(() => {
@@ -143,8 +173,8 @@ export default function FindTailorsNativeScreen() {
       const permission = await Location.requestForegroundPermissionsAsync();
       if (permission.status !== 'granted') {
         if (mounted) {
-          setErrorText('Location permission is required to find nearby tailors within 10 km.');
-          setLoading(false);
+          setErrorText(null);
+          setLocationReady(true);
         }
         return;
       }
@@ -153,7 +183,8 @@ export default function FindTailorsNativeScreen() {
       if (!mounted) return;
 
       const nextRegion = toRegion(current.coords.latitude, current.coords.longitude);
-      setRegion(nextRegion);
+      setSearchRegion((current) => (isSameArea(current, nextRegion) ? current : nextRegion));
+      mapRef.current?.animateToRegion(nextRegion, 450);
       setLocationReady(true);
     })();
 
@@ -163,34 +194,43 @@ export default function FindTailorsNativeScreen() {
   }, []);
 
   useEffect(() => {
-    if (!region || !token) return;
+    if (!token) return;
 
     const timer = setTimeout(() => {
       loadTailors();
     }, 220);
 
     return () => clearTimeout(timer);
-  }, [region, token, query, specialty, priceRange, minRating, availability, sortBy, loadTailors]);
+  }, [searchRegion, token, query, specialty, distanceKm, minRating, sortBy, loadTailors]);
 
   useEffect(() => {
-    if (!region || !token) return;
+    if (!token) return;
     const intervalId = setInterval(() => {
       loadTailors(true);
-    }, 15000);
+    }, 60000);
     return () => clearInterval(intervalId);
-  }, [region, token, loadTailors]);
+  }, [searchRegion, token, loadTailors]);
 
   const onMarkerPress = (tailor: NearbyTailor) => {
     setSelectedTailorId(tailor.user_id);
     const idx = tailors.findIndex((item) => item.user_id === tailor.user_id);
     if (idx >= 0) {
-      bottomListRef.current?.scrollToIndex({ index: idx, animated: true });
+      listRef.current?.scrollToIndex({ index: idx, animated: true });
     }
+    focusingTailorRef.current = true;
+    mapRef.current?.animateToRegion(toRegion(tailor.location.latitude, tailor.location.longitude), 450);
+    setTimeout(() => {
+      focusingTailorRef.current = false;
+    }, 600);
   };
 
   const onTailorCardPress = (tailor: NearbyTailor) => {
     setSelectedTailorId(tailor.user_id);
-    mapRef.current?.animateToRegion(toRegion(tailor.location.latitude, tailor.location.longitude), 350);
+    focusingTailorRef.current = true;
+    mapRef.current?.animateToRegion(toRegion(tailor.location.latitude, tailor.location.longitude), 450);
+    setTimeout(() => {
+      focusingTailorRef.current = false;
+    }, 600);
   };
 
   const onMessagePress = async (tailor: NearbyTailor) => {
@@ -207,6 +247,7 @@ export default function FindTailorsNativeScreen() {
           otherUserId: tailor.user_id,
           otherUserName: tailor.name,
           otherUserAvatar: tailor.avatar || initials(tailor.name),
+          otherUserPhone: tailor.phone || '',
         },
       });
     } catch {
@@ -217,6 +258,7 @@ export default function FindTailorsNativeScreen() {
           otherUserId: tailor.user_id,
           otherUserName: tailor.name,
           otherUserAvatar: tailor.avatar || initials(tailor.name),
+          otherUserPhone: tailor.phone || '',
           demo: '1',
         },
       });
@@ -286,10 +328,38 @@ export default function FindTailorsNativeScreen() {
           </ThemedText>
         </View>
 
+        {selected && (
+          <View style={[styles.detailsBox, { borderColor: inputBorder }]}>
+            <ThemedText style={[styles.detailLine, { color: text }]}>
+              {item.address || 'Address not available'}
+            </ThemedText>
+            {item.working_hours ? (
+              <ThemedText style={[styles.detailLine, { color: muted }]}>Hours: {item.working_hours}</ThemedText>
+            ) : null}
+            {item.bio ? (
+              <ThemedText style={[styles.detailLine, { color: muted }]}>{item.bio}</ThemedText>
+            ) : null}
+          </View>
+        )}
+
         <View style={styles.actionsRow}>
           <Pressable
             style={[styles.actionBtn, { borderColor: inputBorder }]}
-            onPress={() => (router as any).push(`/customer/tailor/${item.user_id}`)}
+            onPress={() =>
+              (router as any).push({
+                pathname: '/customer/tailor/[id]',
+                params: {
+                  id: item.user_id,
+                  name: item.name,
+                  address: item.address || '',
+                  specialization: (item.specialization || []).join(','),
+                  rating: String(item.rating),
+                  reviews: String(item.review_count),
+                  distance: `${item.distance_km.toFixed(1)} km`,
+                  isAvailable: String(item.is_available),
+                },
+              })
+            }
           >
             <ThemedText style={styles.actionText}>View</ThemedText>
           </Pressable>
@@ -322,49 +392,76 @@ export default function FindTailorsNativeScreen() {
         />
       </View>
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsRow}>
-        {renderFilterChip('Map', viewMode === 'map', () => setViewMode('map'), true)}
-        {renderFilterChip('List', viewMode === 'list', () => setViewMode('list'), true)}
-        {renderFilterChip('Distance', sortBy === 'distance', () => setSortBy('distance'))}
-        {renderFilterChip('Rating', sortBy === 'rating', () => setSortBy('rating'))}
-        {renderFilterChip('Reviews', sortBy === 'reviews', () => setSortBy('reviews'))}
-        {renderFilterChip('All', specialty === 'all', () => setSpecialty('all'), true)}
-        {specialtyOptions.filter((item) => item !== 'all').slice(0, 5).map((item) => renderFilterChip(item, specialty === item, () => setSpecialty(item)))}
-        {renderFilterChip('Any price', priceRange === 'all', () => setPriceRange('all'))}
-        {renderFilterChip('Budget', priceRange === 'budget', () => setPriceRange('budget'))}
-        {renderFilterChip('Mid', priceRange === 'mid', () => setPriceRange('mid'), true)}
-        {renderFilterChip('Premium', priceRange === 'premium', () => setPriceRange('premium'))}
-        {renderFilterChip('Any rating', minRating === 'all', () => setMinRating('all'))}
-        {renderFilterChip('4.0+', minRating === '4.0', () => setMinRating('4.0'), true)}
-        {renderFilterChip('4.5+', minRating === '4.5', () => setMinRating('4.5'), true)}
-        {renderFilterChip('All status', availability === 'all', () => setAvailability('all'))}
-        {renderFilterChip('Open only', availability === 'open', () => setAvailability('open'))}
-      </ScrollView>
+      <View style={[styles.filtersPanel, { backgroundColor: card, borderColor: inputBorder }]}>
+        <Pressable onPress={openFilters} style={styles.filterDropdownHeader}>
+          <View style={{ flex: 1 }}>
+            <ThemedText style={styles.filterTitle}>Filters</ThemedText>
+            <ThemedText numberOfLines={1} style={{ color: muted, fontSize: 12, marginTop: 2 }}>
+              {filterSummary}
+            </ThemedText>
+          </View>
+          <ThemedText style={[styles.clearFilters, { color: tint }]}>{filtersOpen ? 'Close' : 'Open'}</ThemedText>
+        </Pressable>
 
-      {loading && (
-        <View style={styles.loadingWrap}>
-          <ActivityIndicator size="large" color={tint} />
-        </View>
-      )}
+        {filtersOpen && (
+          <View style={styles.dropdownBody}>
+            <View style={styles.filterGroup}>
+              <ThemedText style={[styles.filterLabel, { color: muted }]}>Distance</ThemedText>
+              <View style={styles.chipsRow}>
+                {renderFilterChip('Nearest', draftSortBy === 'distance', () => setDraftSortBy((current) => (current === 'distance' ? 'rating' : 'distance')))}
+                {renderFilterChip('2 km', draftDistanceKm === 2, () => setDraftDistanceKm((current) => (current === 2 ? null : 2)), true)}
+                {renderFilterChip('3 km', draftDistanceKm === 3, () => setDraftDistanceKm((current) => (current === 3 ? null : 3)), true)}
+                {renderFilterChip('5 km', draftDistanceKm === 5, () => setDraftDistanceKm((current) => (current === 5 ? null : 5)), true)}
+              </View>
+            </View>
 
-      {!loading && errorText && (
-        <View style={styles.loadingWrap}>
-          <ThemedText style={{ color: muted, textAlign: 'center' }}>{errorText}</ThemedText>
-        </View>
-      )}
+            <View style={styles.filterGroup}>
+              <ThemedText style={[styles.filterLabel, { color: muted }]}>Rating</ThemedText>
+              <View style={styles.chipsRow}>
+                {renderFilterChip('3+', draftMinRating === '3', () => setDraftMinRating((current) => (current === '3' ? 'all' : '3')), true)}
+                {renderFilterChip('4+', draftMinRating === '4', () => setDraftMinRating((current) => (current === '4' ? 'all' : '4')), true)}
+                {renderFilterChip('Top rated', draftSortBy === 'rating', () => setDraftSortBy((current) => (current === 'rating' ? 'distance' : 'rating')))}
+              </View>
+            </View>
 
-      {!loading && !errorText && viewMode === 'map' && region && MapView && Marker ? (
-        <View style={styles.mapContainer}>
+            <View style={styles.filterGroup}>
+              <ThemedText style={[styles.filterLabel, { color: muted }]}>Specialty</ThemedText>
+              <View style={styles.chipsRow}>
+                {SPECIALTY_OPTIONS.map((item) =>
+                  renderFilterChip(
+                    item === 'all' ? 'All' : item,
+                    draftSpecialty === item,
+                    () => setDraftSpecialty((current) => (current === item ? 'all' : item)),
+                    item === 'all'
+                  )
+                )}
+              </View>
+            </View>
+
+            <View style={styles.filterActionsRow}>
+              <Pressable onPress={resetDraftFilters} style={[styles.secondaryFilterBtn, { borderColor: inputBorder }]}>
+                <ThemedText style={[styles.filterBtnText, { color: text }]}>Reset</ThemedText>
+              </Pressable>
+              <Pressable onPress={applyFilters} style={[styles.applyFilterBtn, { backgroundColor: tint }]}>
+                <ThemedText style={[styles.filterBtnText, { color: '#fff' }]}>Apply filters</ThemedText>
+              </Pressable>
+            </View>
+          </View>
+        )}
+      </View>
+
+      <View style={styles.mapContainer}>
+        {MapView && Marker ? (
           <MapView
             ref={(ref) => {
               mapRef.current = ref;
             }}
             style={StyleSheet.absoluteFill}
-            initialRegion={region}
-            region={region}
+            initialRegion={DEFAULT_REGION}
             onRegionChangeComplete={(nextRegion) => {
               if (!locationReady) return;
-              setRegion(nextRegion);
+              if (focusingTailorRef.current) return;
+              setSearchRegion((current) => (isSameArea(current, nextRegion) ? current : nextRegion));
             }}
             showsUserLocation
             showsMyLocationButton
@@ -389,47 +486,60 @@ export default function FindTailorsNativeScreen() {
               </Marker>
             ))}
           </MapView>
-
-          <View style={[styles.bottomSheet, { backgroundColor: `${card}F0`, borderColor: inputBorder }]}> 
-            <FlatList
-              ref={(ref) => {
-                bottomListRef.current = ref;
-              }}
-              horizontal
-              data={tailors}
-              keyExtractor={(item) => item.user_id}
-              renderItem={renderTailorCard}
-              showsHorizontalScrollIndicator={false}
-              refreshing={refreshing}
-              onRefresh={() => loadTailors(true)}
-              getItemLayout={(_, index) => ({ length: CARD_WIDTH + 12, offset: (CARD_WIDTH + 12) * index, index })}
-              contentContainerStyle={{ paddingHorizontal: 12 }}
-            />
+        ) : (
+          <View style={[StyleSheet.absoluteFill, styles.mapFallback]}>
+            <ThemedText style={{ color: muted }}>Map unavailable on this device.</ThemedText>
           </View>
+        )}
+        {loading ? (
+          <View style={styles.mapLoading}>
+            <ActivityIndicator color={tint} />
+          </View>
+        ) : null}
+      </View>
+
+      {errorText ? (
+        <View style={styles.inlineMessage}>
+          <ThemedText style={{ color: muted, textAlign: 'center' }}>{errorText}</ThemedText>
+          <Pressable onPress={() => loadTailors(true)} style={[styles.retryButton, { borderColor: tint }]}>
+            <ThemedText style={[styles.retryText, { color: tint }]}>Retry</ThemedText>
+          </Pressable>
         </View>
-      ) : !loading && !errorText && viewMode === 'list' && (
+      ) : null}
+
+      {!loading && !errorText && tailors.length === 0 ? (
+        <View style={styles.inlineMessage}>
+          <ThemedText style={{ color: muted, textAlign: 'center' }}>
+            No tailors match these filters. Try 5 km or a lower rating.
+          </ThemedText>
+        </View>
+      ) : (
         <FlatList
+          ref={(ref) => {
+            listRef.current = ref;
+          }}
           data={tailors}
           keyExtractor={(item) => item.user_id}
           renderItem={renderTailorCard}
-          contentContainerStyle={{ paddingHorizontal: 12, paddingBottom: 16 }}
+          ListHeaderComponent={
+            <View style={styles.listHeader}>
+              <ThemedText style={styles.listTitle}>Nearby tailors</ThemedText>
+              <ThemedText style={{ color: muted, fontSize: 12 }}>{tailors.length} result{tailors.length === 1 ? '' : 's'}</ThemedText>
+            </View>
+          }
+          contentContainerStyle={{ paddingHorizontal: 12, paddingBottom: 24 }}
           onRefresh={() => loadTailors(true)}
           refreshing={refreshing}
+          onScrollToIndexFailed={(info) => {
+            setTimeout(() => {
+              listRef.current?.scrollToOffset({ offset: info.averageItemLength * info.index, animated: true });
+            }, 100);
+          }}
         />
-      )}
-
-      {!loading && !errorText && viewMode === 'map' && region && !MapView && (
-        <View style={styles.loadingWrap}>
-          <ThemedText style={{ color: muted, textAlign: 'center' }}>
-            Map is unavailable on this device. Switch to list view.
-          </ThemedText>
-        </View>
       )}
     </ThemedView>
   );
 }
-
-const CARD_WIDTH = Platform.OS === 'web' ? 360 : 300;
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
@@ -443,10 +553,27 @@ const styles = StyleSheet.create({
   headerTitle: { color: '#fff', fontWeight: '700' },
   searchWrap: { marginHorizontal: 12, marginTop: 12, borderRadius: 12, borderWidth: 1, padding: 8 },
   searchInput: { height: 44, paddingHorizontal: 8 },
+  filtersPanel: {
+    marginHorizontal: 12,
+    marginTop: 12,
+    borderRadius: 16,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+  },
+  filterDropdownHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  filterTitle: { fontSize: 15, fontWeight: '800' },
+  clearFilters: { fontSize: 12, fontWeight: '700' },
+  dropdownBody: { marginTop: 12 },
+  filterGroup: { marginTop: 8 },
+  filterLabel: { fontSize: 11, fontWeight: '700', marginBottom: 7, textTransform: 'uppercase' },
   chipsRow: {
-    paddingHorizontal: 10,
-    paddingTop: 10,
-    paddingBottom: 8,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 8,
   },
   chip: {
@@ -457,23 +584,55 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 12,
   },
-  mapContainer: { flex: 1 },
-  bottomSheet: {
-    position: 'absolute',
-    left: 10,
-    right: 10,
-    bottom: 10,
-    borderRadius: 16,
+  filterActionsRow: { flexDirection: 'row', gap: 10, marginTop: 14 },
+  secondaryFilterBtn: {
+    flex: 1,
     borderWidth: 1,
-    paddingVertical: 10,
+    borderRadius: 12,
+    paddingVertical: 11,
+    alignItems: 'center',
   },
-  loadingWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 },
+  applyFilterBtn: {
+    flex: 1,
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  filterBtnText: { fontWeight: '800', fontSize: 13 },
+  mapContainer: { height: 260, marginHorizontal: 12, marginTop: 16, borderRadius: 18, overflow: 'hidden' },
+  mapFallback: { alignItems: 'center', justifyContent: 'center', backgroundColor: '#eef2f7' },
+  mapLoading: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.92)',
+  },
+  inlineMessage: { paddingHorizontal: 16, paddingVertical: 10, alignItems: 'center', gap: 8 },
+  retryButton: {
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  retryText: { fontSize: 12, fontWeight: '800' },
+  listHeader: {
+    paddingTop: 14,
+    paddingBottom: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  listTitle: { fontSize: 16, fontWeight: '800' },
   tailorCard: {
-    width: CARD_WIDTH,
     borderRadius: 14,
     borderWidth: 1,
     padding: 12,
-    marginRight: 12,
+    marginBottom: 12,
   },
   cardTopRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   avatarWrap: {
@@ -500,6 +659,8 @@ const styles = StyleSheet.create({
   tailorName: { fontWeight: '700', fontSize: 14, marginBottom: 2 },
   metaRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 },
   metaText: { fontSize: 12, color: '#6b7280' },
+  detailsBox: { marginTop: 12, paddingTop: 10, borderTopWidth: 1, gap: 4 },
+  detailLine: { fontSize: 12, lineHeight: 17 },
   actionsRow: { flexDirection: 'row', marginTop: 12, gap: 8 },
   actionBtn: {
     flex: 1,

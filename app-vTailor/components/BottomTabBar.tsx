@@ -1,8 +1,11 @@
 import { useThemeColor } from '@/hooks/use-theme-color';
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { Platform, Pressable, StyleSheet, View } from 'react-native';
 import { ThemedText } from './themed-text';
+
+const ACCENT = '#E91E8C';
 
 interface BottomTabBarProps {
   basePath: 'customer' | 'tailor';
@@ -14,6 +17,8 @@ export const TAB_BAR_HEIGHT = Platform.select({ ios: 90, android: 80, default: 8
 
 const BottomTabBar = ({ basePath, onTabChange, activeTab }: BottomTabBarProps) => {
   const [internalTab, setInternalTab] = useState(activeTab || 'home');
+  const cardColor = useThemeColor({}, 'card');
+  const inputBorderColor = useThemeColor({}, 'inputBorder');
 
   // sync internal state when a controlled activeTab is provided
   React.useEffect(() => {
@@ -23,29 +28,22 @@ const BottomTabBar = ({ basePath, onTabChange, activeTab }: BottomTabBarProps) =
   }, [activeTab]);
 
   const customerTabs = [
-    { label: 'Home', icon: '🏠', id: 'home' },
-    { label: 'Orders', icon: '📦', id: 'orders' },
-    { label: 'Chat', icon: '💬', id: 'chat' },
-    { label: 'Wallet', icon: '💰', id: 'wallet' },
-    { label: 'Profile', icon: '👤', id: 'profile' },
+    { label: 'Home', icon: 'home-outline', id: 'home' },
+    { label: 'Orders', icon: 'cube-outline', id: 'orders' },
+    { label: 'Chat', icon: 'chatbubble-ellipses-outline', id: 'chat' },
+    { label: 'Wallet', icon: 'wallet-outline', id: 'wallet' },
+    { label: 'Profile', icon: 'person-outline', id: 'profile' },
   ];
 
   const tailorTabs = [
-    { label: 'Home', icon: '🏠', id: 'home' },
-    { label: 'Orders', icon: '📦', id: 'orders' },
-    { label: 'Chat', icon: '💬', id: 'chat' },
-    { label: 'Wallet', icon: '💰', id: 'wallet' },
-    { label: 'Profile', icon: '👤', id: 'profile' },
+    { label: 'Home', icon: 'home-outline', id: 'home' },
+    { label: 'Orders', icon: 'cube-outline', id: 'orders' },
+    { label: 'Chat', icon: 'chatbubble-ellipses-outline', id: 'chat' },
+    { label: 'Wallet', icon: 'wallet-outline', id: 'wallet' },
+    { label: 'Profile', icon: 'person-outline', id: 'profile' },
   ];
 
   const tabs = basePath === 'customer' ? customerTabs : tailorTabs;
-
-  const handleTabPress = (tabId: string) => {
-    setInternalTab(tabId);
-    if (onTabChange) {
-      onTabChange(tabId);
-    }
-  };
 
   const router = useRouter();
 
@@ -62,27 +60,32 @@ const BottomTabBar = ({ basePath, onTabChange, activeTab }: BottomTabBarProps) =
         const target = tabId === 'home' ? `/${basePath}` : `/${basePath}/${tabId}`;
         (router as any).push(target);
       }
-    } catch (e) {
+    } catch {
       // fallback: no-op
     }
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: useThemeColor({}, 'card'), borderTopColor: useThemeColor({}, 'inputBorder') }]} pointerEvents="box-none">
-      {tabs.map((tab) => (
+    <View style={[styles.container, { backgroundColor: cardColor, borderTopColor: inputBorderColor }]} pointerEvents="box-none">
+      {tabs.map((tab) => {
+        const isActive = internalTab === tab.id;
+        return (
         <Pressable
           key={tab.id}
-          style={[styles.tab, internalTab === tab.id && { backgroundColor: useThemeColor({}, 'iconBg'), borderRadius: 12, marginHorizontal: 2 }]}
+          style={[styles.tab, isActive && styles.activeTab]}
           onPress={() => handleNavigate(tab.id)}
         >
-          <ThemedText style={[styles.icon, internalTab === tab.id && styles.activeIcon]}>
-            {tab.icon}
-          </ThemedText>
-          <ThemedText style={[styles.label, internalTab === tab.id && { color: useThemeColor({}, 'tint'), fontWeight: '600' }]}>
+          <Ionicons
+            name={tab.icon as any}
+            size={24}
+            color={isActive ? ACCENT : '#6b7280'}
+            style={styles.icon}
+          />
+          <ThemedText style={[styles.label, isActive && styles.activeLabel]}>
             {tab.label}
           </ThemedText>
         </Pressable>
-      ))}
+      )})}
     </View>
   );
 };
@@ -108,22 +111,21 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   activeTab: {
-    
+    backgroundColor: '#FCE4F2',
+    borderRadius: 14,
+    marginHorizontal: 4,
   },
   icon: {
-    fontSize: 24,
     marginBottom: 4,
-  },
-  activeIcon: {
-    fontSize: 26,
   },
   label: {
     fontSize: 11,
     textAlign: 'center',
     color: '#6b7280',
-    fontWeight: '500',
+    fontWeight: '400',
   },
   activeLabel: {
+    color: ACCENT,
     fontWeight: '600',
   },
 });

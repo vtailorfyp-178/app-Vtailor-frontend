@@ -13,7 +13,29 @@ const expoHostCandidates = [
 const EMULATOR_ANDROID_HOST = '10.0.2.2';
 const EXPO_API_BASE = (process.env.EXPO_PUBLIC_API_BASE_URL || '').trim();
 const REQUEST_TIMEOUT_MS = 15000;
-let cachedBaseUrl: string | null = EXPO_API_BASE || null;
+const API_PREFIX = '/app/api/v1';
+
+function normalizeApiBase(raw: string) {
+  const value = String(raw || '').trim().replace(/\/$/, '');
+  if (!value) return null;
+
+  // Accept bare hosts like 192.168.1.10 or localhost and default to :8000.
+  if (!/^https?:\/\//i.test(value)) {
+    if (value.includes(':')) {
+      return `http://${value}${API_PREFIX}`;
+    }
+    return `http://${value}:8000${API_PREFIX}`;
+  }
+
+  // If user provided only host[:port], append API prefix.
+  if (!/\/app\/api\/v1(?:\/|$)/i.test(value)) {
+    return `${value}${API_PREFIX}`;
+  }
+
+  return value;
+}
+
+let cachedBaseUrl: string | null = normalizeApiBase(EXPO_API_BASE);
 
 function extractHostFromScriptUrl() {
   try {
@@ -31,19 +53,21 @@ function extractHostFromScriptUrl() {
 }
 
 function buildBaseUrl(host: string) {
-  return `http://${host}:8000/app/api/v1`;
+  return `http://${host}:8000${API_PREFIX}`;
 }
 
 function getCandidateBaseUrls() {
   if (cachedBaseUrl) return [cachedBaseUrl];
-  if (EXPO_API_BASE) return [EXPO_API_BASE];
+
+  const normalizedEnvBase = normalizeApiBase(EXPO_API_BASE);
+  if (normalizedEnvBase) return [normalizedEnvBase];
 
   if (Platform.OS === 'web') {
     const webHost = (typeof window !== 'undefined' && window.location && window.location.hostname) || 'localhost';
     return [
-      `http://${webHost}:8000/app/api/v1`,
-      'http://127.0.0.1:8000/app/api/v1',
-      'http://localhost:8000/app/api/v1',
+      `http://${webHost}:8000${API_PREFIX}`,
+      `http://127.0.0.1:8000${API_PREFIX}`,
+      `http://localhost:8000${API_PREFIX}`,
     ];
   }
 
@@ -81,8 +105,9 @@ async function fetchWithFallback(path: string, init?: RequestInit) {
   }
 
   const reason = lastError instanceof Error ? lastError.message : 'Failed to fetch';
+  const candidatePreview = baseUrls.slice(0, 3).join(', ');
   throw new Error(
-    `${reason}. If using Expo Go on phone, run backend on 0.0.0.0 and set EXPO_PUBLIC_API_BASE_URL to your PC LAN IP, e.g. http://192.168.x.x:8000/app/api/v1`
+    `${reason}. Tried: ${candidatePreview}${baseUrls.length > 3 ? ', ...' : ''}. If using Expo Go on phone, run backend on 0.0.0.0 and set EXPO_PUBLIC_API_BASE_URL to your PC LAN IP, e.g. http://192.168.x.x:8000/app/api/v1`
   );
 }
 

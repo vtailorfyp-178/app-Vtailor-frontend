@@ -6,7 +6,7 @@ import {
   Pressable,
   ActivityIndicator,
   RefreshControl,
-  Alert,
+  TextInput,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { ThemedText } from "@/components/themed-text";
@@ -31,13 +31,13 @@ function buildSampleConversations(currentUserId: string, role: UserRole): Conver
   return [
     {
       conversation_id: "demo-conversation-1",
-      tailor_id: isCustomer ? "tailor-demo-1" : currentUserId,
+      tailor_id: isCustomer ? "sample-tailor-aliya-formal" : currentUserId,
       customer_id: isCustomer ? currentUserId : "customer-demo-1",
-      tailor_name: "Ahmad Master Tailor",
-      customer_name: "Demo Customer",
+      tailor_name: "Aliya Formal Dresses",
+      customer_name: "Sehrish Bhalu",
       tailor_avatar: null,
       customer_avatar: null,
-      last_message: "Your dress design is almost ready.",
+      last_message: "Your formal long frock sample is ready for review.",
       last_message_type: "text",
       last_message_at: now.toISOString(),
       unread_count: 1,
@@ -47,15 +47,31 @@ function buildSampleConversations(currentUserId: string, role: UserRole): Conver
     },
     {
       conversation_id: "demo-conversation-2",
-      tailor_id: isCustomer ? "tailor-demo-2" : currentUserId,
+      tailor_id: isCustomer ? "sample-tailor-zainab-bridal" : currentUserId,
       customer_id: isCustomer ? currentUserId : "customer-demo-2",
-      tailor_name: "Classic Stitch House",
-      customer_name: "Demo Customer 2",
+      tailor_name: "Zainab Bridal Couture",
+      customer_name: "Ayesha Khan",
       tailor_avatar: null,
       customer_avatar: null,
-      last_message: "Let's confirm neckline and sleeves.",
+      last_message: "Please confirm the dupatta border and sleeve style.",
       last_message_type: "text",
       last_message_at: new Date(now.getTime() - 1000 * 60 * 50).toISOString(),
+      unread_count: 0,
+      status: "active",
+      created_at: now.toISOString(),
+      isDemo: true,
+    },
+    {
+      conversation_id: "demo-conversation-3",
+      tailor_id: isCustomer ? "sample-tailor-noor-party" : currentUserId,
+      customer_id: isCustomer ? currentUserId : "customer-demo-3",
+      tailor_name: "Noor Party Wear Studio",
+      customer_name: "Maham Raza",
+      tailor_avatar: null,
+      customer_avatar: null,
+      last_message: "We can stitch the party maxi in pink organza.",
+      last_message_type: "text",
+      last_message_at: new Date(now.getTime() - 1000 * 60 * 140).toISOString(),
       unread_count: 0,
       status: "active",
       created_at: now.toISOString(),
@@ -70,26 +86,19 @@ export default function ConversationListScreen() {
   const [conversations, setConversations] = useState<ConversationItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const tint = useThemeColor({}, "tint");
   const card = useThemeColor({}, "card");
   const muted = useThemeColor({}, "muted");
   const bgColor = useThemeColor({}, "background");
 
-  // Setup auth token
-  useEffect(() => {
-    if (token) {
-      setAuthToken(token);
-    }
-  }, [token]);
+  const filteredConversations = conversations.filter((conversation) => {
+    const other = getOtherParticipant(conversation, userId || "");
+    return other.name.toLowerCase().includes(searchQuery.trim().toLowerCase());
+  });
 
-  // Load conversations
-  useEffect(() => {
-    if (!userId || !userRole) return;
-    loadConversations();
-  }, [userId, userRole]);
-
-  const loadConversations = async () => {
+  const loadConversations = useCallback(async () => {
     if (!userId || !userRole) return;
 
     try {
@@ -103,17 +112,29 @@ export default function ConversationListScreen() {
     } catch (err) {
       console.error("Error loading conversations:", err);
       setConversations(buildSampleConversations(userId, userRole as UserRole));
-      Alert.alert("Chat Fallback", "Backend conversations unavailable, demo chats loaded for prototype.");
     } finally {
       setLoading(false);
     }
-  };
+  }, [userId, userRole]);
+
+  // Setup auth token
+  useEffect(() => {
+    if (token) {
+      setAuthToken(token);
+    }
+  }, [token]);
+
+  // Load conversations
+  useEffect(() => {
+    if (!userId || !userRole) return;
+    loadConversations();
+  }, [userId, userRole, loadConversations]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     await loadConversations();
     setRefreshing(false);
-  }, [userId, userRole]);
+  }, [loadConversations]);
 
   const handleConversationPress = (conv: Conversation) => {
     const other = getOtherParticipant(conv, userId || "");
@@ -125,6 +146,14 @@ export default function ConversationListScreen() {
         otherUserId: other.id,
         otherUserName: other.name,
         otherUserAvatar: other.avatar || "👥",
+        otherUserPhone:
+          conv.tailor_id === "sample-tailor-aliya-formal"
+            ? "+923215560190"
+            : conv.tailor_id === "sample-tailor-zainab-bridal"
+              ? "+923004102231"
+              : conv.tailor_id === "sample-tailor-noor-party"
+                ? "+923332198744"
+                : "",
         demo: (conv as ConversationItem).isDemo ? "1" : "0",
       },
     });
@@ -134,6 +163,12 @@ export default function ConversationListScreen() {
     const other = getOtherParticipant(item, userId || "");
     const preview = item.last_message || "(No messages yet)";
     const unreadBadge = item.unread_count > 0;
+    const initials = other.name
+      .split(" ")
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0]?.toUpperCase())
+      .join("") || "VT";
 
     return (
       <Pressable
@@ -141,31 +176,23 @@ export default function ConversationListScreen() {
         style={({ pressed }) => [
           styles.convItem,
           {
-            backgroundColor: pressed ? muted : card,
+            backgroundColor: pressed ? "#fff1f6" : card,
             opacity: pressed ? 0.7 : 1,
           },
         ]}
       >
         <View style={styles.convAvatar}>
-          <ThemedText style={styles.avatarEmoji}>
-            {item.tailor_id === userId ? "👗" : "👨‍🔧"}
-          </ThemedText>
+          <ThemedText style={styles.avatarText}>{initials}</ThemedText>
         </View>
 
         <View style={styles.convContent}>
-          <View style={styles.convHeader}>
-            <ThemedText style={styles.convName}>{other.name}</ThemedText>
-            <ThemedText style={[styles.convTime, { color: muted }]}>
-              {formatConversationDate(item.last_message_at)}
-            </ThemedText>
-          </View>
+          <ThemedText numberOfLines={1} style={styles.convName}>{other.name}</ThemedText>
           <ThemedText
             numberOfLines={1}
             style={[
               styles.convPreview,
               {
-                color: unreadBadge ? tint : muted,
-                fontWeight: unreadBadge ? "600" : "400",
+                color: muted,
               },
             ]}
           >
@@ -173,13 +200,18 @@ export default function ConversationListScreen() {
           </ThemedText>
         </View>
 
-        {unreadBadge && (
-          <View style={[styles.unreadBadge, { backgroundColor: tint }]}>
-            <ThemedText style={styles.unreadCount}>
-              {item.unread_count > 99 ? "99+" : item.unread_count}
-            </ThemedText>
-          </View>
-        )}
+        <View style={styles.convMeta}>
+          <ThemedText style={[styles.convTime, { color: muted }]}>
+            {formatConversationDate(item.last_message_at)}
+          </ThemedText>
+          {unreadBadge && (
+            <View style={[styles.unreadBadge, { backgroundColor: tint }]}>
+              <ThemedText style={styles.unreadCount}>
+                {item.unread_count > 99 ? "99+" : item.unread_count}
+              </ThemedText>
+            </View>
+          )}
+        </View>
       </Pressable>
     );
   };
@@ -195,22 +227,34 @@ export default function ConversationListScreen() {
   }
 
   return (
-    <ThemedView style={styles.container}>
-      <View style={[styles.header, { backgroundColor: card }]}>
+    <ThemedView style={[styles.container, { backgroundColor: bgColor }]}>
+      <View style={[styles.header, { backgroundColor: bgColor }]}>
         <ThemedText style={styles.headerTitle}>Messages</ThemedText>
+        <View style={styles.searchRow}>
+          <ThemedText style={styles.searchIcon}>🔍</ThemedText>
+          <TextInput
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholder={userRole === "tailor" ? "Search customers..." : "Search tailors..."}
+            placeholderTextColor={muted}
+            style={styles.searchInput}
+          />
+        </View>
       </View>
 
       {loading ? (
         <View style={styles.centerContent}>
           <ActivityIndicator size="large" color={tint} />
         </View>
-      ) : conversations.length === 0 ? (
+      ) : filteredConversations.length === 0 ? (
         <View style={styles.centerContent}>
-          <ThemedText style={{ color: muted }}>No conversations yet</ThemedText>
+          <ThemedText style={{ color: muted }}>
+            {searchQuery ? "No matching conversations" : "No conversations yet"}
+          </ThemedText>
         </View>
       ) : (
         <FlatList
-          data={conversations}
+          data={filteredConversations}
           renderItem={renderConversationItem}
           keyExtractor={(item) => item.conversation_id}
           refreshControl={
@@ -228,14 +272,33 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    paddingHorizontal: 16,
-    paddingVertical: 16,
+    paddingHorizontal: 18,
+    paddingTop: 30,
+    paddingBottom: 18,
     borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
+    borderBottomColor: "#f2e6eb",
   },
   headerTitle: {
     fontSize: 24,
-    fontWeight: "700",
+    fontWeight: "800",
+    color: "#111827",
+    marginBottom: 18,
+  },
+  searchRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  searchIcon: {
+    fontSize: 20,
+    marginRight: 10,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 16,
+    color: "#111827",
+    paddingVertical: 6,
   },
   centerContent: {
     flex: 1,
@@ -243,15 +306,24 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   listContent: {
-    padding: 8,
+    paddingHorizontal: 14,
+    paddingTop: 16,
+    paddingBottom: 120,
   },
   convItem: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    marginBottom: 4,
-    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    marginBottom: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#f1dfe7",
+    shadowColor: "#000",
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 2,
   },
   convAvatar: {
     width: 56,
@@ -260,42 +332,48 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     marginRight: 12,
-    backgroundColor: "#f5f5f5",
+    backgroundColor: "#ffe4f0",
   },
-  avatarEmoji: {
-    fontSize: 28,
+  avatarText: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: "#111827",
   },
   convContent: {
     flex: 1,
-  },
-  convHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 4,
+    paddingRight: 10,
   },
   convName: {
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: "800",
+    color: "#111827",
+    marginBottom: 6,
   },
   convTime: {
     fontSize: 12,
+    fontWeight: "500",
   },
   convPreview: {
-    fontSize: 13,
-    maxWidth: "90%",
+    fontSize: 16,
+    maxWidth: "100%",
+    lineHeight: 21,
+  },
+  convMeta: {
+    minWidth: 58,
+    alignItems: "flex-end",
+    alignSelf: "stretch",
+    justifyContent: "space-between",
   },
   unreadBadge: {
-    minWidth: 24,
-    height: 24,
-    borderRadius: 12,
+    minWidth: 32,
+    height: 32,
+    borderRadius: 16,
     justifyContent: "center",
     alignItems: "center",
-    marginLeft: 8,
   },
   unreadCount: {
     color: "#fff",
-    fontSize: 12,
-    fontWeight: "600",
+    fontSize: 14,
+    fontWeight: "800",
   },
 });

@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Alert, Image, Modal, Linking } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, Pressable, Alert, Image, Modal } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
@@ -7,6 +7,7 @@ import { ThemedText } from '@/components/themed-text';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import * as ImagePicker from 'expo-image-picker';
 import { ResizeMode, Video } from 'expo-av';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface MediaItem {
   id: string;
@@ -16,18 +17,34 @@ interface MediaItem {
   name: string;
 }
 
+const SAMPLE_WORK_STORAGE_KEY = 'TAILOR_SAMPLE_WORK';
+
 export default function SampleWorkEdit() {
   const router = useRouter();
   const bg = useThemeColor({}, 'background');
   const cardBg = useThemeColor({}, 'card');
   const tint = useThemeColor({}, 'tint');
-  const muted = useThemeColor({}, 'muted');
 
   const [media, setMedia] = useState<MediaItem[]>([]);
   const [imageViewerVisible, setImageViewerVisible] = useState(false);
   const [selectedImageUri, setSelectedImageUri] = useState<string | null>(null);
   const [videoViewerVisible, setVideoViewerVisible] = useState(false);
   const [selectedVideoUri, setSelectedVideoUri] = useState<string | null>(null);
+
+  useEffect(() => {
+    const loadSavedWork = async () => {
+      try {
+        const saved = await AsyncStorage.getItem(SAMPLE_WORK_STORAGE_KEY);
+        if (saved) {
+          setMedia(JSON.parse(saved));
+        }
+      } catch {
+        Alert.alert('Error', 'Unable to load saved sample work.');
+      }
+    };
+
+    loadSavedWork();
+  }, []);
 
   const openImageViewer = (uri: string) => {
     setSelectedImageUri(uri);
@@ -95,9 +112,14 @@ export default function SampleWorkEdit() {
     ]);
   };
 
-  const handleSave = () => {
-    Alert.alert('Success', 'Sample work updated successfully!');
-    router.back();
+  const handleSave = async () => {
+    try {
+      await AsyncStorage.setItem(SAMPLE_WORK_STORAGE_KEY, JSON.stringify(media));
+      Alert.alert('Success', 'Sample work updated successfully!');
+      router.back();
+    } catch {
+      Alert.alert('Error', 'Unable to save sample work. Please try again.');
+    }
   };
 
   return (

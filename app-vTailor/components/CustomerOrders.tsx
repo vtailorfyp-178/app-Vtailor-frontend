@@ -1,30 +1,47 @@
-import React from 'react';
-import { View, ScrollView, StyleSheet, Pressable } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { View, ScrollView, StyleSheet, Pressable, Text } from 'react-native';
 import { ThemedText } from './themed-text';
 import { useRouter } from 'expo-router';
 
+type OrderStatusFilter = 'All' | 'Active' | 'Delivered' | 'Canceled';
+
+const FILTERS: OrderStatusFilter[] = ['All', 'Active', 'Delivered', 'Canceled'];
+
+const orders = [
+  { id: 1, name: 'Long Frock', tailor: 'Ahmad Tailor', status: 'In Progress', date: '25 Dec', price: 8500 },
+  { id: 2, name: 'Shalwar Kameez', tailor: 'Master Tailors', status: 'Cutting', date: '20 Dec', price: 25000 },
+  { id: 3, name: 'Kurti', tailor: 'Classic Stitches', status: 'Delivered', date: '15 Dec', price: 3500 },
+  { id: 4, name: 'Lehenga', tailor: 'Ahmad Tailor', status: 'Delivered', date: '10 Dec', price: 6000 },
+];
+
 const CustomerOrders = () => {
   const router = useRouter();
-  
-  const stats = [
-    { icon: '📦', label: 'Total', value: 8 },
-    { icon: '⏳', label: 'In Progress', value: 2 },
-    { icon: '✅', label: 'Delivered', value: 5 },
-    { icon: '❌', label: 'Cancelled', value: 1 },
-  ];
+  const [selectedFilter, setSelectedFilter] = useState<OrderStatusFilter>('All');
 
-  const orders = [
-    { id: 1, name: 'Long Frock', tailor: 'Ahmad Tailor', status: 'In Progress', date: '25 Dec', price: 8500 },
-    { id: 2, name: 'Shalwar Kameez', tailor: 'Master Tailors', status: 'Cutting', date: '20 Dec', price: 25000 },
-    { id: 3, name: 'Kurti', tailor: 'Classic Stitches', status: 'Delivered', date: '15 Dec', price: 3500 },
-    { id: 4, name: 'Lehenga', tailor: 'Ahmad Tailor', status: 'Delivered', date: '10 Dec', price: 6000 },
-  ];
+  const filteredOrders = useMemo(() => {
+    if (selectedFilter === 'All') return orders;
+    if (selectedFilter === 'Active') {
+      return orders.filter((order) => order.status === 'In Progress' || order.status === 'Cutting');
+    }
+    if (selectedFilter === 'Delivered') {
+      return orders.filter((order) => order.status === 'Delivered');
+    }
+    return orders.filter((order) => order.status === 'Canceled' || order.status === 'Cancelled');
+  }, [selectedFilter]);
+
+  const filterCounts = useMemo<Record<OrderStatusFilter, number>>(() => ({
+    All: orders.length,
+    Active: orders.filter((order) => order.status === 'In Progress' || order.status === 'Cutting').length,
+    Delivered: orders.filter((order) => order.status === 'Delivered').length,
+    Canceled: orders.filter((order) => order.status === 'Canceled' || order.status === 'Cancelled').length,
+  }), []);
 
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'Delivered': return '#14b8a6';
       case 'In Progress':
       case 'Cutting': return '#f59e0b';
+      case 'Canceled':
       case 'Cancelled': return '#ef4444';
       default: return '#6b7280';
     }
@@ -34,20 +51,32 @@ const CustomerOrders = () => {
     <View style={styles.container}>
       <View style={styles.headerSection}>
         <ThemedText style={styles.headerTitle}>My Orders</ThemedText>
-        <View style={styles.statsGrid}>
-          {stats.map((stat) => (
-            <View key={stat.label} style={styles.statCard}>
-              <ThemedText style={styles.statIcon}>{stat.icon}</ThemedText>
-              <ThemedText style={styles.statValue}>{stat.value}</ThemedText>
-              <ThemedText style={styles.statLabel}>{stat.label}</ThemedText>
-            </View>
-          ))}
-        </View>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filtersRow}>
+          {FILTERS.map((filter) => {
+            const active = selectedFilter === filter;
+            return (
+              <Pressable
+                key={filter}
+                onPress={() => setSelectedFilter(filter)}
+                style={[styles.filterChip, active ? styles.filterChipActive : styles.filterChipInactive]}
+              >
+                <Text style={[styles.filterText, active ? styles.filterTextActive : styles.filterTextInactive]}>
+                  {filter} ({filterCounts[filter]})
+                </Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
       </View>
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         <View style={styles.ordersList}>
-          {orders.map((order) => (
+          {filteredOrders.length === 0 ? (
+            <View style={styles.emptyCard}>
+              <ThemedText style={styles.emptyText}>No orders found for {selectedFilter}.</ThemedText>
+            </View>
+          ) : null}
+          {filteredOrders.map((order) => (
             <Pressable key={order.id} style={styles.orderCard} onPress={() => router.push(`/customer/tailor-details?tailorId=${order.id}&from=orders`)}>
               <View style={styles.orderHeader}>
                 <View style={{ flex: 1 }}>
@@ -77,13 +106,17 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#ffffff' },
   headerSection: { paddingHorizontal: 16, paddingTop: 40, paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: '#e5e7eb' },
   headerTitle: { fontSize: 22, fontWeight: '700', marginBottom: 16 },
-  statsGrid: { flexDirection: 'row', justifyContent: 'space-between', gap: 8 },
-  statCard: { flex: 1, alignItems: 'center', padding: 12 },
-  statIcon: { fontSize: 24, marginBottom: 6 },
-  statValue: { fontSize: 16, fontWeight: '700' },
-  statLabel: { fontSize: 9, color: '#6b7280', marginTop: 4 },
+  filtersRow: { gap: 10, paddingRight: 16 },
+  filterChip: { borderRadius: 999, paddingHorizontal: 14, paddingVertical: 9, borderWidth: 1 },
+  filterChipActive: { backgroundColor: '#111827', borderColor: '#111827' },
+  filterChipInactive: { backgroundColor: '#fff', borderColor: '#e5e7eb' },
+  filterText: { fontSize: 12, fontWeight: '700' },
+  filterTextActive: { color: '#fff' },
+  filterTextInactive: { color: '#6b7280' },
   scrollView: { flex: 1 },
   ordersList: { paddingHorizontal: 16, paddingTop: 16, gap: 10 },
+  emptyCard: { padding: 18, backgroundColor: '#fff', borderRadius: 12, borderWidth: 1, borderColor: '#e5e7eb', alignItems: 'center' },
+  emptyText: { color: '#6b7280', fontWeight: '600' },
   orderCard: { padding: 14, backgroundColor: '#f9fafb', borderRadius: 12, borderWidth: 1, borderColor: '#e5e7eb' },
   orderHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 },
   orderName: { fontSize: 14, fontWeight: '600' },

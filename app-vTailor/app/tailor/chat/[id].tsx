@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, ScrollView, TextInput, Pressable, StyleSheet, KeyboardAvoidingView, Platform, Image, Alert, Linking, Modal } from 'react-native';
+import { View, ScrollView, TextInput, Pressable, StyleSheet, KeyboardAvoidingView, Image, Alert, Linking, Modal } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { ThemedText } from '@/components/themed-text';
@@ -46,6 +46,7 @@ export default function TailorChatConversation() {
   const card = useThemeColor({}, 'card');
   const inputBorder = useThemeColor({}, 'inputBorder');
   const muted = useThemeColor({}, 'muted');
+  const textColor = useThemeColor({}, 'text');
 
   const thread = SAMPLE_THREADS[customerId];
   const [messages, setMessages] = useState<Message[]>(thread?.messages ?? []);
@@ -95,7 +96,7 @@ export default function TailorChatConversation() {
 
   const handleCall = () => {
     if (!thread) return;
-    const url = `tel:${thread.phone}`;
+    const url = `tel:${thread.phone.replace(/\s+/g, '')}`;
     Linking.openURL(url).catch(() => Alert.alert('Call Failed', 'Unable to initiate call on this device.'));
   };
 
@@ -251,7 +252,7 @@ export default function TailorChatConversation() {
               onChangeText={setInputText}
               placeholder="Type a message"
               placeholderTextColor={muted}
-              style={[styles.textInput, { color: useThemeColor({}, 'text') }]}
+              style={[styles.textInput, { color: textColor }]}
             />
             <Pressable onPress={handleSendMessage} style={[styles.sendButton, { backgroundColor: tint }]}>
               <Ionicons name="send" size={18} color="#fff" />
@@ -291,13 +292,13 @@ export default function TailorChatConversation() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12 },
+  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 54, paddingBottom: 14 },
   headerCenter: { flexDirection: 'row', alignItems: 'center', flex: 1 },
   headerButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   headerTitle: { fontSize: 18, fontWeight: '700' },
   avatar: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center' },
   avatarText: { fontWeight: '700', color: '#111827' },
-  messages: { padding: 16, paddingBottom: 16 },
+  messages: { paddingHorizontal: 16, paddingTop: 22, paddingBottom: 16 },
   messageWrapper: { marginBottom: 12 },
   tailorWrapper: { alignItems: 'flex-end' },
   customerWrapper: { alignItems: 'flex-start' },

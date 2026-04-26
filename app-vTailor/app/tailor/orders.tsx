@@ -1,10 +1,11 @@
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { ThemedText } from '@/components/themed-text';
-import { useThemeColor } from '@/hooks/use-theme-color';
 import { Ionicons } from '@expo/vector-icons';
 import { usePathname, useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+
+const BORDER = '#E0E0E0';
 
 const orders = [
   {
@@ -68,15 +69,14 @@ const orders = [
 export default function TailorOrders() {
   const router = useRouter();
   const pathname = usePathname();
-  const card = useThemeColor({}, 'card');
-  const inputBorder = useThemeColor({}, 'inputBorder');
   const [filter, setFilter] = useState<'all' | 'active' | 'done' | 'cancelled'>('all');
   const returnTo = pathname === '/tailor/orders' ? '/tailor/orders' : '/tailor?tab=orders';
 
   const getStatusStyle = (status: string) => {
-    if (status === 'ready') return { backgroundColor: '#ecfdf3', color: '#15803d' };
-    if (status === 'pending') return { backgroundColor: '#fff7ed', color: '#c2410c' };
-    return { backgroundColor: '#e0f2fe', color: '#075985' };
+    if (status === 'ready') return { backgroundColor: '#E8F8EF', color: '#2E9D65', label: 'Ready' };
+    if (status === 'pending') return { backgroundColor: '#FFF3E6', color: '#A65F18', label: 'Pending' };
+    if (status === 'cancelled') return { backgroundColor: '#E7F4FF', color: '#316E90', label: 'Cancelled' };
+    return { backgroundColor: '#E7F4FF', color: '#316E90', label: 'In Progress' };
   };
 
   const filtered = orders.filter((o) => {
@@ -124,7 +124,7 @@ export default function TailorOrders() {
           return (
             <Pressable
               key={order.id}
-              style={[styles.card, { backgroundColor: card, borderColor: inputBorder }]}
+              style={styles.card}
               onPress={() =>
                 router.push({
                   pathname: '/tailor/order-detail',
@@ -142,7 +142,7 @@ export default function TailorOrders() {
                   <Text style={styles.cardTitle}>{String(order.customer)} {order.id}</Text>
                 </View>
                 <View style={[styles.statusPill, { backgroundColor: statusStyle.backgroundColor }]}>
-                  <Text style={[styles.statusText, { color: statusStyle.color }]}>{order.status}</Text>
+                  <Text style={[styles.statusText, { color: statusStyle.color }]}>{statusStyle.label}</Text>
                 </View>
               </View>
               <View style={styles.detailsRow}>
@@ -170,39 +170,37 @@ export default function TailorOrders() {
 }
 
 const styles = StyleSheet.create({
-  container: { paddingBottom: 40, paddingHorizontal: 16, paddingTop: 16 },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
-  backBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: '#f3f4f6', alignItems: 'center', justifyContent: 'center' },
-  title: { fontSize: 18, fontWeight: '800', flex: 1, textAlign: 'center' },
-  filters: { flexDirection: 'row', gap: 8, marginBottom: 16, justifyContent: 'space-between' },
-  filterBtn: { paddingVertical: 8, paddingHorizontal: 10, borderRadius: 8, backgroundColor: '#f3f4f6' },
+  container: { paddingBottom: 40, paddingHorizontal: 16, paddingTop: 16, backgroundColor: '#fff' },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 },
+  backBtn: { width: 44, height: 44, borderRadius: 12, backgroundColor: '#F5F5F5', alignItems: 'center', justifyContent: 'center' },
+  title: { fontSize: 22, fontWeight: '600', flex: 1, textAlign: 'center', color: '#111827' },
+  filters: { flexDirection: 'row', gap: 8, marginBottom: 18, justifyContent: 'space-between' },
+  filterBtn: { paddingVertical: 10, paddingHorizontal: 11, borderRadius: 8, backgroundColor: '#fff', borderWidth: 1, borderColor: BORDER },
   filterActive: { backgroundColor: '#111827' },
   filterText: { color: '#374151', fontWeight: '600', fontSize: 12 },
-  filterTextActive: { color: '#fff', fontWeight: '700', fontSize: 12 },
+  filterTextActive: { color: '#fff', fontWeight: '600', fontSize: 12 },
   card: { 
-    padding: 12, 
+    backgroundColor: '#fff',
+    padding: 16, 
     borderRadius: 12, 
     borderWidth: 1, 
-    marginBottom: 10,
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 1,
+    borderColor: BORDER,
+    marginBottom: 12,
   },
   cardRow: { 
     flexDirection: 'row', 
     justifyContent: 'space-between', 
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 14,
   },
   cardLeft: { flex: 1 },
-  cardTitle: { fontSize: 16, fontWeight: '900', color: '#111827', marginBottom: 4, letterSpacing: 0.3 },
+  cardTitle: { fontSize: 18, fontWeight: '600', color: '#111827', marginBottom: 4 },
   detailsRow: { flexDirection: 'row', gap: 12, justifyContent: 'space-between' },
-  label: { color: '#6b7280', fontSize: 10, fontWeight: '600', marginBottom: 2 },
-  amount: { fontWeight: '800', fontSize: 14, color: '#111827' },
-  time: { color: '#ef4444', fontWeight: '700', fontSize: 12 },
-  small: { color: '#6b7280', fontSize: 12, fontWeight: '500' },
-  statusPill: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, minWidth: 70, alignItems: 'center' },
-  statusText: { fontWeight: '700', fontSize: 11, textTransform: 'capitalize' },
+  label: { color: '#6b7280', fontSize: 12, fontWeight: '400', marginBottom: 4 },
+  amount: { fontWeight: '600', fontSize: 16, color: '#111827' },
+  time: { color: '#D34B5D', fontWeight: '600', fontSize: 12 },
+  small: { color: '#6b7280', fontSize: 12, fontWeight: '400' },
+  statusPill: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999, minWidth: 82, alignItems: 'center' },
+  statusText: { fontWeight: '600', fontSize: 12 },
 });
 

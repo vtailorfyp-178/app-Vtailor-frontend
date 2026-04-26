@@ -21,8 +21,15 @@ const expoHostCandidates = [
 const EMULATOR_ANDROID_HOST = "10.0.2.2";
 let authToken: string | null = null;
 
+function normalizeApiRoot(value: string): string {
+  return value
+    .trim()
+    .replace(/\/$/, "")
+    .replace(/\/app\/api\/v1$/i, "");
+}
+
 function getCandidateApiBases(): string[] {
-  if (EXPO_API_BASE) return [EXPO_API_BASE.replace(/\/$/, "")];
+  if (EXPO_API_BASE) return [normalizeApiRoot(EXPO_API_BASE)];
 
   if (Platform.OS === "web") {
     const webHost = (typeof window !== "undefined" && window.location && window.location.hostname) || "localhost";

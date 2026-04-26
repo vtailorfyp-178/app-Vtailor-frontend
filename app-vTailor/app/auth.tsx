@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { View, StyleSheet, Image, Pressable, TextInput, Platform, Alert } from 'react-native';
+import { View, StyleSheet, Image, Pressable, TextInput, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -23,7 +23,7 @@ export default function AuthScreen() {
   const [emailFocused, setEmailFocused] = useState(false);
 
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
-  const otpRefs = useRef<Array<TextInput | null>>(Array(6).fill(null));
+  const otpRefs = useRef<(TextInput | null)[]>(Array(6).fill(null));
   const [sendingOtp, setSendingOtp] = useState(false);
   const [verifyingOtp, setVerifyingOtp] = useState(false);
   // method_id returned by /otp/start — required by /otp/verify
@@ -65,6 +65,36 @@ export default function AuthScreen() {
       console.log('OTP send error', err);
       const message = err instanceof Error ? err.message : 'Unable to reach server. Check your connection and try again.';
       Alert.alert('Send OTP Failed', message);
+    } finally {
+      setSendingOtp(false);
+    }
+  };
+
+  const resetOtpInputs = () => {
+    setOtp(['', '', '', '', '', '']);
+    setTimeout(() => otpRefs.current[0]?.focus(), 100);
+  };
+
+  const handleResendOtp = async () => {
+    if (!email || !email.includes('@')) {
+      Alert.alert('Invalid email', 'Please go back and enter a valid email address.');
+      return;
+    }
+
+    setSendingOtp(true);
+    try {
+      const res = await sendEmailOtp(email);
+      if (res && res.status === 'success' && res.method_id) {
+        setMethodId(res.method_id);
+        resetOtpInputs();
+        Alert.alert('OTP Sent', `A new code has been sent to ${email}. Please use the latest code.`);
+      } else {
+        const msg = res?.detail || res?.message || 'Failed to resend OTP. Please try again.';
+        Alert.alert('Resend OTP Failed', String(msg));
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Unable to reach server. Check your connection and try again.';
+      Alert.alert('Resend OTP Failed', message);
     } finally {
       setSendingOtp(false);
     }
@@ -122,10 +152,10 @@ export default function AuthScreen() {
             specialization: profile?.specialization,
             description: profile?.description,
             avatar: profile?.avatar,
-          });
+          }, resolvedRole, userId);
           const hasExistingProfile = Boolean(profile?.name && profile?.address);
           if (hasExistingProfile) {
-            await markProfileCompleted(resolvedRole);
+            await markProfileCompleted(resolvedRole, userId);
             if (resolvedRole === 'tailor') router.replace('/tailor');
             else router.replace('/customer');
           } else {
@@ -139,8 +169,11 @@ export default function AuthScreen() {
         Alert.alert('Verification failed', String(msg));
       }
     } catch (err) {
-      console.log('OTP verify error', err);
-      const message = err instanceof Error ? err.message : 'Unable to verify OTP. Please try again.';
+      const rawMessage = err instanceof Error ? err.message : '';
+      const message = /otp|passcode|incorrect|expired|not found|authenticated/i.test(rawMessage)
+        ? 'The OTP code is incorrect or expired. Please enter the latest code from your email, or tap Resend OTP.'
+        : 'Unable to verify OTP. Please request a new code and try again.';
+      resetOtpInputs();
       Alert.alert('Verification failed', message);
     } finally {
       setVerifyingOtp(false);
@@ -149,7 +182,11 @@ export default function AuthScreen() {
 
   const handleBack = () => {
     if (step === 'email') setStep('role');
-    else if (step === 'otp') setStep('email');
+    else if (step === 'otp') {
+      setOtp(['', '', '', '', '', '']);
+      setMethodId(null);
+      setStep('email');
+    }
   };
 
   return (
@@ -286,6 +323,16 @@ export default function AuthScreen() {
               <ThemedText style={styles.buttonText}>{verifyingOtp ? 'Verifying…' : 'Verify & Continue'}</ThemedText>
             </Pressable>
 
+            <Pressable
+              onPress={handleResendOtp}
+              disabled={sendingOtp || verifyingOtp}
+              style={styles.resendButton}
+            >
+              <ThemedText style={[styles.resendText, { color: tint }]}>
+                {sendingOtp ? 'Sending new code…' : 'Resend OTP'}
+              </ThemedText>
+            </Pressable>
+
           </View>
         )}
 
@@ -400,6 +447,15 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontSize: 16,
     color: '#fff',
+  },
+  resendButton: {
+    alignItems: 'center',
+    paddingVertical: 14,
+    marginTop: 8,
+  },
+  resendText: {
+    fontWeight: '700',
+    fontSize: 14,
   },
   otpRow: {
     flexDirection: 'row',
