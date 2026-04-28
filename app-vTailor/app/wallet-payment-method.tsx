@@ -1,7 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
+import { SURFACE_MUTED, TEXT_DARK, UI } from '@/constants/ui';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback } from 'react';
-import { BackHandler, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { BackHandler, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const paymentOptions = [
   {
@@ -22,6 +24,7 @@ const paymentOptions = [
 
 const WalletPaymentMethodScreen = () => {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const params = useLocalSearchParams();
   const transactionType = (params?.transactionType as string) || 'add';
   const role = (params?.role as string) || 'customer';
@@ -55,15 +58,26 @@ const WalletPaymentMethodScreen = () => {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: Math.max(insets.top + 10, 28) }]}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.headerRow}>
           <Pressable onPress={goBackToWallet} style={styles.backBtn}>
-            <Ionicons name="arrow-back" size={22} color="#111827" />
+            <Ionicons name="chevron-back" size={24} color={TEXT_DARK} />
           </Pressable>
           <View style={{ flex: 1 }}>
             <Text style={styles.title}>{screenTitle}</Text>
-            <Text style={styles.subtitle}>Choose how you want to {actionLabel} using a simulated JazzCash-style payment flow.</Text>
+          </View>
+        </View>
+
+        <View style={styles.heroCard}>
+          <View style={styles.heroIcon}>
+            <Ionicons name={isTailor ? 'wallet-outline' : 'card-outline'} size={28} color="#fff" />
+          </View>
+          <Text style={styles.heroTitle}>Secure wallet payment</Text>
+          <Text style={styles.heroSubtitle}>Choose how you want to {actionLabel}. Transactions are recorded in your wallet history.</Text>
+          <View style={styles.heroMeta}>
+            <Ionicons name="shield-checkmark-outline" size={14} color="#be185d" />
+            <Text style={styles.heroMetaText}>Protected payment simulation</Text>
           </View>
         </View>
 
@@ -75,7 +89,11 @@ const WalletPaymentMethodScreen = () => {
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.methodName}>{option.name}</Text>
-                <Text style={styles.methodDesc}>{option.description}</Text>
+                <Text style={styles.methodDesc}>{option.description} for wallet {transactionType === 'withdraw' ? 'withdrawal' : 'top-up'}</Text>
+                <View style={styles.methodPill}>
+                  <Ionicons name="flash-outline" size={12} color="#be185d" />
+                  <Text style={styles.methodPillText}>Fast processing</Text>
+                </View>
               </View>
               <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
             </Pressable>
@@ -91,32 +109,75 @@ export default WalletPaymentMethodScreen;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f3f4f6',
-    paddingTop: Platform.select({ ios: 60, android: 28, default: 28 }),
+    backgroundColor: SURFACE_MUTED,
   },
   content: {
-    paddingHorizontal: 16,
+    paddingHorizontal: UI.screenPadding,
     paddingBottom: 40,
   },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 14,
   },
   backBtn: {
-    padding: 6,
+    width: 42,
+    height: 42,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#fff',
     marginRight: 10,
+    ...UI.softShadow,
   },
   title: {
     fontSize: 22,
     fontWeight: '800',
-    color: '#111827',
+    color: TEXT_DARK,
     marginBottom: 6,
   },
-  subtitle: {
+  heroCard: {
+    backgroundColor: '#ec4899',
+    borderRadius: UI.radius.xl,
+    padding: 18,
+    marginBottom: 18,
+    ...UI.shadow,
+  },
+  heroIcon: {
+    width: 54,
+    height: 54,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.22)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 14,
+  },
+  heroTitle: {
+    color: '#fff',
+    fontSize: 20,
+    fontWeight: '900',
+    marginBottom: 6,
+  },
+  heroSubtitle: {
+    color: '#ffe4f0',
     fontSize: 13,
-    color: '#6b7280',
-    marginBottom: 16,
+    lineHeight: 20,
+  },
+  heroMeta: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#fff',
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 999,
+    marginTop: 14,
+  },
+  heroMetaText: {
+    color: '#be185d',
+    fontSize: 11,
+    fontWeight: '800',
   },
   cardList: {
     gap: 12,
@@ -125,15 +186,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#fff',
-    borderRadius: 12,
+    borderRadius: UI.radius.lg,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: '#fbcfe8',
+    ...UI.softShadow,
   },
   iconBox: {
     width: 48,
     height: 48,
-    borderRadius: 12,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
@@ -141,11 +203,28 @@ const styles = StyleSheet.create({
   methodName: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#111827',
+    color: TEXT_DARK,
     marginBottom: 4,
   },
   methodDesc: {
     fontSize: 12,
     color: '#6b7280',
+    lineHeight: 17,
+  },
+  methodPill: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#fdf2f8',
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    marginTop: 8,
+  },
+  methodPillText: {
+    color: '#be185d',
+    fontSize: 10,
+    fontWeight: '800',
   },
 });

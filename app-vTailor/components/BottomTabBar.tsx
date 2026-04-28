@@ -1,11 +1,11 @@
 import { useThemeColor } from '@/hooks/use-theme-color';
+import { ROLE_COLORS, UI } from '@/constants/ui';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { Platform, Pressable, StyleSheet, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ThemedText } from './themed-text';
-
-const ACCENT = '#E91E8C';
 
 interface BottomTabBarProps {
   basePath: 'customer' | 'tailor';
@@ -17,6 +17,7 @@ export const TAB_BAR_HEIGHT = Platform.select({ ios: 90, android: 80, default: 8
 
 const BottomTabBar = ({ basePath, onTabChange, activeTab }: BottomTabBarProps) => {
   const [internalTab, setInternalTab] = useState(activeTab || 'home');
+  const insets = useSafeAreaInsets();
   const cardColor = useThemeColor({}, 'card');
   const inputBorderColor = useThemeColor({}, 'inputBorder');
 
@@ -44,6 +45,8 @@ const BottomTabBar = ({ basePath, onTabChange, activeTab }: BottomTabBarProps) =
   ];
 
   const tabs = basePath === 'customer' ? customerTabs : tailorTabs;
+  const accent = basePath === 'tailor' ? ROLE_COLORS.tailor.primary : ROLE_COLORS.customer.primary;
+  const activeBg = basePath === 'tailor' ? ROLE_COLORS.tailor.soft : ROLE_COLORS.customer.soft;
 
   const router = useRouter();
 
@@ -66,22 +69,22 @@ const BottomTabBar = ({ basePath, onTabChange, activeTab }: BottomTabBarProps) =
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: cardColor, borderTopColor: inputBorderColor }]} pointerEvents="box-none">
+    <View style={[styles.container, { backgroundColor: cardColor, borderColor: inputBorderColor, bottom: Math.max(insets.bottom, 10) }]} pointerEvents="box-none">
       {tabs.map((tab) => {
         const isActive = internalTab === tab.id;
         return (
         <Pressable
           key={tab.id}
-          style={[styles.tab, isActive && styles.activeTab]}
+          style={[styles.tab, isActive && { backgroundColor: activeBg, marginHorizontal: 4 }]}
           onPress={() => handleNavigate(tab.id)}
         >
           <Ionicons
             name={tab.icon as any}
             size={24}
-            color={isActive ? ACCENT : '#6b7280'}
+            color={isActive ? accent : '#6b7280'}
             style={styles.icon}
           />
-          <ThemedText style={[styles.label, isActive && styles.activeLabel]}>
+          <ThemedText style={[styles.label, isActive && { color: accent, fontWeight: '600' }]}>
             {tab.label}
           </ThemedText>
         </Pressable>
@@ -93,27 +96,25 @@ const BottomTabBar = ({ basePath, onTabChange, activeTab }: BottomTabBarProps) =
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: TAB_BAR_HEIGHT,
+    left: 12,
+    right: 12,
+    height: Platform.select({ ios: 74, android: 68, default: 68 }),
     flexDirection: 'row',
     justifyContent: 'space-around',
     alignItems: 'center',
-    borderTopWidth: 1,
-    paddingTop: 8,
-    paddingBottom: Platform.select({ ios: 20, android: 12, default: 12 }),
+    borderWidth: 1,
+    borderRadius: 24,
+    paddingHorizontal: 6,
+    paddingVertical: 6,
     zIndex: 50,
+    ...UI.shadow,
   },
   tab: {
     alignItems: 'center',
-    padding: 8,
+    justifyContent: 'center',
+    paddingVertical: 7,
+    borderRadius: 18,
     flex: 1,
-  },
-  activeTab: {
-    backgroundColor: '#FCE4F2',
-    borderRadius: 14,
-    marginHorizontal: 4,
   },
   icon: {
     marginBottom: 4,
@@ -123,10 +124,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     color: '#6b7280',
     fontWeight: '400',
-  },
-  activeLabel: {
-    color: ACCENT,
-    fontWeight: '600',
   },
 });
 

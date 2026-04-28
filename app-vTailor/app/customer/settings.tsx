@@ -7,6 +7,7 @@ import { useThemeColor } from '@/hooks/use-theme-color';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { deleteAccount } from '@/services/authApi';
+import AppBackButton from '@/components/AppBackButton';
 
 export default function CustomerSettings() {
   const auth = useAuth();
@@ -68,9 +69,7 @@ export default function CustomerSettings() {
       <View style={[styles.container, { backgroundColor: bg }]}>
         {/* Header */}
         <View style={[styles.header, { backgroundColor: tint }]}>
-          <Pressable onPress={() => router.replace('/customer?tab=profile')} style={styles.headerButton}>
-            <Ionicons name="chevron-back" size={26} color="#fff" />
-          </Pressable>
+          <AppBackButton onPress={() => (router as any).replace('/customer?tab=profile')} variant="tint" />
           <ThemedText style={[styles.headerTitle, { color: '#fff' }]}>Settings</ThemedText>
           <View style={styles.headerButton} />
         </View>
@@ -82,7 +81,7 @@ export default function CustomerSettings() {
             <View style={styles.sectionContent}>
               <Pressable style={[styles.settingItem, { backgroundColor: cardBg }]} onPress={handleChangeEmail}>
                 <View style={styles.settingLeft}>
-                  <Text style={styles.settingIcon}>✉️</Text>
+                  <Ionicons name="mail-outline" size={20} color={tint} style={styles.settingIcon} />
                   <View style={{ marginLeft: 12, flex: 1 }}>
                     <Text style={styles.settingLabel}>Email Address</Text>
                     <Text style={[styles.settingValue, { color: muted }]}>{auth.user?.email || 'Not set'}</Text>
@@ -93,7 +92,7 @@ export default function CustomerSettings() {
 
               <Pressable style={[styles.settingItem, { backgroundColor: cardBg, marginTop: 8 }]} onPress={handleChangePhone}>
                 <View style={styles.settingLeft}>
-                  <Text style={styles.settingIcon}>�</Text>
+                  <Ionicons name="mail-open-outline" size={20} color={tint} style={styles.settingIcon} />
                   <View style={{ marginLeft: 12, flex: 1 }}>
                     <Text style={styles.settingLabel}>Email</Text>
                     <Text style={[styles.settingValue, { color: muted }]}>{auth.loginEmail || auth.user?.email || 'Not set'}</Text>
@@ -110,7 +109,7 @@ export default function CustomerSettings() {
             <View style={styles.sectionContent}>
               <View style={[styles.settingItem, { backgroundColor: cardBg }]}>
                 <View style={styles.settingLeft}>
-                  <Text style={styles.settingIcon}>🔔</Text>
+                  <Ionicons name="notifications-outline" size={20} color={tint} style={styles.settingIcon} />
                   <View style={{ marginLeft: 12, flex: 1 }}>
                     <Text style={styles.settingLabel}>All Notifications</Text>
                     <Text style={[styles.settingValue, { color: muted }]}>Control all notifications</Text>
@@ -121,7 +120,7 @@ export default function CustomerSettings() {
 
               <View style={[styles.settingItem, { backgroundColor: cardBg, marginTop: 8 }]}>
                 <View style={styles.settingLeft}>
-                  <Text style={styles.settingIcon}>📱</Text>
+                  <Ionicons name="phone-portrait-outline" size={20} color={tint} style={styles.settingIcon} />
                   <View style={{ marginLeft: 12, flex: 1 }}>
                     <Text style={styles.settingLabel}>Push Notifications</Text>
                     <Text style={[styles.settingValue, { color: muted }]}>Order updates and alerts</Text>
@@ -132,7 +131,7 @@ export default function CustomerSettings() {
 
               <View style={[styles.settingItem, { backgroundColor: cardBg, marginTop: 8 }]}>
                 <View style={styles.settingLeft}>
-                  <Text style={styles.settingIcon}>💬</Text>
+                  <Ionicons name="chatbubble-ellipses-outline" size={20} color={tint} style={styles.settingIcon} />
                   <View style={{ marginLeft: 12, flex: 1 }}>
                     <Text style={styles.settingLabel}>SMS Notifications</Text>
                     <Text style={[styles.settingValue, { color: muted }]}>Updates via SMS</Text>
@@ -149,7 +148,7 @@ export default function CustomerSettings() {
             <View style={styles.sectionContent}>
               <Pressable style={[styles.settingItem, { backgroundColor: cardBg }]} onPress={() => router.push('/customer/privacy-policy')}>
                 <View style={styles.settingLeft}>
-                  <Text style={styles.settingIcon}>🔒</Text>
+                  <Ionicons name="lock-closed-outline" size={20} color={tint} style={styles.settingIcon} />
                   <View style={{ marginLeft: 12, flex: 1 }}>
                     <Text style={styles.settingLabel}>Privacy Policy</Text>
                     <Text style={[styles.settingValue, { color: muted }]}>Read our policies</Text>
@@ -208,7 +207,7 @@ export default function CustomerSettings() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, paddingTop: 40 },
-  headerButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  headerButton: { width: 84, height: 44, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.18)', alignItems: 'center', justifyContent: 'center' },
   headerTitle: { flex: 1, textAlign: 'center', fontSize: 20, fontWeight: '700' },
   content: { padding: 16 },
   section: { marginBottom: 24 },

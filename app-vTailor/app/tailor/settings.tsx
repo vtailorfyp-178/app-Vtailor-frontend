@@ -84,7 +84,7 @@ export default function TailorSettings() {
             <View style={styles.sectionContent}>
               <Pressable style={[styles.settingItem, { backgroundColor: cardBg }]} onPress={handleChangeEmail}>
                 <View style={styles.settingLeft}>
-                  <Text style={styles.settingIcon}>✉️</Text>
+                  <Ionicons name="mail-outline" size={20} color={tint} style={styles.settingIcon} />
                   <View style={{ marginLeft: 12, flex: 1 }}>
                     <Text style={styles.settingLabel}>Email Address</Text>
                     <Text style={[styles.settingValue, { color: muted }]}>{auth.user?.email || 'Not set'}</Text>
@@ -95,7 +95,7 @@ export default function TailorSettings() {
 
               <Pressable style={[styles.settingItem, { backgroundColor: cardBg, marginTop: 8 }]} onPress={handleChangePhone}>
                 <View style={styles.settingLeft}>
-                  <Text style={styles.settingIcon}>�</Text>
+                  <Ionicons name="mail-open-outline" size={20} color={tint} style={styles.settingIcon} />
                   <View style={{ marginLeft: 12, flex: 1 }}>
                     <Text style={styles.settingLabel}>Email</Text>
                     <Text style={[styles.settingValue, { color: muted }]}>{auth.loginEmail || auth.user?.email || 'Not set'}</Text>
@@ -112,7 +112,7 @@ export default function TailorSettings() {
             <View style={styles.sectionContent}>
               <View style={[styles.settingItem, { backgroundColor: cardBg }]}>
                 <View style={styles.settingLeft}>
-                  <Text style={styles.settingIcon}>🔔</Text>
+                  <Ionicons name="notifications-outline" size={20} color={tint} style={styles.settingIcon} />
                   <View style={{ marginLeft: 12, flex: 1 }}>
                     <Text style={styles.settingLabel}>All Notifications</Text>
                     <Text style={[styles.settingValue, { color: muted }]}>Control all notifications</Text>
@@ -123,7 +123,7 @@ export default function TailorSettings() {
 
               <View style={[styles.settingItem, { backgroundColor: cardBg, marginTop: 8 }]}>
                 <View style={styles.settingLeft}>
-                  <Text style={styles.settingIcon}>📱</Text>
+                  <Ionicons name="phone-portrait-outline" size={20} color={tint} style={styles.settingIcon} />
                   <View style={{ marginLeft: 12, flex: 1 }}>
                     <Text style={styles.settingLabel}>Push Notifications</Text>
                     <Text style={[styles.settingValue, { color: muted }]}>Order updates and alerts</Text>
@@ -134,7 +134,7 @@ export default function TailorSettings() {
 
               <View style={[styles.settingItem, { backgroundColor: cardBg, marginTop: 8 }]}>
                 <View style={styles.settingLeft}>
-                  <Text style={styles.settingIcon}>💬</Text>
+                  <Ionicons name="chatbubble-ellipses-outline" size={20} color={tint} style={styles.settingIcon} />
                   <View style={{ marginLeft: 12, flex: 1 }}>
                     <Text style={styles.settingLabel}>SMS Notifications</Text>
                     <Text style={[styles.settingValue, { color: muted }]}>Updates via SMS</Text>
@@ -151,7 +151,7 @@ export default function TailorSettings() {
             <View style={styles.sectionContent}>
               <Pressable style={[styles.settingItem, { backgroundColor: cardBg }]} onPress={() => router.push('/tailor/privacy-policy')}>
                 <View style={styles.settingLeft}>
-                  <Text style={styles.settingIcon}>🔒</Text>
+                  <Ionicons name="lock-closed-outline" size={20} color={tint} style={styles.settingIcon} />
                   <View style={{ marginLeft: 12, flex: 1 }}>
                     <Text style={styles.settingLabel}>Privacy Policy</Text>
                     <Text style={[styles.settingValue, { color: muted }]}>Read our policies</Text>
@@ -162,7 +162,7 @@ export default function TailorSettings() {
 
               <Pressable style={[styles.settingItem, { backgroundColor: cardBg, marginTop: 8 }]} onPress={() => router.push('/tailor/terms-conditions' as any)}>
                 <View style={styles.settingLeft}>
-                  <Text style={styles.settingIcon}>📋</Text>
+                  <Ionicons name="document-text-outline" size={20} color={tint} style={styles.settingIcon} />
                   <View style={{ marginLeft: 12, flex: 1 }}>
                     <Text style={styles.settingLabel}>Terms & Conditions</Text>
                     <Text style={[styles.settingValue, { color: muted }]}>View terms</Text>
@@ -182,7 +182,7 @@ export default function TailorSettings() {
                 onPress={handleDeleteAccount}
               >
                 <View style={styles.settingLeft}>
-                  <Text style={styles.settingIcon}>🗑️</Text>
+                  <Ionicons name="trash-outline" size={20} color="#dc2626" style={styles.settingIcon} />
                   <View style={{ marginLeft: 12, flex: 1 }}>
                     <Text style={[styles.settingLabel, { color: '#dc2626' }]}>Delete Account</Text>
                     <Text style={[styles.settingValue, { color: '#991b1b' }]}>Permanently delete your account</Text>
@@ -210,7 +210,7 @@ export default function TailorSettings() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, paddingTop: 40 },
-  headerButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  headerButton: { width: 44, height: 44, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.18)', alignItems: 'center', justifyContent: 'center' },
   headerTitle: { flex: 1, textAlign: 'center', fontSize: 20, fontWeight: '700' },
   content: { padding: 16 },
   section: { marginBottom: 24 },

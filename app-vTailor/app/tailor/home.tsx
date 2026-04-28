@@ -1,4 +1,5 @@
 import { ThemedText } from '@/components/themed-text';
+import { SURFACE_MUTED, UI } from '@/constants/ui';
 import { useAuth } from '@/contexts/AuthContext';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { updateTailorAvailability, updateTailorLocation } from '@/services/tailorsApi';
@@ -84,7 +85,7 @@ export default function TailorHome() {
       try {
         const today = new Date();
         const map: Record<string, number> = {};
-        const persisted: Array<any> = [];
+        const persisted: any[] = [];
 
         orders.forEach((o) => {
           const delivery = o.deliveryDate ? new Date(o.deliveryDate) : null;
@@ -186,9 +187,9 @@ export default function TailorHome() {
   };
 
   return (
-    <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.container}>
+    <ScrollView style={styles.screen} contentContainerStyle={styles.container}>
       <View style={[styles.headerWrap, { backgroundColor: tint }]}> 
-        <View>
+        <View style={styles.welcomeBox}>
           <Text style={styles.welcome}>Welcome,</Text>
           <Text style={styles.name}>{user?.name || 'Sehrish Naseer'}</Text>
         </View>
@@ -218,15 +219,21 @@ export default function TailorHome() {
 
       <View style={styles.quickRow}>
         <Pressable style={[styles.quickCard, { borderColor: inputBorder }]} onPress={() => router.push('/tailor/3d-review')}>
-          <Text style={styles.quickIcon}>🧵</Text>
+          <View style={styles.quickIconWrap}>
+            <Ionicons name="cube-outline" size={22} color="#ec4899" />
+          </View>
           <Text style={styles.quickLabel}>3D Review</Text>
         </Pressable>
         <Pressable style={[styles.quickCard, { borderColor: inputBorder }]} onPress={() => router.push('/tailor/measurements')}>
-          <Text style={styles.quickIcon}>📏</Text>
+          <View style={styles.quickIconWrap}>
+            <Ionicons name="body-outline" size={22} color="#ec4899" />
+          </View>
           <Text style={styles.quickLabel}>Measurements</Text>
         </Pressable>
         <Pressable style={[styles.quickCard, { borderColor: inputBorder }]} onPress={() => router.push('/tailor/timeline')}>
-          <Text style={styles.quickIcon}>⏱️</Text>
+          <View style={styles.quickIconWrap}>
+            <Ionicons name="time-outline" size={22} color="#ec4899" />
+          </View>
           <Text style={styles.quickLabel}>Stitching Timeline</Text>
         </Pressable>
       </View>
@@ -342,29 +349,34 @@ export default function TailorHome() {
 }
 
 const styles = StyleSheet.create({
-  container: { paddingBottom: 40, paddingHorizontal: 16, paddingTop: 20 },
+  screen: { flex: 1, backgroundColor: SURFACE_MUTED },
+  container: { paddingBottom: 40, paddingHorizontal: 16, paddingTop: 16 },
   headerWrap: {
-    borderRadius: 16,
-    padding: 16,
+    borderRadius: 28,
+    paddingHorizontal: 22,
+    paddingVertical: 24,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 18,
+    ...UI.shadow,
+  },
+  welcomeBox: {
+    flex: 1,
+    minWidth: '76%',
+    paddingRight: 14,
   },
   welcome: { color: '#4b5563', fontSize: 13, marginBottom: 4 },
-  name: { color: '#111827', fontWeight: '800', fontSize: 20 },
+  name: { color: '#111827', fontWeight: '800', fontSize: 21 },
   bellWrap: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
+    width: 50,
+    height: 50,
+    borderRadius: 18,
     backgroundColor: '#fff',
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
-    shadowColor: '#000',
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
+    ...UI.softShadow,
   },
   badge: {
     position: 'absolute',
@@ -381,12 +393,13 @@ const styles = StyleSheet.create({
   badgeText: { color: '#fff', fontSize: 11, fontWeight: '700' },
   presenceCard: {
     borderWidth: 1,
-    borderRadius: 14,
-    padding: 12,
+    borderRadius: 18,
+    padding: 14,
     marginBottom: 14,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
+    ...UI.softShadow,
   },
   presenceTitle: { fontSize: 14, fontWeight: '800', color: '#111827', marginBottom: 4 },
   presenceSubtitle: { fontSize: 12, fontWeight: '600', marginBottom: 4 },
@@ -394,26 +407,25 @@ const styles = StyleSheet.create({
   quickRow: { flexDirection: 'row', gap: 10, marginBottom: 16 },
   quickCard: {
     flex: 1,
-    paddingVertical: 12,
-    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 8,
+    borderRadius: 18,
     borderWidth: 1,
     backgroundColor: '#fff',
     alignItems: 'center',
+    ...UI.softShadow,
   },
-  quickIcon: { fontSize: 18, marginBottom: 6 },
+  quickIconWrap: { width: 40, height: 40, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FCE4F2', marginBottom: 8 },
   quickLabel: { fontWeight: '700', fontSize: 12, color: '#111827' },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
   sectionTitle: { fontWeight: '800', fontSize: 16 },
   link: { color: '#ec4899', fontWeight: '700', fontSize: 12 },
   orderCard: {
-    padding: 14,
-    borderRadius: 14,
+    padding: 16,
+    borderRadius: 18,
     borderWidth: 1,
     marginBottom: 12,
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 2,
+    ...UI.softShadow,
   },
   orderRow: { 
     flexDirection: 'row', 
@@ -460,8 +472,8 @@ const styles = StyleSheet.create({
   detailValue: { fontWeight: '700', fontSize: 12, color: '#111827' },
   penalty: { color: '#b91c1c' },
   actionsRow: { flexDirection: 'row', gap: 10 },
-  primaryBtn: { flex: 1, backgroundColor: '#111827', paddingVertical: 10, borderRadius: 12, alignItems: 'center' },
+  primaryBtn: { flex: 1, backgroundColor: '#111827', paddingVertical: 12, borderRadius: 14, alignItems: 'center' },
   primaryText: { color: '#fff', fontWeight: '800', fontSize: 12 },
-  secondaryBtn: { flex: 1, paddingVertical: 10, borderRadius: 12, borderWidth: 1, alignItems: 'center', backgroundColor: '#fff' },
+  secondaryBtn: { flex: 1, paddingVertical: 12, borderRadius: 14, borderWidth: 1, alignItems: 'center', backgroundColor: '#fff' },
   secondaryText: { fontWeight: '800', color: '#111827', fontSize: 12 },
 });

@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { ThemedText } from '@/components/themed-text';
 import { useThemeColor } from '@/hooks/use-theme-color';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { Href, useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -28,9 +28,9 @@ export default function TailorProfile() {
 
   const specializations = ['Formal Dresses', 'Wedding Attire', 'Traditional'];
   const sampleWork = [1, 2, 3, 4, 5, 6];
-  const menuItems = [
-    { label: 'Settings', path: '/tailor/settings', emoji: '⚙️' },
-    { label: 'Help & Support', path: '/tailor/help', emoji: '❓' },
+  const menuItems: { label: string; path: Href; icon: keyof typeof Ionicons.glyphMap }[] = [
+    { label: 'Settings', path: '/tailor/settings', icon: 'settings-outline' },
+    { label: 'Help & Support', path: '/tailor/help', icon: 'help-circle-outline' },
   ];
 
   const handleLogout = () => {
@@ -63,7 +63,7 @@ export default function TailorProfile() {
           <View style={styles.headerTop}>
             <ThemedText style={styles.headerTitle}>Profile</ThemedText>
             <Pressable style={styles.iconBtn} onPress={() => router.push('/tailor/profile-edit')}>
-              <Text style={styles.iconBtnText}>✏️</Text>
+              <Ionicons name="create-outline" size={19} color="#ec4899" />
             </Pressable>
           </View>
 
@@ -71,14 +71,14 @@ export default function TailorProfile() {
             <View style={[styles.avatar, { backgroundColor: cardBg }]}> 
               {user?.avatar
                 ? <Image source={{ uri: user.avatar }} style={styles.avatarImage} />
-                : <Text style={styles.avatarIcon}>👤</Text>
+                : <Ionicons name="person-outline" size={34} color="#ec4899" />
               }
             </View>
             <View style={{ marginLeft: 12 }}>
               <Text style={styles.name}>{user?.name || 'Tailor Name'}</Text>
               <Text style={styles.phone}>{auth?.loginEmail || user?.email || 'tailor@example.com'}</Text>
               <View style={styles.ratingRow}>
-                <Text style={styles.star}>⭐</Text>
+                <Ionicons name="star" size={15} color="#f59e0b" style={styles.star} />
                 <Text style={styles.rating}>4.8</Text>
                 <Text style={styles.reviews}>(128 reviews)</Text>
               </View>
@@ -99,10 +99,10 @@ export default function TailorProfile() {
           <View style={styles.section}>
             <Text style={styles.sectionLabel}>Information</Text>
             <View style={[styles.infoCard, { backgroundColor: cardBg }]}> 
-              <View style={styles.infoRow}><Text style={styles.infoIcon}>📱</Text><View style={{flex:1}}><Text style={styles.infoLabel}>Phone</Text><Text style={styles.infoValue}>{user?.phone || 'Not set'}</Text></View></View>
-              <View style={styles.infoRow}><Text style={styles.infoIcon}>✉️</Text><View style={{flex:1}}><Text style={styles.infoLabel}>Email</Text><Text style={styles.infoValue}>{auth?.loginEmail || user?.email || 'Not set'}</Text></View></View>
-              <View style={styles.infoRow}><Text style={styles.infoIcon}>📍</Text><View style={{flex:1}}><Text style={styles.infoLabel}>Address</Text><Text style={styles.infoValue}>{user?.address || 'Not set'}</Text></View></View>
-              <View style={styles.infoRow}><Text style={styles.infoIcon}>💼</Text><View style={{flex:1}}><Text style={styles.infoLabel}>Experience</Text><Text style={styles.infoValue}>{user?.experience ? `${user.experience} Years` : 'Not set'}</Text></View></View>
+              <View style={styles.infoRow}><Ionicons name="call-outline" size={19} color="#ec4899" style={styles.infoIcon} /><View style={{flex:1}}><Text style={styles.infoLabel}>Phone</Text><Text style={styles.infoValue}>{user?.phone || 'Not set'}</Text></View></View>
+              <View style={styles.infoRow}><Ionicons name="mail-outline" size={19} color="#ec4899" style={styles.infoIcon} /><View style={{flex:1}}><Text style={styles.infoLabel}>Email</Text><Text style={styles.infoValue}>{auth?.loginEmail || user?.email || 'Not set'}</Text></View></View>
+              <View style={styles.infoRow}><Ionicons name="location-outline" size={19} color="#ec4899" style={styles.infoIcon} /><View style={{flex:1}}><Text style={styles.infoLabel}>Address</Text><Text style={styles.infoValue}>{user?.address || 'Not set'}</Text></View></View>
+              <View style={styles.infoRow}><Ionicons name="briefcase-outline" size={19} color="#ec4899" style={styles.infoIcon} /><View style={{flex:1}}><Text style={styles.infoLabel}>Experience</Text><Text style={styles.infoValue}>{user?.experience ? `${user.experience} Years` : 'Not set'}</Text></View></View>
             </View>
           </View>
 
@@ -133,7 +133,7 @@ export default function TailorProfile() {
           <View style={styles.section}>
             {menuItems.map((m) => (
               <Pressable key={m.label} style={[styles.menuItem, { backgroundColor: cardBg }]} onPress={() => router.push(m.path)}>
-                <Text style={styles.menuIcon}>{m.emoji}</Text>
+                <Ionicons name={m.icon} size={20} color="#ec4899" style={styles.menuIcon} />
                 <Text style={styles.menuLabel}>{m.label}</Text>
                 <Text style={styles.menuArrow}>›</Text>
               </Pressable>
@@ -153,11 +153,9 @@ const styles = StyleSheet.create({
   headerTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   headerTitle: { fontSize: 20, fontWeight: '700', color: '#6b21a8' },
   iconBtn: { padding: 8, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.6)' },
-  iconBtnText: { fontSize: 14 },
   profileRow: { flexDirection: 'row', alignItems: 'center', marginTop: 12 },
   avatar: { width: 80, height: 80, borderRadius: 40, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   avatarImage: { width: '100%', height: '100%', borderRadius: 40 },
-  avatarIcon: { fontSize: 32 },
   name: { fontSize: 18, fontWeight: '700' },
   phone: { color: '#6b7280' },
   ratingRow: { flexDirection: 'row', alignItems: 'center', marginTop: 6 },

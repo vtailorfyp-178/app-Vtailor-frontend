@@ -14,12 +14,12 @@ export type ChatReply = {
 };
 
 export const FASHION_QUICK_PROMPTS: string[] = [
-  'What should I wear to a job interview?',
-  'Best fabrics for summer?',
-  'How to build a capsule wardrobe?',
-  'Colors that suit warm skin tones?',
-  'Outfit ideas for a first date',
-  "What's trending this season?",
+  'Which fabric is best for summer dresses?',
+  'Suggest winter dress fabrics and colors',
+  'Best colors for a formal dress',
+  'Which fabric is best for party wear?',
+  'Season-wise dress color suggestions',
+  'Best fabric for traditional dresses',
 ];
 
 const expoHostCandidates = [
@@ -39,23 +39,24 @@ function buildBaseUrl(host: string) {
 }
 
 function getCandidateBaseUrls() {
-  if (EXPO_API_BASE) return [EXPO_API_BASE];
+  const urls: string[] = [];
+  if (EXPO_API_BASE) urls.push(EXPO_API_BASE);
 
   if (Platform.OS === 'web') {
     const webHost = (typeof window !== 'undefined' && window.location && window.location.hostname) || 'localhost';
-    return [
+    urls.push(
       `http://${webHost}:8000/app/api/v1`,
       'http://127.0.0.1:8000/app/api/v1',
       'http://localhost:8000/app/api/v1',
-    ];
+    );
+    return Array.from(new Set(urls));
   }
 
-  const urls: string[] = [];
   if (Platform.OS === 'android') urls.push(buildBaseUrl(EMULATOR_ANDROID_HOST));
   urls.push(...expoHostCandidates.map(buildBaseUrl));
   urls.push(buildBaseUrl('127.0.0.1'));
   urls.push(buildBaseUrl('localhost'));
-  return urls;
+  return Array.from(new Set(urls));
 }
 
 async function fetchWithFallback(path: string, init?: RequestInit) {

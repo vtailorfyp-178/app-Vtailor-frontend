@@ -5,6 +5,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { ThemedText } from '@/components/themed-text';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
+import AppBackButton from '@/components/AppBackButton';
+import { SURFACE_MUTED, TEXT_DARK, UI } from '@/constants/ui';
 
 const SAMPLE_ORDERS = [
   {
@@ -92,14 +94,12 @@ export default function OrderDetail() {
 
   return (
     <ProtectedRoute requiredRole="tailor">
-      <View style={[styles.container, { backgroundColor: bg }]}>
+      <View style={styles.container}>
         {/* Header */}
         <View style={[styles.header, { backgroundColor: tint }]}>
-          <Pressable onPress={handleBack} style={styles.headerButton}>
-            <Ionicons name="chevron-back" size={26} color="#fff" />
-          </Pressable>
+          <AppBackButton onPress={handleBack} variant="tint" />
           <ThemedText style={[styles.headerTitle, { color: '#fff' }]}>Order Details</ThemedText>
-          <View style={styles.headerButton} />
+          <ThemedText style={styles.headerSub}>Manage progress, measurements, and customer chat</ThemedText>
         </View>
 
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
@@ -116,23 +116,23 @@ export default function OrderDetail() {
             </View>
 
             <View style={styles.infoRow}>
-              <Text style={styles.label}>Garment</Text>
+              <View style={styles.labelRow}><Ionicons name="shirt-outline" size={15} color={tint} /><Text style={styles.label}>Garment</Text></View>
               <Text style={styles.value}>{order.garment}</Text>
             </View>
             <View style={styles.infoRow}>
-              <Text style={styles.label}>Customer Phone</Text>
+              <View style={styles.labelRow}><Ionicons name="call-outline" size={15} color={tint} /><Text style={styles.label}>Customer Phone</Text></View>
               <Text style={styles.value}>{order.phone}</Text>
             </View>
             <View style={styles.infoRow}>
-              <Text style={styles.label}>Delivery</Text>
+              <View style={styles.labelRow}><Ionicons name="cube-outline" size={15} color={tint} /><Text style={styles.label}>Delivery</Text></View>
               <Text style={styles.value}>{order.delivery}</Text>
             </View>
             <View style={styles.infoRow}>
-              <Text style={styles.label}>Amount</Text>
+              <View style={styles.labelRow}><Ionicons name="cash-outline" size={15} color={tint} /><Text style={styles.label}>Amount</Text></View>
               <Text style={styles.value}>Rs {order.amount.toLocaleString()}</Text>
             </View>
             <View style={styles.infoRow}>
-              <Text style={styles.label}>Time Left</Text>
+              <View style={styles.labelRow}><Ionicons name="time-outline" size={15} color={tint} /><Text style={styles.label}>Time Left</Text></View>
               <Text style={[styles.value, { color: '#ef4444' }]}>{order.timeLeft}</Text>
             </View>
             <View style={styles.infoRow}>
@@ -191,28 +191,29 @@ export default function OrderDetail() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, paddingTop: 40 },
-  headerButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { flex: 1, textAlign: 'center', fontSize: 20, fontWeight: '700' },
-  content: { padding: 16 },
-  card: { padding: 16, borderRadius: 14, borderWidth: 1, borderColor: '#e5e7eb', marginBottom: 16 },
+  container: { flex: 1, backgroundColor: SURFACE_MUTED },
+  header: { paddingHorizontal: 16, paddingBottom: 18, paddingTop: 40, gap: 10 },
+  headerTitle: { fontSize: 22, fontWeight: '900' },
+  headerSub: { color: '#fff', opacity: 0.88, fontSize: 13, fontWeight: '600' },
+  content: { padding: 16, paddingBottom: 120 },
+  card: { padding: 16, borderRadius: 20, borderWidth: 1, borderColor: '#e5e7eb', marginBottom: 16, ...UI.softShadow },
   topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-  customer: { fontSize: 18, fontWeight: '800', color: '#111827' },
+  customer: { fontSize: 20, fontWeight: '900', color: TEXT_DARK },
   meta: { fontSize: 12, marginTop: 2 },
   statusPill: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999 },
   statusText: { fontWeight: '700', fontSize: 11 },
-  infoRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 },
+  infoRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12, gap: 12 },
+  labelRow: { flexDirection: 'row', alignItems: 'center', gap: 5, flex: 1 },
   label: { fontSize: 13, color: '#6b7280', fontWeight: '600' },
-  value: { fontSize: 13, fontWeight: '800', color: '#111827' },
+  value: { fontSize: 13, fontWeight: '900', color: TEXT_DARK, flexShrink: 1, textAlign: 'right' },
   penalty: { color: '#b91c1c' },
   badgesRow: { flexDirection: 'row', gap: 8, marginTop: 4 },
   badge: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10 },
   badgeText: { fontSize: 12, fontWeight: '700' },
-  actionsCard: { padding: 16, borderRadius: 14, borderWidth: 1, borderColor: '#e5e7eb' },
+  actionsCard: { padding: 16, borderRadius: 20, borderWidth: 1, borderColor: '#e5e7eb', ...UI.softShadow },
   sectionTitle: { fontSize: 16, fontWeight: '800', marginBottom: 12 },
   actionsRow: { flexDirection: 'row', gap: 10 },
-  actionBtn: { flex: 1, paddingVertical: 12, borderRadius: 10, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8 },
-  actionBtnWide: { flex: 1, paddingVertical: 12, borderRadius: 10, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8 },
+  actionBtn: { flex: 1, paddingVertical: 13, borderRadius: 14, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8 },
+  actionBtnWide: { flex: 1, paddingVertical: 13, borderRadius: 14, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8 },
   actionText: { fontSize: 13, fontWeight: '800' },
 });

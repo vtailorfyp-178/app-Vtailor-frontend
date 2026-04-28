@@ -11,8 +11,10 @@ import {
 import { useRouter } from "expo-router";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
+import { SURFACE_MUTED, TEXT_DARK, UI } from "@/constants/ui";
 import { useThemeColor } from "@/hooks/use-theme-color";
 import { useAuth } from "@/contexts/AuthContext";
+import { Ionicons } from "@expo/vector-icons";
 import {
   Conversations,
   setAuthToken,
@@ -91,7 +93,7 @@ export default function ConversationListScreen() {
   const tint = useThemeColor({}, "tint");
   const card = useThemeColor({}, "card");
   const muted = useThemeColor({}, "muted");
-  const bgColor = useThemeColor({}, "background");
+  const inputBorder = useThemeColor({}, "inputBorder");
 
   const filteredConversations = conversations.filter((conversation) => {
     const other = getOtherParticipant(conversation, userId || "");
@@ -138,8 +140,9 @@ export default function ConversationListScreen() {
 
   const handleConversationPress = (conv: Conversation) => {
     const other = getOtherParticipant(conv, userId || "");
+    const pathname = userRole === "tailor" ? "/tailor/chat/[id]" : "/customer/chat-conversation";
     router.push({
-      pathname: "/customer/chat-conversation",
+      pathname,
       params: {
         conversation_id: conv.conversation_id,
         id: conv.conversation_id,
@@ -227,11 +230,12 @@ export default function ConversationListScreen() {
   }
 
   return (
-    <ThemedView style={[styles.container, { backgroundColor: bgColor }]}>
-      <View style={[styles.header, { backgroundColor: bgColor }]}>
+    <ThemedView style={styles.container}>
+      <View style={[styles.header, { backgroundColor: tint }]}>
+        <ThemedText style={styles.headerEyebrow}>Stay connected</ThemedText>
         <ThemedText style={styles.headerTitle}>Messages</ThemedText>
-        <View style={styles.searchRow}>
-          <ThemedText style={styles.searchIcon}>🔍</ThemedText>
+        <View style={[styles.searchRow, { borderColor: inputBorder }]}>
+          <Ionicons name="search-outline" size={18} color={muted} style={styles.searchIcon} />
           <TextInput
             value={searchQuery}
             onChangeText={setSearchQuery}
@@ -270,34 +274,47 @@ export default function ConversationListScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: SURFACE_MUTED,
   },
   header: {
+    margin: 16,
     paddingHorizontal: 18,
-    paddingTop: 30,
+    paddingTop: 24,
     paddingBottom: 18,
-    borderBottomWidth: 1,
-    borderBottomColor: "#f2e6eb",
+    borderRadius: 24,
+    ...UI.shadow,
+  },
+  headerEyebrow: {
+    color: "#fff",
+    opacity: 0.86,
+    fontSize: 12,
+    fontWeight: "800",
+    letterSpacing: 0.6,
+    textTransform: "uppercase",
+    marginBottom: 4,
   },
   headerTitle: {
     fontSize: 24,
-    fontWeight: "800",
-    color: "#111827",
+    fontWeight: "900",
+    color: "#fff",
     marginBottom: 18,
   },
   searchRow: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 18,
+    borderWidth: 1,
+    backgroundColor: "#fff",
   },
   searchIcon: {
-    fontSize: 20,
     marginRight: 10,
   },
   searchInput: {
     flex: 1,
     fontSize: 16,
-    color: "#111827",
+    color: TEXT_DARK,
     paddingVertical: 6,
   },
   centerContent: {
@@ -307,7 +324,7 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingHorizontal: 14,
-    paddingTop: 16,
+    paddingTop: 2,
     paddingBottom: 120,
   },
   convItem: {
@@ -316,14 +333,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 14,
     marginBottom: 12,
-    borderRadius: 14,
+    borderRadius: 18,
     borderWidth: 1,
     borderColor: "#f1dfe7",
-    shadowColor: "#000",
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 2,
+    ...UI.softShadow,
   },
   convAvatar: {
     width: 56,
@@ -337,7 +350,7 @@ const styles = StyleSheet.create({
   avatarText: {
     fontSize: 16,
     fontWeight: "800",
-    color: "#111827",
+    color: TEXT_DARK,
   },
   convContent: {
     flex: 1,
@@ -346,7 +359,7 @@ const styles = StyleSheet.create({
   convName: {
     fontSize: 16,
     fontWeight: "800",
-    color: "#111827",
+    color: TEXT_DARK,
     marginBottom: 6,
   },
   convTime: {

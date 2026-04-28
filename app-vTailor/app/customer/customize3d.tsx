@@ -7,8 +7,11 @@ import { ThemedView } from '@/components/themed-view';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { useAuth } from '@/contexts/AuthContext';
 import { saveUserCustomization } from '@/services/userDataService';
+import { Ionicons } from '@expo/vector-icons';
+import AppBackButton from '@/components/AppBackButton';
 
 type TabId = 'neck' | 'sleeves' | 'bottom' | 'frock-style' | 'colors';
+type CustomizationOption = { id: string; name: string; color?: string; emoji?: string };
 
 const baseTabs: { id: TabId; label: string }[] = [
   { id: 'neck', label: 'Neck' },
@@ -33,7 +36,7 @@ const bottomOptions = [
   { id: 'tulip', name: 'Tulip Style' },
 ];
 
-const shararaBottomOptions = [{ id: 'flared', name: 'Flared Style' }];
+const shararaBottomOptions: CustomizationOption[] = [{ id: 'flared', name: 'Flared Style' }];
 
 const frockStyleOptions = [
   { id: 'flared-bottom', name: 'Flared Bottom' },
@@ -61,7 +64,7 @@ const optionImages: Record<string, any> = {
   'front-slit': require('../../2d model/variations/front-slit-frock.png'),
 };
 
-const options: Record<TabId, Array<{ id: string; name: string; color?: string; emoji?: string }>> = {
+const options: Record<TabId, CustomizationOption[]> = {
   neck: neckOptions,
   sleeves: sleeveOptions,
   bottom: bottomOptions,
@@ -113,7 +116,7 @@ export default function Customize3D() {
     setSelections((p) => ({ ...p, [tab]: id }));
   };
 
-  const getOptions = (tab: TabId) => {
+  const getOptions = (tab: TabId): CustomizationOption[] => {
     if (tab === 'bottom' && isSharara) {
       return shararaBottomOptions;
     }
@@ -148,6 +151,12 @@ export default function Customize3D() {
 
   const completed = availableTabs.filter((tab) => Boolean(selections[tab.id])).length;
   const isComplete = completed === availableTabs.length;
+  const activeOptionName = getOptions(activeTab).find((opt) => opt.id === selections[activeTab])?.name;
+  const modelName = (params.modelName as string) || 'your dress';
+  const selectedColor = colorOptions.find((opt) => opt.id === selections.colors)?.name;
+  const suggestionText = selectedColor
+    ? `${selectedColor} works beautifully for ${modelName}. Pair it with balanced sleeves and a clean neckline for an elegant stitched look.`
+    : `Choose a color first to get fabric, season, and styling suggestions for ${modelName}.`;
 
   const imageSource =
     modelId === 'kurti'
@@ -169,9 +178,9 @@ export default function Customize3D() {
   return (
     <ThemedView style={styles.container}>
       <View style={[styles.header, { backgroundColor: tint }]}> 
-        <Pressable onPress={() => (router as any).back()}><ThemedText style={{ color: '#fff' }}>{'< Back'}</ThemedText></Pressable>
+        <AppBackButton onPress={() => (router as any).back()} variant="tint" />
         <ThemedText style={styles.headerTitle}>3D Customization</ThemedText>
-        <View style={{ width: 56 }} />
+        <View style={styles.headerSpacer} />
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll}>
@@ -182,6 +191,29 @@ export default function Customize3D() {
             <ThemedText>3D Avatar Preview</ThemedText>
           )}
         </View>
+
+        <Pressable
+          onPress={() => (router as any).push('/customer/ai-assistant')}
+          style={[styles.aiStyleCard, { borderColor: inputBorder, backgroundColor: card }]}
+        >
+          <View style={[styles.aiIconBox, { backgroundColor: '#fdf2f8' }]}>
+            <Ionicons name="sparkles-outline" size={22} color={tint} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <View style={styles.aiTitleRow}>
+              <ThemedText style={styles.aiTitle}>AI Style Suggestions</ThemedText>
+              <View style={[styles.aiPill, { backgroundColor: tint }]}>
+                <ThemedText style={styles.aiPillText}>Ask AI</ThemedText>
+              </View>
+            </View>
+            <ThemedText style={styles.aiDesc}>
+              {suggestionText}
+            </ThemedText>
+            <ThemedText style={styles.aiMeta}>
+              {activeOptionName ? `Current ${activeTab.replace('-', ' ')}: ${activeOptionName}` : 'Select options to personalize suggestions'}
+            </ThemedText>
+          </View>
+        </Pressable>
 
         <View style={styles.optionsWrap}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
@@ -232,10 +264,19 @@ export default function Customize3D() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   header: { paddingTop: 40, padding: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  headerTitle: { color: '#fff', fontWeight: '700' },
+  headerSpacer: { width: 84 },
+  headerTitle: { flex: 1, color: '#fff', fontWeight: '700', textAlign: 'center' },
   scroll: { padding: 12 },
   preview: { height: 220, borderRadius: 12, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
   previewImage: { width: '100%', height: '100%' },
+  aiStyleCard: { flexDirection: 'row', padding: 14, borderRadius: 16, borderWidth: 1, marginTop: 12, alignItems: 'flex-start' },
+  aiIconBox: { width: 44, height: 44, borderRadius: 16, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
+  aiTitleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  aiTitle: { fontSize: 15, fontWeight: '800' },
+  aiPill: { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 },
+  aiPillText: { color: '#fff', fontSize: 10, fontWeight: '800' },
+  aiDesc: { marginTop: 6, fontSize: 12, lineHeight: 18, color: '#4b5563' },
+  aiMeta: { marginTop: 8, fontSize: 11, color: '#be185d', fontWeight: '700' },
   optionsWrap: { paddingTop: 12 },
   tabBtn: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, marginRight: 8, alignItems: 'center', borderWidth: 1, borderColor: 'transparent' },
   optCard: { width: 92, padding: 6, borderRadius: 12, marginRight: 8, borderWidth: 1, alignItems: 'center' },

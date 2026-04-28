@@ -5,6 +5,8 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { Ionicons } from '@expo/vector-icons';
+import AppBackButton from '@/components/AppBackButton';
+import { SURFACE_MUTED, TEXT_DARK, UI } from '@/constants/ui';
 
 interface CustomerRequest {
   id: string;
@@ -13,7 +15,7 @@ interface CustomerRequest {
   budget: number;
   submittedDate: string;
   status: 'pending' | 'accepted' | 'declined';
-  customerImage?: string;
+  initials: string;
 }
 
 const PENDING_REQUESTS: CustomerRequest[] = [
@@ -24,7 +26,7 @@ const PENDING_REQUESTS: CustomerRequest[] = [
     budget: 8500,
     submittedDate: '03 Jan 2026 • 2:30 PM',
     status: 'pending',
-    customerImage: '👩',
+    initials: 'FK',
   },
   {
     id: 'REQ-002',
@@ -33,7 +35,7 @@ const PENDING_REQUESTS: CustomerRequest[] = [
     budget: 6000,
     submittedDate: '02 Jan 2026 • 11:15 AM',
     status: 'pending',
-    customerImage: '👩‍🦱',
+    initials: 'AA',
   },
 ];
 
@@ -69,11 +71,9 @@ export default function TailorRequests() {
   return (
     <ThemedView style={styles.container}>
       <View style={[styles.header, { backgroundColor: tint }]}>
-        <Pressable onPress={() => (router as any).back()}>
-          <ThemedText style={{ color: '#fff' }}>{'< Back'}</ThemedText>
-        </Pressable>
+        <AppBackButton onPress={() => (router as any).back()} variant="tint" />
         <ThemedText style={styles.headerTitle}>Customer Requests</ThemedText>
-        <View style={{ width: 56 }} />
+        <ThemedText style={styles.headerSub}>Review new orders and respond quickly</ThemedText>
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll}>
@@ -88,7 +88,9 @@ export default function TailorRequests() {
 
           {pendingRequests.length === 0 ? (
             <View style={[styles.emptyState, { backgroundColor: card }]}>
-              <ThemedText style={{ fontSize: 40, marginBottom: 8 }}>📭</ThemedText>
+              <View style={[styles.emptyIcon, { backgroundColor: '#FCE4F2' }]}>
+                <Ionicons name="file-tray-outline" size={26} color={tint} />
+              </View>
               <ThemedText style={{ fontWeight: '600', marginBottom: 4 }}>No Pending Requests</ThemedText>
               <ThemedText style={[styles.emptyText, { color: muted }]}>
                 You'll get notifications when customers send requests
@@ -102,7 +104,9 @@ export default function TailorRequests() {
               >
                 <View style={styles.requestHeader}>
                   <View style={styles.customerInfo}>
-                    <ThemedText style={styles.customerAvatar}>{request.customerImage}</ThemedText>
+                    <View style={[styles.customerAvatar, { backgroundColor: '#FCE4F2' }]}>
+                      <ThemedText style={[styles.customerAvatarText, { color: tint }]}>{request.initials}</ThemedText>
+                    </View>
                     <View style={{ marginLeft: 12, flex: 1 }}>
                       <ThemedText style={styles.customerName}>{request.customerName}</ThemedText>
                       <ThemedText style={[styles.small, { color: muted }]}>
@@ -115,11 +119,17 @@ export default function TailorRequests() {
                 <View style={styles.detailsRow}>
                   <View style={styles.detailItem}>
                     <ThemedText style={[styles.label, { color: muted }]}>Budget</ThemedText>
-                    <ThemedText style={styles.value}>Rs {request.budget.toLocaleString()}</ThemedText>
+                    <View style={styles.detailValueRow}>
+                      <Ionicons name="cash-outline" size={16} color={tint} />
+                      <ThemedText style={styles.value}>Rs {request.budget.toLocaleString()}</ThemedText>
+                    </View>
                   </View>
                   <View style={styles.detailItem}>
                     <ThemedText style={[styles.label, { color: muted }]}>Requested</ThemedText>
-                    <ThemedText style={[styles.small, { color: muted }]}>{request.submittedDate}</ThemedText>
+                    <View style={styles.detailValueRow}>
+                      <Ionicons name="time-outline" size={15} color={muted} />
+                      <ThemedText style={[styles.small, { color: muted, flex: 1 }]}>{request.submittedDate}</ThemedText>
+                    </View>
                   </View>
                 </View>
 
@@ -164,7 +174,9 @@ export default function TailorRequests() {
               >
                 <View style={styles.requestHeader}>
                   <View style={styles.customerInfo}>
-                    <ThemedText style={styles.customerAvatar}>{request.customerImage}</ThemedText>
+                    <View style={[styles.customerAvatar, { backgroundColor: '#FCE4F2' }]}>
+                      <ThemedText style={[styles.customerAvatarText, { color: tint }]}>{request.initials}</ThemedText>
+                    </View>
                     <View style={{ marginLeft: 12, flex: 1 }}>
                       <ThemedText style={styles.customerName}>{request.customerName}</ThemedText>
                       <ThemedText style={[styles.small, { color: muted }]}>
@@ -209,23 +221,23 @@ export default function TailorRequests() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
+  container: { flex: 1, backgroundColor: SURFACE_MUTED },
   header: {
     paddingTop: 40,
-    padding: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingBottom: 18,
+    gap: 10,
   },
-  headerTitle: { color: '#fff', fontWeight: '700', fontSize: 16 },
-  scroll: { padding: 12, paddingBottom: 20 },
+  headerTitle: { color: '#fff', fontWeight: '900', fontSize: 22 },
+  headerSub: { color: '#fff', opacity: 0.88, fontSize: 13, fontWeight: '600' },
+  scroll: { padding: 16, paddingBottom: 120 },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 12,
     marginTop: 12,
   },
-  sectionTitle: { fontSize: 16, fontWeight: '700' },
+  sectionTitle: { fontSize: 17, fontWeight: '900', color: TEXT_DARK },
   badge: { marginLeft: 12, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
   badgeText: { color: '#fff', fontWeight: '600', fontSize: 12 },
   emptyState: {
@@ -233,13 +245,16 @@ const styles = StyleSheet.create({
     padding: 32,
     alignItems: 'center',
     marginBottom: 16,
+    ...UI.softShadow,
   },
+  emptyIcon: { width: 58, height: 58, borderRadius: 22, alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
   emptyText: { fontSize: 12, textAlign: 'center' },
   requestCard: {
-    borderRadius: 12,
+    borderRadius: 20,
     borderWidth: 1,
-    padding: 14,
+    padding: 16,
     marginBottom: 12,
+    ...UI.softShadow,
   },
   processedCard: { opacity: 0.7 },
   requestHeader: {
@@ -248,9 +263,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 12,
   },
-  customerInfo: { flexDirection: 'row', flex: 1 },
-  customerAvatar: { fontSize: 36 },
-  customerName: { fontSize: 14, fontWeight: '600' },
+  customerInfo: { flexDirection: 'row', flex: 1, alignItems: 'center' },
+  customerAvatar: { width: 48, height: 48, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  customerAvatarText: { fontSize: 15, fontWeight: '900' },
+  customerName: { fontSize: 15, fontWeight: '900', color: TEXT_DARK },
   small: { fontSize: 12, marginTop: 2 },
   statusBadge: {
     flexDirection: 'row',
@@ -264,10 +280,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: 12,
+    gap: 12,
   },
   detailItem: { flex: 1 },
   label: { fontSize: 11 },
-  value: { fontSize: 14, fontWeight: '600', marginTop: 4 },
+  detailValueRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 5 },
+  value: { fontSize: 14, fontWeight: '900', color: TEXT_DARK },
   actionButtons: {
     flexDirection: 'row',
     marginTop: 12,
@@ -281,7 +299,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 10,
     borderWidth: 1.5,
-    borderRadius: 8,
+    borderRadius: 14,
     marginRight: 8,
   },
   acceptBtn: {
@@ -290,7 +308,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 10,
-    borderRadius: 8,
+    borderRadius: 14,
   },
   btnText: { marginLeft: 6, fontWeight: '600', fontSize: 12 },
 });

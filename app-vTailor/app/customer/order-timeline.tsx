@@ -1,4 +1,5 @@
 import { ProtectedRoute } from '@/components/ProtectedRoute';
+import AppBackButton from '@/components/AppBackButton';
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
@@ -77,6 +78,14 @@ export default function CustomerOrderTimelineScreen() {
     .join('')
     .toUpperCase();
   const tailorRatingFromParams = (params.tailorRating as string) || '⭐ 4.8 (245 reviews)';
+  const orderPriceFromParams = (params.orderPrice as string) || '';
+  const statusLabelFromParams = (params.statusLabel as string) || '';
+  const measurementRows = [
+    { label: 'Chest / Bust', value: (params.measurementChest as string) || '36 in' },
+    { label: 'Waist', value: (params.measurementWaist as string) || '30 in' },
+    { label: 'Dress Length', value: (params.measurementLength as string) || '52 in' },
+    { label: 'Shoulder', value: (params.measurementShoulder as string) || '15 in' },
+  ];
   const [currentStep, setCurrentStep] = useState(0);
   const [orderDescription, setOrderDescription] = useState(orderDescriptionFromParams);
   const [orderDate, setOrderDate] = useState(orderDateFromParams);
@@ -247,9 +256,7 @@ export default function CustomerOrderTimelineScreen() {
         <View style={styles.container}>
           {/* Header with Back Button */}
           <View style={styles.headerContainer}>
-            <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-              <Ionicons name="arrow-back" size={24} color="#3b82f6" />
-            </TouchableOpacity>
+            <AppBackButton onPress={() => router.back()} />
             <View style={styles.headerContent}>
               <Text style={styles.header}>Order Progress</Text>
               <Text style={styles.subheader}>Track your order status</Text>
@@ -257,7 +264,7 @@ export default function CustomerOrderTimelineScreen() {
           </View>
 
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-            {/* Tailor Details Card */}
+            {/* Order Hero Card */}
             <View style={styles.tailorCard}>
               <View style={styles.tailorHeader}>
                 <View style={styles.tailorAvatar}>
@@ -267,26 +274,56 @@ export default function CustomerOrderTimelineScreen() {
                   <Text style={styles.tailorName}>{tailorName}</Text>
                   <Text style={styles.tailorRating}>{tailorRating}</Text>
                 </View>
-                {demoMode ? <Text style={styles.demoBadge}>DEMO</Text> : null}
+                <View style={styles.statusPill}>
+                  <Text style={styles.statusPillText}>{statusLabelFromParams || STEPS[currentStep]}</Text>
+                </View>
               </View>
 
               {/* Order Details */}
               <View style={styles.orderDetailsSection}>
-                <Text style={styles.sectionTitle}>Order Details</Text>
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Order ID:</Text>
-                  <Text style={styles.detailValue}>{ORDER_ID}</Text>
-                </View>
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Description:</Text>
-                  <Text style={styles.detailValue}>{orderDescription}</Text>
-                </View>
-                {orderInfoRows.map((row) => (
-                  <View key={row.label} style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>{row.label}:</Text>
-                    <Text style={styles.detailValue}>{row.value}</Text>
+                <View style={styles.orderHeroTop}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.orderHeroLabel}>{ORDER_ID}</Text>
+                    <Text style={styles.orderHeroTitle}>{orderDescription}</Text>
+                    <Text style={styles.orderHeroDate}>Ordered on {orderDate}</Text>
                   </View>
-                ))}
+                  {orderPriceFromParams ? (
+                    <View style={styles.priceCard}>
+                      <Text style={styles.priceLabel}>Total</Text>
+                      <Text style={styles.priceValue}>Rs {Number(orderPriceFromParams).toLocaleString()}</Text>
+                    </View>
+                  ) : null}
+                </View>
+              </View>
+
+              <View style={styles.designCard}>
+                <View style={styles.cardTitleRow}>
+                  <Ionicons name="color-palette-outline" size={18} color="#be185d" />
+                  <Text style={styles.sectionTitle}>Design Details</Text>
+                </View>
+                <View style={styles.infoGrid}>
+                  {orderInfoRows.map((row) => (
+                    <View key={row.label} style={styles.infoChip}>
+                      <Text style={styles.infoChipLabel}>{row.label}</Text>
+                      <Text style={styles.infoChipValue}>{row.value}</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+
+              <View style={styles.designCard}>
+                <View style={styles.cardTitleRow}>
+                  <Ionicons name="body-outline" size={18} color="#be185d" />
+                  <Text style={styles.sectionTitle}>Measurements</Text>
+                </View>
+                <View style={styles.infoGrid}>
+                  {measurementRows.map((row) => (
+                    <View key={row.label} style={styles.infoChip}>
+                      <Text style={styles.infoChipLabel}>{row.label}</Text>
+                      <Text style={styles.infoChipValue}>{row.value}</Text>
+                    </View>
+                  ))}
+                </View>
               </View>
 
               {/* Progress Bar */}
@@ -404,12 +441,12 @@ const styles = StyleSheet.create({
     paddingBottom: 16,
   },
   tailorCard: {
-    backgroundColor: "#f0f9ff",
-    borderRadius: 12,
+    backgroundColor: "#fff7fb",
+    borderRadius: 22,
     padding: 16,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: "#bfdbfe",
+    borderColor: "#fbcfe8",
   },
   tailorHeader: {
     flexDirection: "row",
@@ -420,7 +457,7 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: "#3b82f6",
+    backgroundColor: "#ec4899",
     justifyContent: "center",
     alignItems: "center",
     marginRight: 12,
@@ -438,6 +475,19 @@ const styles = StyleSheet.create({
     color: "#6b7280",
     marginTop: 2,
   },
+  statusPill: {
+    maxWidth: 110,
+    borderRadius: 999,
+    backgroundColor: "#fdf2f8",
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+  },
+  statusPillText: {
+    color: "#be185d",
+    fontSize: 11,
+    fontWeight: "800",
+    textAlign: "center",
+  },
   demoBadge: {
     fontSize: 11,
     fontWeight: "700",
@@ -448,16 +498,90 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   orderDetailsSection: {
-    marginBottom: 16,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#bfdbfe",
+    marginBottom: 12,
   },
   sectionTitle: {
     fontSize: 14,
-    fontWeight: "700",
+    fontWeight: "900",
     color: "#111827",
+  },
+  orderHeroTop: {
+    flexDirection: "row",
+    gap: 12,
+    alignItems: "center",
+  },
+  orderHeroLabel: {
+    color: "#be185d",
+    fontSize: 11,
+    fontWeight: "900",
+    marginBottom: 3,
+  },
+  orderHeroTitle: {
+    color: "#111827",
+    fontSize: 22,
+    fontWeight: "900",
+  },
+  orderHeroDate: {
+    color: "#6b7280",
+    fontSize: 12,
+    fontWeight: "600",
+    marginTop: 4,
+  },
+  priceCard: {
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    alignItems: "flex-end",
+    borderWidth: 1,
+    borderColor: "#fbcfe8",
+  },
+  priceLabel: {
+    color: "#9ca3af",
+    fontSize: 10,
+    fontWeight: "900",
+    marginBottom: 2,
+  },
+  priceValue: {
+    color: "#111827",
+    fontSize: 15,
+    fontWeight: "900",
+  },
+  designCard: {
+    backgroundColor: "#fff",
+    borderRadius: 18,
+    padding: 13,
+    borderWidth: 1,
+    borderColor: "#fbcfe8",
+    marginTop: 12,
+  },
+  cardTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
     marginBottom: 12,
+  },
+  infoGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  infoChip: {
+    width: "48%",
+    backgroundColor: "#fff7fb",
+    borderRadius: 14,
+    padding: 10,
+  },
+  infoChipLabel: {
+    color: "#9ca3af",
+    fontSize: 10,
+    fontWeight: "900",
+    marginBottom: 3,
+  },
+  infoChipValue: {
+    color: "#111827",
+    fontSize: 12,
+    fontWeight: "800",
   },
   detailRow: {
     flexDirection: "row",

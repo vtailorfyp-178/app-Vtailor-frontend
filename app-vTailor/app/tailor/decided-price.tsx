@@ -21,7 +21,7 @@ export default function TailorDecidedPrice() {
   const [daysInput, setDaysInput] = React.useState<string>(days ? String(days) : '');
 
   const changeMsg = (params.changeMsg as string) || '';
-  const fromChange = params.fromChange === 'true' || params.fromChange === true;
+  const fromChange = params.fromChange === 'true';
 
   const handleSendToCustomer = () => {
     if (!priceInput || !daysInput) {

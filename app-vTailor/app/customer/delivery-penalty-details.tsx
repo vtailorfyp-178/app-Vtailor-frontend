@@ -1,4 +1,5 @@
 import { ProtectedRoute } from '@/components/ProtectedRoute';
+import AppBackButton from '@/components/AppBackButton';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
@@ -29,6 +30,8 @@ const CustomerDeliveryPenaltyDetailsScreen = () => {
         if (data) {
           const parsedOrders = JSON.parse(data).map((o: any) => ({
             ...o,
+            id: String(o.id || o.orderId || `${o.customerName || 'order'}-${o.deliveryDate || Date.now()}`),
+            orderType: o.orderType || o.garment || 'Dress order',
             deliveryDate: o.deliveryDate ? new Date(o.deliveryDate) : new Date(),
           }));
           setOrders(parsedOrders);
@@ -63,9 +66,7 @@ const CustomerDeliveryPenaltyDetailsScreen = () => {
       <View style={styles.container}>
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={24} color="#3b82f6" />
-          </TouchableOpacity>
+          <AppBackButton onPress={() => router.back()} />
           <View style={{ flex: 1 }}>
             <Text style={styles.heading}>Delivery & Penalty Details</Text>
             <Text style={styles.subheading}>Order tracking and penalty information</Text>

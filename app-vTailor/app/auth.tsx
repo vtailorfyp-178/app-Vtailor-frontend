@@ -1,12 +1,14 @@
 import React, { useRef, useState } from 'react';
-import { View, StyleSheet, Image, Pressable, TextInput, Alert } from 'react-native';
+import { View, StyleSheet, Image, Pressable, TextInput, Alert, NativeSyntheticEvent, TextInputKeyPressEventData } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { ROLE_COLORS, SURFACE_MUTED, TEXT_DARK, UI } from '@/constants/ui';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { useAuth, UserRole } from '@/contexts/AuthContext';
 import { getProfile, sendEmailOtp, verifyEmailOtp } from '@/services/authApi';
 import { migrateCustomizationsToUser } from '@/services/userDataService';
+import { Ionicons } from '@expo/vector-icons';
 
 const logo = require('../assets/images/vTailorlogo.jpeg');
 
@@ -29,11 +31,12 @@ export default function AuthScreen() {
   // method_id returned by /otp/start — required by /otp/verify
   const [methodId, setMethodId] = useState<string | null>(null);
 
-  const tint = useThemeColor({}, 'tint');
   const buttonStart = useThemeColor({}, 'buttonStart');
-  const accentAlt = useThemeColor({}, 'accentAlt');
   const iconBg = useThemeColor({}, 'iconBg');
-  const iconBgAlt = useThemeColor({}, 'iconBgAlt');
+  const customerMain = ROLE_COLORS.customer.primary;
+  const tailorMain = ROLE_COLORS.tailor.primary;
+  const tailorText = ROLE_COLORS.tailor.primaryDark;
+  const authPrimary = role === 'tailor' ? tailorMain : customerMain;
 
   const [otpFocusedIndex, setOtpFocusedIndex] = useState<number | null>(null);
 
@@ -101,13 +104,38 @@ export default function AuthScreen() {
   };
 
   const handleOtpChange = (index: number, value: string) => {
-    if (value.length <= 1 && /^\d*$/.test(value)) {
+    const digits = value.replace(/\D/g, '');
+    if (!digits) {
       const newOtp = [...otp];
-      newOtp[index] = value;
+      newOtp[index] = '';
       setOtp(newOtp);
+      return;
+    }
 
-      if (value && index < 5) otpRefs.current[index + 1]?.focus();
-      if (!value && index > 0) otpRefs.current[index - 1]?.focus();
+    const newOtp = [...otp];
+    digits.slice(0, 6 - index).split('').forEach((digit, offset) => {
+      newOtp[index + offset] = digit;
+    });
+    setOtp(newOtp);
+
+    const nextIndex = Math.min(index + digits.length, 5);
+    otpRefs.current[nextIndex]?.focus();
+  };
+
+  const handleOtpKeyPress = (index: number, event: NativeSyntheticEvent<TextInputKeyPressEventData>) => {
+    if (event.nativeEvent.key !== 'Backspace') return;
+
+    const newOtp = [...otp];
+    if (newOtp[index]) {
+      newOtp[index] = '';
+      setOtp(newOtp);
+      return;
+    }
+
+    if (index > 0) {
+      newOtp[index - 1] = '';
+      setOtp(newOtp);
+      otpRefs.current[index - 1]?.focus();
     }
   };
 
@@ -157,7 +185,7 @@ export default function AuthScreen() {
           if (hasExistingProfile) {
             await markProfileCompleted(resolvedRole, userId);
             if (resolvedRole === 'tailor') router.replace('/tailor');
-            else router.replace('/customer');
+            else (router as any).replace('/customer');
           } else {
             router.replace('/profile-setup');
           }
@@ -173,7 +201,8 @@ export default function AuthScreen() {
       const message = /otp|passcode|incorrect|expired|not found|authenticated/i.test(rawMessage)
         ? 'The OTP code is incorrect or expired. Please enter the latest code from your email, or tap Resend OTP.'
         : 'Unable to verify OTP. Please request a new code and try again.';
-      resetOtpInputs();
+      const lastFilledIndex = otp.reduce((lastIndex, digit, digitIndex) => (digit ? digitIndex : lastIndex), -1);
+      setTimeout(() => otpRefs.current[Math.max(0, lastFilledIndex)]?.focus(), 100);
       Alert.alert('Verification failed', message);
     } finally {
       setVerifyingOtp(false);
@@ -199,7 +228,19 @@ export default function AuthScreen() {
         ) : null}
 
         <View style={{ alignItems: 'center' }}>
-          <Image source={logo} style={styles.logo} />
+          <View style={styles.logoWrap}>
+            <Image source={logo} style={styles.logo} />
+          </View>
+          <View style={styles.stepPill}>
+            <Ionicons
+              name={step === 'role' ? 'sparkles-outline' : step === 'email' ? 'mail-outline' : 'shield-checkmark-outline'}
+              size={14}
+              color={customerMain}
+            />
+            <ThemedText style={styles.stepPillText}>
+              {step === 'role' ? 'Start your V Tailor journey' : step === 'email' ? 'Secure email login' : 'Almost there'}
+            </ThemedText>
+          </View>
           <ThemedText type="title" style={styles.title}>
             {step === 'role' && 'Welcome to V Tailor'}
             {step === 'email' && 'Enter Your Email'}
@@ -210,6 +251,18 @@ export default function AuthScreen() {
             {step === 'email' && 'We will send you a verification code'}
             {step === 'otp' && `Code sent to ${email}`}
           </ThemedText>
+          {step === 'role' ? (
+            <View style={styles.heroStats}>
+              <View style={styles.heroStat}>
+                <Ionicons name="shirt-outline" size={16} color={customerMain} />
+                <ThemedText style={styles.heroStatText}>Custom fits</ThemedText>
+              </View>
+              <View style={styles.heroStat}>
+                <Ionicons name="cut-outline" size={16} color={tailorText} />
+                <ThemedText style={styles.heroStatText}>Expert tailors</ThemedText>
+              </View>
+            </View>
+          ) : null}
         </View>
       </View>
 
@@ -222,17 +275,17 @@ export default function AuthScreen() {
               onPress={() => handleRoleSelect('customer')}
               style={[
                 styles.roleCard,
-                { borderColor: role === 'customer' ? tint : '#fae3ea' },
-                role === 'customer' && { borderWidth: 2 },
+                { borderColor: role === 'customer' ? customerMain : '#fae3ea' },
+                role === 'customer' && { borderWidth: 2, backgroundColor: ROLE_COLORS.customer.soft },
               ]}
             >
               <View style={styles.roleInner}>
-                <View style={[styles.roleIcon, { backgroundColor: role === 'customer' ? tint : iconBg }]}>
-                  <ThemedText style={{ color: role === 'customer' ? '#fff' : tint }}>👤</ThemedText>
+                <View style={[styles.roleIcon, { backgroundColor: role === 'customer' ? customerMain : iconBg }]}>
+                  <Ionicons name="person-outline" size={24} color={role === 'customer' ? '#fff' : customerMain} />
                 </View>
 
                 <View style={{ flex: 1 }}>
-                  <ThemedText type="defaultSemiBold">Customer</ThemedText>
+                  <ThemedText type="defaultSemiBold" style={styles.roleTitle}>Customer</ThemedText>
                   <ThemedText style={styles.small}>Get custom clothes from expert tailors</ThemedText>
                 </View>
               </View>
@@ -240,15 +293,15 @@ export default function AuthScreen() {
 
             <Pressable
               onPress={() => handleRoleSelect('tailor')}
-              style={[styles.roleCard, styles.roleCardAlt, role === 'tailor' && { borderColor: accentAlt, borderWidth: 2 }]}
+              style={[styles.roleCard, styles.roleCardAlt, role === 'tailor' && { borderColor: customerMain, borderWidth: 2, backgroundColor: ROLE_COLORS.tailor.soft }]}
             >
               <View style={styles.roleInner}>
-                <View style={[styles.roleIcon, { backgroundColor: role === 'tailor' ? accentAlt : iconBgAlt }]}>
-                  <ThemedText style={{ color: role === 'tailor' ? '#fff' : accentAlt }}>✂️</ThemedText>
+                <View style={[styles.roleIcon, { backgroundColor: role === 'tailor' ? customerMain : ROLE_COLORS.tailor.soft }]}>
+                  <Ionicons name="cut-outline" size={24} color={role === 'tailor' ? '#fff' : tailorText} />
                 </View>
 
                 <View style={{ flex: 1 }}>
-                  <ThemedText type="defaultSemiBold">Tailor</ThemedText>
+                  <ThemedText type="defaultSemiBold" style={styles.roleTitle}>Tailor</ThemedText>
                   <ThemedText style={styles.small}>Offer your tailoring services</ThemedText>
                 </View>
               </View>
@@ -266,7 +319,7 @@ export default function AuthScreen() {
             <ThemedText style={styles.label}>Email Address</ThemedText>
 
             <TextInput
-              style={[styles.phoneInput, { borderColor: emailFocused ? tint : '#e6e7eb' }]}
+              style={[styles.phoneInput, { borderColor: emailFocused ? authPrimary : '#e6e7eb' }]}
               value={email}
               onFocus={() => setEmailFocused(true)}
               onBlur={() => setEmailFocused(false)}
@@ -280,7 +333,7 @@ export default function AuthScreen() {
               style={[
                 styles.button,
                 (sendingOtp || !email.includes('@')) && styles.buttonDisabled,
-                { backgroundColor: email.includes('@') ? tint : buttonStart }
+                { backgroundColor: email.includes('@') ? authPrimary : buttonStart }
               ]}
             >
               <ThemedText style={styles.buttonText}>{sendingOtp ? 'Sending…' : 'Send OTP →'}</ThemedText>
@@ -299,7 +352,7 @@ export default function AuthScreen() {
                   ref={(ref) => { otpRefs.current[i] = ref; }}
                   style={[
                     styles.otpInput,
-                    { borderColor: d ? tint : (otpFocusedIndex === i ? tint : '#e6e7eb') }
+                    { borderColor: d ? authPrimary : (otpFocusedIndex === i ? authPrimary : '#e6e7eb') }
                   ]}
                   keyboardType="number-pad"
                   maxLength={1}
@@ -307,6 +360,8 @@ export default function AuthScreen() {
                   onFocus={() => setOtpFocusedIndex(i)}
                   onBlur={() => setOtpFocusedIndex((cur) => (cur === i ? null : cur))}
                   onChangeText={(val) => handleOtpChange(i, val)}
+                  onKeyPress={(event) => handleOtpKeyPress(i, event)}
+                  selectTextOnFocus
                 />
               ))}
             </View>
@@ -317,7 +372,7 @@ export default function AuthScreen() {
               style={[
                 styles.button,
                 (verifyingOtp || otp.join('').length < 6) && styles.buttonDisabled,
-                { backgroundColor: otp.join('').length === 6 ? tint : buttonStart }
+                { backgroundColor: otp.join('').length === 6 ? authPrimary : buttonStart }
               ]}
             >
               <ThemedText style={styles.buttonText}>{verifyingOtp ? 'Verifying…' : 'Verify & Continue'}</ThemedText>
@@ -328,7 +383,7 @@ export default function AuthScreen() {
               disabled={sendingOtp || verifyingOtp}
               style={styles.resendButton}
             >
-              <ThemedText style={[styles.resendText, { color: tint }]}>
+              <ThemedText style={[styles.resendText, { color: role === 'tailor' ? tailorText : customerMain }]}>
                 {sendingOtp ? 'Sending new code…' : 'Resend OTP'}
               </ThemedText>
             </Pressable>
@@ -345,31 +400,68 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     paddingHorizontal: 16,
-    paddingTop: 20,
+    paddingTop: 42,
     justifyContent: 'flex-start',
+    backgroundColor: SURFACE_MUTED,
   },
   header: {
-    marginTop: 8,
-    marginBottom: 8,
+    marginTop: 12,
+    marginBottom: 12,
     alignItems: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 28,
+    paddingHorizontal: 18,
+    paddingVertical: 24,
+    borderWidth: 1,
+    borderColor: '#fbcfe8',
+    ...UI.softShadow,
   },
   backButton: {
     alignSelf: 'flex-start',
-    padding: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     marginBottom: 16,
+    borderRadius: 999,
+    backgroundColor: '#fff1f7',
   },
   logo: {
-    width: 96,
-    height: 96,
-    marginBottom: 12,
+    width: 86,
+    height: 86,
     resizeMode: 'contain',
   },
+  logoWrap: {
+    width: 104,
+    height: 104,
+    borderRadius: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#fff7fb',
+    borderWidth: 1,
+    borderColor: '#fbcfe8',
+    marginBottom: 12,
+  },
+  stepPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#fdf2f8',
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    marginBottom: 6,
+  },
+  stepPillText: {
+    color: '#be185d',
+    fontSize: 11,
+    fontWeight: '900',
+  },
   title: {
-    fontSize: 34,
-    fontWeight: '800',
+    fontSize: 32,
+    fontWeight: '900',
     textAlign: 'center',
     marginTop: 6,
     lineHeight: 40,
+    color: TEXT_DARK,
   },
   subtitle: {
     marginTop: 6,
@@ -377,25 +469,43 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#394052',
   },
+  heroStats: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 14,
+  },
+  heroStat: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#fce7f3',
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  heroStatText: {
+    color: TEXT_DARK,
+    fontSize: 11,
+    fontWeight: '800',
+  },
   content: {
     flex: 1,
     justifyContent: 'flex-start',
   },
   roleList: {
     gap: 12,
-    marginTop: 40,
+    marginTop: 24,
   },
   roleCard: {
     borderWidth: 1,
-    borderRadius: 12,
+    borderRadius: 20,
     padding: 18,
     marginBottom: 12,
     backgroundColor: '#fff',
-    shadowColor: '#000',
-    shadowOpacity: 0.06,
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 8,
-    elevation: 3,
+    borderColor: '#fae3ea',
+    ...UI.softShadow,
   },
   roleCardAlt: {
     borderColor: '#fae3ea',
@@ -408,14 +518,21 @@ const styles = StyleSheet.create({
   roleIcon: {
     width: 56,
     height: 56,
-    borderRadius: 28,
+    borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
     fontSize: 24,
   },
+  roleTitle: {
+    color: TEXT_DARK,
+    fontSize: 16,
+    fontWeight: '900',
+  },
   small: {
     fontSize: 12,
     marginTop: 4,
+    color: '#64748b',
+    lineHeight: 17,
   },
   tiny: {
     fontSize: 11,
@@ -424,21 +541,24 @@ const styles = StyleSheet.create({
   },
   label: {
     marginBottom: 12,
-    fontWeight: '500',
+    fontWeight: '800',
+    color: TEXT_DARK,
   },
   phoneInput: {
     borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 13,
     marginBottom: 20,
     fontSize: 16,
+    backgroundColor: '#fff',
   },
   button: {
-    paddingVertical: 12,
-    borderRadius: 8,
+    paddingVertical: 14,
+    borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
+    ...UI.softShadow,
   },
   buttonDisabled: {
     opacity: 0.6,
@@ -466,10 +586,11 @@ const styles = StyleSheet.create({
   otpInput: {
     flex: 1,
     borderWidth: 1,
-    borderRadius: 8,
+    borderRadius: 16,
     textAlign: 'center',
     fontSize: 18,
     fontWeight: 'bold',
     paddingVertical: 12,
+    backgroundColor: '#fff',
   },
 });

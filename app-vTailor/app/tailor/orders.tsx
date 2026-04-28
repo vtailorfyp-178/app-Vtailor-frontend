@@ -1,5 +1,6 @@
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { ThemedText } from '@/components/themed-text';
+import { SURFACE_MUTED, TEXT_DARK, UI } from '@/constants/ui';
 import { Ionicons } from '@expo/vector-icons';
 import { usePathname, useRouter } from 'expo-router';
 import React, { useState } from 'react';
@@ -95,12 +96,15 @@ export default function TailorOrders() {
 
   return (
     <ProtectedRoute requiredRole="tailor">
-      <ScrollView contentContainerStyle={styles.container}>
+      <ScrollView style={styles.screen} contentContainerStyle={styles.container}>
         <View style={styles.header}>
           <Pressable style={styles.backBtn} onPress={() => router.back()}>
             <Ionicons name="arrow-back" size={24} color="#111827" />
           </Pressable>
-          <ThemedText style={styles.title}>All Orders</ThemedText>
+          <View style={styles.headerTextWrap}>
+            <ThemedText style={styles.headerEyebrow}>Tailor workspace</ThemedText>
+            <ThemedText style={styles.title}>All Orders</ThemedText>
+          </View>
           <View style={{ width: 40 }} />
         </View>
 
@@ -170,22 +174,26 @@ export default function TailorOrders() {
 }
 
 const styles = StyleSheet.create({
-  container: { paddingBottom: 40, paddingHorizontal: 16, paddingTop: 16, backgroundColor: '#fff' },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 },
-  backBtn: { width: 44, height: 44, borderRadius: 12, backgroundColor: '#F5F5F5', alignItems: 'center', justifyContent: 'center' },
-  title: { fontSize: 22, fontWeight: '600', flex: 1, textAlign: 'center', color: '#111827' },
+  screen: { flex: 1, backgroundColor: SURFACE_MUTED },
+  container: { paddingBottom: 40, paddingHorizontal: 16, paddingTop: 16 },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18, backgroundColor: '#fff', borderRadius: 22, padding: 12, ...UI.softShadow },
+  headerTextWrap: { flex: 1, alignItems: 'center' },
+  headerEyebrow: { fontSize: 11, color: '#ec4899', fontWeight: '800', letterSpacing: 0.6, textTransform: 'uppercase', marginBottom: 2 },
+  backBtn: { width: 44, height: 44, borderRadius: 16, backgroundColor: '#FCE4F2', alignItems: 'center', justifyContent: 'center' },
+  title: { fontSize: 22, fontWeight: '900', textAlign: 'center', color: TEXT_DARK },
   filters: { flexDirection: 'row', gap: 8, marginBottom: 18, justifyContent: 'space-between' },
-  filterBtn: { paddingVertical: 10, paddingHorizontal: 11, borderRadius: 8, backgroundColor: '#fff', borderWidth: 1, borderColor: BORDER },
-  filterActive: { backgroundColor: '#111827' },
+  filterBtn: { paddingVertical: 10, paddingHorizontal: 11, borderRadius: 999, backgroundColor: '#fff', borderWidth: 1, borderColor: BORDER },
+  filterActive: { backgroundColor: '#ec4899', borderColor: '#ec4899' },
   filterText: { color: '#374151', fontWeight: '600', fontSize: 12 },
   filterTextActive: { color: '#fff', fontWeight: '600', fontSize: 12 },
   card: { 
     backgroundColor: '#fff',
     padding: 16, 
-    borderRadius: 12, 
+    borderRadius: 18, 
     borderWidth: 1, 
     borderColor: BORDER,
     marginBottom: 12,
+    ...UI.softShadow,
   },
   cardRow: { 
     flexDirection: 'row', 
@@ -194,10 +202,10 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   cardLeft: { flex: 1 },
-  cardTitle: { fontSize: 18, fontWeight: '600', color: '#111827', marginBottom: 4 },
+  cardTitle: { fontSize: 17, fontWeight: '900', color: TEXT_DARK, marginBottom: 4 },
   detailsRow: { flexDirection: 'row', gap: 12, justifyContent: 'space-between' },
   label: { color: '#6b7280', fontSize: 12, fontWeight: '400', marginBottom: 4 },
-  amount: { fontWeight: '600', fontSize: 16, color: '#111827' },
+  amount: { fontWeight: '800', fontSize: 16, color: TEXT_DARK },
   time: { color: '#D34B5D', fontWeight: '600', fontSize: 12 },
   small: { color: '#6b7280', fontSize: 12, fontWeight: '400' },
   statusPill: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999, minWidth: 82, alignItems: 'center' },

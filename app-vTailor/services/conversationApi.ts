@@ -5,7 +5,7 @@
 
 import { Platform } from "react-native";
 import Constants from "expo-constants";
-import * as FileSystem from "expo-file-system";
+import * as FileSystem from "expo-file-system/legacy";
 
 // ── Config ────────────────────────────────────────────────────────────────────
 const EXPO_API_BASE = (process.env.EXPO_PUBLIC_API_BASE_URL || "").trim();
@@ -29,18 +29,19 @@ function normalizeApiRoot(value: string): string {
 }
 
 function getCandidateApiBases(): string[] {
-  if (EXPO_API_BASE) return [normalizeApiRoot(EXPO_API_BASE)];
+  const urls: string[] = [];
+  if (EXPO_API_BASE) urls.push(normalizeApiRoot(EXPO_API_BASE));
 
   if (Platform.OS === "web") {
     const webHost = (typeof window !== "undefined" && window.location && window.location.hostname) || "localhost";
-    return [
+    urls.push(
       `http://${webHost}:8000`,
       "http://127.0.0.1:8000",
       "http://localhost:8000",
-    ];
+    );
+    return Array.from(new Set(urls));
   }
 
-  const urls: string[] = [];
   if (Platform.OS === "android") urls.push(`http://${EMULATOR_ANDROID_HOST}:8000`);
   urls.push(...expoHostCandidates.map((h) => `http://${h}:8000`));
   urls.push("http://127.0.0.1:8000");
@@ -401,11 +402,11 @@ export class ConversationSocket {
   private userId: string;
   private handlers: WSHandler[] = [];
   private namedHandlers: Partial<Record<WSEvent["event"], WSHandler[]>> = {};
-  private reconnectTimer: NodeJS.Timeout | null = null;
+  private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private reconnectDelay = 2000;
   private maxDelay = 30000;
   private shouldReconnect = true;
-  private typingTimers: Record<string, NodeJS.Timeout> = {};
+  private typingTimers: Record<string, ReturnType<typeof setTimeout>> = {};
   private messageQueue: unknown[] = [];
   private isConnected = false;
   private wsBaseIndex = 0;

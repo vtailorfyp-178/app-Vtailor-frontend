@@ -4,9 +4,10 @@
  */
 
 import { Platform } from 'react-native';
+import { ROLE_COLORS } from './ui';
 
 // Accent for light theme (soft rose)
-const tintColorLight = '#ec4899';
+const tintColorLight = ROLE_COLORS.customer.primary;
 const tintColorDark = '#fff';
 
 export const Colors = {
@@ -28,9 +29,9 @@ export const Colors = {
     tabIconSelected: tintColorLight,
     // circular icon background used for list cards
     iconBg: '#ffd9e6',
-    // alternate accent (yellowish-orange) and its icon background
-    accentAlt: '#f59e0b',
-    iconBgAlt: '#fff4e6',
+    // tailor accent uses light pink consistently
+    accentAlt: ROLE_COLORS.tailor.primary,
+    iconBgAlt: ROLE_COLORS.tailor.soft,
   },
   dark: {
     text: '#ECEDEE',
@@ -49,8 +50,8 @@ export const Colors = {
     tabIconSelected: tintColorDark,
     // circular icon background used for list cards
     iconBg: '#2a2a2a',
-    // alternate accent (yellowish-orange) and its icon background
-    accentAlt: '#f59e0b',
+    // tailor accent uses light pink consistently
+    accentAlt: ROLE_COLORS.tailor.primary,
     iconBgAlt: '#2a2a2a',
   },
 };

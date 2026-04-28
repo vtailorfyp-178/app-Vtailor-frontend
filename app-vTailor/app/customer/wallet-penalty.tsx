@@ -1,4 +1,5 @@
 import { ProtectedRoute } from '@/components/ProtectedRoute';
+import AppBackButton from '@/components/AppBackButton';
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
@@ -163,9 +164,7 @@ penaltyPercent = daysLate * 2;
       <View style={styles.container}>
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={24} color="#3b82f6" />
-          </TouchableOpacity>
+          <AppBackButton onPress={() => router.back()} />
           <View style={{ flex: 1 }}>
             <Text style={styles.heading}>Wallet Penalty Details</Text>
             <Text style={styles.subheading}>Track tailor penalties & your savings</Text>

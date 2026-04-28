@@ -6,6 +6,7 @@ import { ThemedView } from '@/components/themed-view';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { useAuth } from '@/contexts/AuthContext';
 import { getUserCustomizations } from '@/services/userDataService';
+import AppBackButton from '@/components/AppBackButton';
 
 type Item = { id: string; modelId: string; modelName: string; selections: Record<string, string | null>; createdAt: string };
 
@@ -49,11 +50,9 @@ export default function MyCustomizations() {
   return (
     <ThemedView style={styles.container}>
       <View style={[styles.header, { backgroundColor: tint }]}> 
-        <Pressable onPress={() => (router as any).back()}>
-          <ThemedText style={{ color: '#fff' }}>{'< Back'}</ThemedText>
-        </Pressable>
+        <AppBackButton onPress={() => (router as any).back()} variant="tint" />
         <ThemedText style={styles.headerTitle}>My Customizations</ThemedText>
-        <View style={{ width: 56 }} />
+        <View style={styles.headerSpacer} />
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll}>
@@ -85,7 +84,8 @@ export default function MyCustomizations() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   header: { paddingTop: 40, padding: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  headerTitle: { color: '#fff', fontWeight: '700' },
+  headerSpacer: { width: 84 },
+  headerTitle: { flex: 1, color: '#fff', fontWeight: '700', textAlign: 'center' },
   scroll: { padding: 12 },
   card: { borderRadius: 12, marginBottom: 12, overflow: 'hidden', borderWidth: 1 },
   thumb: { width: '100%', height: 160 },

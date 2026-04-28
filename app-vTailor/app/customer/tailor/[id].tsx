@@ -5,6 +5,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { Ionicons } from '@expo/vector-icons';
+import AppBackButton from '@/components/AppBackButton';
 
 type TailorData = {
   id: string;
@@ -79,11 +80,9 @@ export default function TailorDetail() {
     return (
       <ThemedView style={styles.container}>
         <View style={[styles.header, { backgroundColor: tint }]}>
-          <Pressable onPress={() => (router as any).back()}>
-            <ThemedText style={{ color: '#fff' }}>{'< Back'}</ThemedText>
-          </Pressable>
+          <AppBackButton onPress={() => (router as any).back()} variant="tint" />
           <ThemedText style={styles.headerTitle}>Tailor Not Found</ThemedText>
-          <View style={{ width: 56 }} />
+          <View style={styles.headerSpacer} />
         </View>
       </ThemedView>
     );
@@ -92,11 +91,9 @@ export default function TailorDetail() {
   return (
     <ThemedView style={styles.container}>
       <View style={[styles.header, { backgroundColor: tint }]}>
-        <Pressable onPress={() => (router as any).back()}>
-          <ThemedText style={{ color: '#fff' }}>{'< Back'}</ThemedText>
-        </Pressable>
+        <AppBackButton onPress={() => (router as any).back()} variant="tint" />
         <ThemedText style={styles.headerTitle}>Tailor Profile</ThemedText>
-        <View style={{ width: 56 }} />
+        <View style={styles.headerSpacer} />
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll}>
@@ -234,7 +231,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  headerTitle: { color: '#fff', fontWeight: '700', fontSize: 16 },
+  headerSpacer: { width: 84 },
+  headerTitle: { flex: 1, color: '#fff', fontWeight: '700', fontSize: 16, textAlign: 'center' },
   scroll: { padding: 12, paddingBottom: 100 },
   statusCard: {
     padding: 24,

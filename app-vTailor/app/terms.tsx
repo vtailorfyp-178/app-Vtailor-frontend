@@ -3,6 +3,7 @@ import { ScrollView, StyleSheet, View, Image, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { ROLE_COLORS } from '@/constants/ui';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -14,6 +15,7 @@ export default function Terms() {
   const [agreed, setAgreed] = useState(false);
 
   const tint = useThemeColor({}, 'tint');
+  const selectedPink = ROLE_COLORS.customer.primary;
   const muted = useThemeColor({}, 'muted');
   const cardBg = useThemeColor({}, 'card');
   const iconBg = useThemeColor({}, 'iconBg');
@@ -89,7 +91,7 @@ export default function Terms() {
         <View style={styles.checkboxRow as any}>
           <Pressable
             onPress={() => setAgreed((v) => !v)}
-            style={[styles.checkbox, agreed && { backgroundColor: tint, borderColor: tint }]}
+            style={[styles.checkbox, agreed && { backgroundColor: selectedPink, borderColor: selectedPink }]}
             accessibilityLabel="I agree to terms"
           />
           <ThemedText style={[styles.checkboxLabel, { color: muted }]}>I have read and agree to the <ThemedText style={{ color: tint }}>Terms & Conditions</ThemedText> and <ThemedText style={{ color: tint }}>Privacy Policy</ThemedText> of V Tailor.</ThemedText>
@@ -98,7 +100,7 @@ export default function Terms() {
           onPress={handleAccept}
           style={[
             styles.button,
-            { backgroundColor: agreed ? tint : buttonStart, borderColor: agreed ? tint : '#f6d6de' },
+            { backgroundColor: agreed ? selectedPink : buttonStart, borderColor: agreed ? selectedPink : '#f6d6de' },
             !agreed && styles.buttonDisabled,
           ]}
           disabled={!agreed}
@@ -113,7 +115,7 @@ export default function Terms() {
 const styles = StyleSheet.create({
   screen: { flex: 1 },
   container: { padding: 20, paddingBottom: 120 },
-  header: { paddingTop: 24, paddingBottom: 12, alignItems: 'center' },
+  header: { paddingTop: 46, paddingBottom: 12, alignItems: 'center' },
   logo: { width: 80, height: 80, marginBottom: 8, resizeMode: 'contain' },
   subtitle: { fontSize: 14, marginTop: 6 },
   card: { flexDirection: 'row', padding: 16, borderRadius: 12, marginBottom: 14, borderWidth: 1, backgroundColor: '#f8fafc', borderColor: '#eef2f6' },

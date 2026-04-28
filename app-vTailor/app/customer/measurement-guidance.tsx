@@ -1,4 +1,5 @@
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import AppBackButton from "@/components/AppBackButton";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
@@ -104,9 +105,7 @@ const MeasurementGuidanceScreen = () => {
       <View style={styles.container}>
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={24} color="#111827" />
-          </TouchableOpacity>
+          <AppBackButton onPress={() => router.back()} />
           <View style={{ flex: 1 }}>
             <Text style={styles.heading}>Measurement Guide</Text>
             <Text style={styles.subheading}>Take accurate measurements for perfect fit</Text>

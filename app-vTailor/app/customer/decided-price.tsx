@@ -5,6 +5,7 @@ import { ThemedText } from '@/components/themed-text';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { Ionicons } from '@expo/vector-icons';
+import AppBackButton from '@/components/AppBackButton';
 
 export default function CustomerDecidedPrice() {
   const router = useRouter();
@@ -25,7 +26,7 @@ export default function CustomerDecidedPrice() {
     <ProtectedRoute requiredRole="customer">
       <View style={[styles.container, { backgroundColor: card }]}> 
         <View style={[styles.header, { backgroundColor: tint }]}> 
-          <Pressable onPress={() => router.back()} style={styles.headerBtn}><Ionicons name="chevron-back" size={24} color="#fff"/></Pressable>
+          <AppBackButton onPress={() => router.back()} variant="tint" />
           <ThemedText style={[styles.title, { color: '#fff' }]}>Decided Price</ThemedText>
           <View style={styles.headerBtn} />
         </View>
@@ -121,7 +122,7 @@ export default function CustomerDecidedPrice() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   header: { paddingTop: 44, paddingBottom: 12, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center' },
-  headerBtn: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  headerBtn: { width: 84, height: 44, alignItems: 'center', justifyContent: 'center' },
   title: { flex: 1, textAlign: 'center', fontWeight: '800', fontSize: 18 },
   content: { padding: 16 },
   label: { color: '#6b7280', fontSize: 13, fontWeight: '700', marginTop: 12 },

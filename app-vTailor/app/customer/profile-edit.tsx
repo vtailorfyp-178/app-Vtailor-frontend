@@ -8,6 +8,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { updateProfile as updateProfileApi } from '@/services/authApi';
+import AppBackButton from '@/components/AppBackButton';
 
 export default function CustomerProfileEdit() {
   const auth = useAuth();
@@ -96,7 +97,7 @@ export default function CustomerProfileEdit() {
           avatar: profileImage ?? undefined,
         });
         Alert.alert('Success', 'Profile updated successfully!');
-        router.replace('/customer?tab=profile');
+        (router as any).replace('/customer?tab=profile');
       })
       .catch((error) => {
         console.error('Profile save failed:', error);
@@ -109,9 +110,7 @@ export default function CustomerProfileEdit() {
       <View style={[styles.container, { backgroundColor: bg }]}>
         {/* Header */}
         <View style={[styles.header, { backgroundColor: tint }]}>
-          <Pressable onPress={() => router.replace('/customer?tab=profile')} style={styles.headerButton}>
-            <Ionicons name="chevron-back" size={26} color="#fff" />
-          </Pressable>
+          <AppBackButton onPress={() => (router as any).replace('/customer?tab=profile')} variant="tint" />
           <ThemedText style={[styles.headerTitle, { color: '#fff' }]}>Edit Profile</ThemedText>
           <View style={styles.headerButton} />
         </View>
@@ -189,7 +188,7 @@ export default function CustomerProfileEdit() {
           </Pressable>
 
           {/* Cancel Button */}
-          <Pressable style={[styles.cancelBtn, { borderColor: tint }]} onPress={() => router.replace('/customer?tab=profile')}>
+          <Pressable style={[styles.cancelBtn, { borderColor: tint }]} onPress={() => (router as any).replace('/customer?tab=profile')}>
             <Text style={[styles.cancelBtnText, { color: tint }]}>Cancel</Text>
           </Pressable>
 
@@ -203,7 +202,7 @@ export default function CustomerProfileEdit() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, paddingTop: 40 },
-  headerButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  headerButton: { width: 84, height: 44, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.18)', alignItems: 'center', justifyContent: 'center' },
   headerTitle: { flex: 1, textAlign: 'center', fontSize: 20, fontWeight: '700' },
   content: { padding: 16 },
   section: { marginBottom: 16 },

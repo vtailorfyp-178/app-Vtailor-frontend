@@ -20,6 +20,7 @@ import { getNearbyTailors, type NearbyTailor } from '@/services/tailorsApi';
 import MapView, { Marker } from '@/components/MapPrimitives';
 
 type SortMode = 'distance' | 'rating' | 'reviews';
+type SortFilter = SortMode | null;
 type DistanceFilter = 2 | 3 | 5 | null;
 type RatingFilter = 'all' | '3' | '4';
 
@@ -66,12 +67,12 @@ export default function FindTailorsNativeScreen() {
   const text = useThemeColor({}, 'text');
 
   const [query, setQuery] = useState('');
-  const [sortBy, setSortBy] = useState<SortMode>('distance');
+  const [sortBy, setSortBy] = useState<SortFilter>(null);
   const [distanceKm, setDistanceKm] = useState<DistanceFilter>(5);
   const [minRating, setMinRating] = useState<RatingFilter>('all');
   const [specialty, setSpecialty] = useState<string>('all');
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const [draftSortBy, setDraftSortBy] = useState<SortMode>('distance');
+  const [draftSortBy, setDraftSortBy] = useState<SortFilter>(null);
   const [draftDistanceKm, setDraftDistanceKm] = useState<DistanceFilter>(5);
   const [draftMinRating, setDraftMinRating] = useState<RatingFilter>('all');
   const [draftSpecialty, setDraftSpecialty] = useState<string>('all');
@@ -92,7 +93,7 @@ export default function FindTailorsNativeScreen() {
     const parts = [
       distanceKm ? `${distanceKm} km` : 'Any distance',
       minRating === 'all' ? null : `${minRating}+ rating`,
-      sortBy === 'distance' ? 'Nearest' : 'Top rated',
+      sortBy === 'distance' ? 'Nearest' : sortBy === 'rating' ? 'Top rated' : null,
       specialty === 'all' ? null : specialty,
     ].filter(Boolean);
     return parts.join(' • ');
@@ -117,7 +118,7 @@ export default function FindTailorsNativeScreen() {
   const resetDraftFilters = () => {
     setDraftDistanceKm(5);
     setDraftMinRating('all');
-    setDraftSortBy('distance');
+    setDraftSortBy(null);
     setDraftSpecialty('all');
   };
 
@@ -139,7 +140,7 @@ export default function FindTailorsNativeScreen() {
             specialty: specialty !== 'all' ? specialty : undefined,
             minRating: minRating === 'all' ? undefined : Number(minRating),
             queryText: query,
-            sortBy,
+            sortBy: sortBy ?? undefined,
             limit: 80,
           });
 
@@ -408,7 +409,7 @@ export default function FindTailorsNativeScreen() {
             <View style={styles.filterGroup}>
               <ThemedText style={[styles.filterLabel, { color: muted }]}>Distance</ThemedText>
               <View style={styles.chipsRow}>
-                {renderFilterChip('Nearest', draftSortBy === 'distance', () => setDraftSortBy((current) => (current === 'distance' ? 'rating' : 'distance')))}
+                {renderFilterChip('Nearest', draftSortBy === 'distance', () => setDraftSortBy((current) => (current === 'distance' ? null : 'distance')))}
                 {renderFilterChip('2 km', draftDistanceKm === 2, () => setDraftDistanceKm((current) => (current === 2 ? null : 2)), true)}
                 {renderFilterChip('3 km', draftDistanceKm === 3, () => setDraftDistanceKm((current) => (current === 3 ? null : 3)), true)}
                 {renderFilterChip('5 km', draftDistanceKm === 5, () => setDraftDistanceKm((current) => (current === 5 ? null : 5)), true)}
@@ -420,7 +421,7 @@ export default function FindTailorsNativeScreen() {
               <View style={styles.chipsRow}>
                 {renderFilterChip('3+', draftMinRating === '3', () => setDraftMinRating((current) => (current === '3' ? 'all' : '3')), true)}
                 {renderFilterChip('4+', draftMinRating === '4', () => setDraftMinRating((current) => (current === '4' ? 'all' : '4')), true)}
-                {renderFilterChip('Top rated', draftSortBy === 'rating', () => setDraftSortBy((current) => (current === 'rating' ? 'distance' : 'rating')))}
+                {renderFilterChip('Top rated', draftSortBy === 'rating', () => setDraftSortBy((current) => (current === 'rating' ? null : 'rating')))}
               </View>
             </View>
 
@@ -451,46 +452,40 @@ export default function FindTailorsNativeScreen() {
       </View>
 
       <View style={styles.mapContainer}>
-        {MapView && Marker ? (
-          <MapView
-            ref={(ref) => {
-              mapRef.current = ref;
-            }}
-            style={StyleSheet.absoluteFill}
-            initialRegion={DEFAULT_REGION}
-            onRegionChangeComplete={(nextRegion) => {
-              if (!locationReady) return;
-              if (focusingTailorRef.current) return;
-              setSearchRegion((current) => (isSameArea(current, nextRegion) ? current : nextRegion));
-            }}
-            showsUserLocation
-            showsMyLocationButton
-          >
-            {tailors.map((tailor) => (
-              <Marker
-                key={tailor.user_id}
-                coordinate={{
-                  latitude: tailor.location.latitude,
-                  longitude: tailor.location.longitude,
-                }}
-                onPress={() => onMarkerPress(tailor)}
-              >
-                <View style={[styles.markerBubble, { borderColor: selectedTailorId === tailor.user_id ? tint : '#d1d5db' }]}>
-                  {tailor.avatar && tailor.avatar.startsWith('http') ? (
-                    <Image source={{ uri: tailor.avatar }} style={styles.markerAvatar} />
-                  ) : (
-                    <ThemedText style={styles.markerText}>{initials(tailor.name)}</ThemedText>
-                  )}
-                  <View style={[styles.markerDot, { backgroundColor: tailor.is_available ? '#16a34a' : '#9ca3af' }]} />
-                </View>
-              </Marker>
-            ))}
-          </MapView>
-        ) : (
-          <View style={[StyleSheet.absoluteFill, styles.mapFallback]}>
-            <ThemedText style={{ color: muted }}>Map unavailable on this device.</ThemedText>
-          </View>
-        )}
+        <MapView
+          ref={(ref) => {
+            mapRef.current = ref;
+          }}
+          style={StyleSheet.absoluteFill}
+          initialRegion={DEFAULT_REGION}
+          onRegionChangeComplete={(nextRegion: Region) => {
+            if (!locationReady) return;
+            if (focusingTailorRef.current) return;
+            setSearchRegion((current) => (isSameArea(current, nextRegion) ? current : nextRegion));
+          }}
+          showsUserLocation
+          showsMyLocationButton
+        >
+          {tailors.map((tailor) => (
+            <Marker
+              key={tailor.user_id}
+              coordinate={{
+                latitude: tailor.location.latitude,
+                longitude: tailor.location.longitude,
+              }}
+              onPress={() => onMarkerPress(tailor)}
+            >
+              <View style={[styles.markerBubble, { borderColor: selectedTailorId === tailor.user_id ? tint : '#d1d5db' }]}>
+                {tailor.avatar && tailor.avatar.startsWith('http') ? (
+                  <Image source={{ uri: tailor.avatar }} style={styles.markerAvatar} />
+                ) : (
+                  <ThemedText style={styles.markerText}>{initials(tailor.name)}</ThemedText>
+                )}
+                <View style={[styles.markerDot, { backgroundColor: tailor.is_available ? '#16a34a' : '#9ca3af' }]} />
+              </View>
+            </Marker>
+          ))}
+        </MapView>
         {loading ? (
           <View style={styles.mapLoading}>
             <ActivityIndicator color={tint} />

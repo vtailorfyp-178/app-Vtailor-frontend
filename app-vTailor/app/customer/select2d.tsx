@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useThemeColor } from '@/hooks/use-theme-color';
+import AppBackButton from '@/components/AppBackButton';
 
 const logo = require('../../assets/images/vTailorlogo.jpeg');
 const traditionalDressesImage = require('../../2d model/traditional dresses.jpg');
@@ -25,11 +26,9 @@ export default function Select2D() {
   return (
     <ThemedView style={styles.container}>
       <View style={[styles.header, { backgroundColor: tint }]}> 
-        <Pressable onPress={() => (router as any).back()}>
-          <ThemedText style={{ color: '#fff' }}>{'< Back'}</ThemedText>
-        </Pressable>
+        <AppBackButton onPress={() => (router as any).back()} variant="tint" />
         <ThemedText style={styles.headerTitle}>What do you want to stitch?</ThemedText>
-        <View style={{ width: 56 }} />
+        <View style={styles.headerSpacer} />
       </View>
 
       <ScrollView contentContainerStyle={styles.grid}>
@@ -71,7 +70,8 @@ export default function Select2D() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   header: { paddingTop: 40, padding: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  headerTitle: { color: '#fff', fontWeight: '700', fontSize: 16 },
+  headerSpacer: { width: 84 },
+  headerTitle: { flex: 1, color: '#fff', fontWeight: '700', fontSize: 16, textAlign: 'center' },
   grid: { padding: 12, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
   card: { width: '48%', borderRadius: 12, marginBottom: 12, overflow: 'hidden', alignItems: 'center', borderWidth: 2 },
   thumb: { width: '100%', height: 140 },

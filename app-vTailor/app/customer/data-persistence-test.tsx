@@ -6,6 +6,7 @@ import { ThemedView } from '@/components/themed-view';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { useAuth } from '@/contexts/AuthContext';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
+import AppBackButton from '@/components/AppBackButton';
 
 /**
  * Test screen to verify user data persistence on login.
@@ -43,11 +44,9 @@ export default function DataPersistenceTest() {
     <ProtectedRoute requiredRole="customer">
       <ThemedView style={styles.container}>
         <View style={[styles.header, { backgroundColor: tint }]}>
-          <Pressable onPress={() => router.back()}>
-            <ThemedText style={{ color: '#fff' }}>{'< Back'}</ThemedText>
-          </Pressable>
+          <AppBackButton onPress={() => router.back()} variant="tint" />
           <ThemedText style={styles.headerTitle}>Data Persistence Test</ThemedText>
-          <View style={{ width: 56 }} />
+          <View style={styles.headerSpacer} />
         </View>
 
         <ScrollView contentContainerStyle={styles.scroll}>
@@ -106,7 +105,8 @@ export default function DataPersistenceTest() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   header: { paddingTop: 40, padding: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  headerTitle: { color: '#fff', fontWeight: '700', fontSize: 18 },
+  headerSpacer: { width: 84 },
+  headerTitle: { flex: 1, color: '#fff', fontWeight: '700', fontSize: 18, textAlign: 'center' },
   scroll: { padding: 16, paddingBottom: 80 },
   sectionTitle: { fontSize: 16, fontWeight: '700', marginTop: 20, marginBottom: 10 },
   infoBox: { borderRadius: 8, padding: 12, marginBottom: 16 },

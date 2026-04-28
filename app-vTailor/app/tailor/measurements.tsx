@@ -6,6 +6,7 @@ import { ThemedView } from '@/components/themed-view';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from "@expo/vector-icons";
+import AppBackButton from '@/components/AppBackButton';
 
 interface CustomerMeasurement {
   id: string;
@@ -177,11 +178,8 @@ export default function TailorMeasurements() {
     <ProtectedRoute requiredRole="tailor">
       <ThemedView style={styles.container}>
         <View style={[styles.header, { backgroundColor: tint }]}>
-          <Pressable onPress={() => (router as any).back()}>
-            <ThemedText style={{ color: '#fff' }}>{'< Back'}</ThemedText>
-          </Pressable>
+          <AppBackButton onPress={() => (router as any).back()} variant="tint" />
           <ThemedText style={styles.headerTitle}>Customer Measurements</ThemedText>
-          <View style={{ width: 56 }} />
         </View>
 
         <ScrollView contentContainerStyle={styles.scroll}>
@@ -207,28 +205,30 @@ export default function TailorMeasurements() {
               {expandedId === measurement.id && (
                 <View style={[styles.expandedContent, { borderTopColor: inputBorder }]}>
                   <View style={styles.sectionGroup}>
-                    <ThemedText style={styles.sectionTitle}>👕 Shirt Measurements (inches)</ThemedText>
+                    <ThemedText style={styles.sectionTitle}>Shirt Measurements</ThemedText>
+                    <ThemedText style={[styles.unitNote, { color: muted }]}>All values are in inches (in).</ThemedText>
                     <View style={styles.measurementGrid}>
                       {Object.entries(measurement.shirt).map(([key, value]) => (
                         <View key={key} style={styles.measurementItem}>
                           <ThemedText style={[styles.label, { color: muted }]}>
                             {key.charAt(0).toUpperCase() + key.slice(1)}
                           </ThemedText>
-                          <ThemedText style={styles.value}>{value || '--'}</ThemedText>
+                          <ThemedText style={styles.value}>{value ? `${value} in` : '--'}</ThemedText>
                         </View>
                       ))}
                     </View>
                   </View>
 
                   <View style={styles.sectionGroup}>
-                    <ThemedText style={styles.sectionTitle}>🩳 Trouser Measurements (inches)</ThemedText>
+                    <ThemedText style={styles.sectionTitle}>Trouser Measurements</ThemedText>
+                    <ThemedText style={[styles.unitNote, { color: muted }]}>Standard tailor measurements shown in inches (in).</ThemedText>
                     <View style={styles.measurementGrid}>
                       {Object.entries(measurement.trouser).map(([key, value]) => (
                         <View key={key} style={styles.measurementItem}>
                           <ThemedText style={[styles.label, { color: muted }]}>
                             {key === 'phuncha' ? 'Phuncha' : key.charAt(0).toUpperCase() + key.slice(1)}
                           </ThemedText>
-                          <ThemedText style={styles.value}>{value || '--'}</ThemedText>
+                          <ThemedText style={styles.value}>{value ? `${value} in` : '--'}</ThemedText>
                         </View>
                       ))}
                     </View>
@@ -248,9 +248,7 @@ const styles = StyleSheet.create({
   header: {
     paddingTop: 40,
     padding: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    gap: 12,
   },
   headerTitle: { color: '#fff', fontWeight: '700', fontSize: 16 },
   scroll: { padding: 12 },
@@ -275,6 +273,7 @@ const styles = StyleSheet.create({
   },
   sectionGroup: { marginBottom: 14 },
   sectionTitle: { fontSize: 14, fontWeight: '600', marginBottom: 10 },
+  unitNote: { fontSize: 11, marginTop: -6, marginBottom: 10 },
   measurementGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',

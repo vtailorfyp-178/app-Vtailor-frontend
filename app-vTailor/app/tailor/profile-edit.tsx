@@ -133,7 +133,7 @@ export default function TailorProfileEdit() {
               {profileImage ? (
                 <Image source={{ uri: profileImage }} style={styles.profileImage} />
               ) : (
-                <Text style={styles.placeholderIcon}>📷</Text>
+                <Ionicons name="camera-outline" size={34} color={tint} />
               )}
             </View>
             <Pressable style={[styles.changeImageBtn, { backgroundColor: tint }]} onPress={handlePickImage}>
@@ -240,7 +240,7 @@ export default function TailorProfileEdit() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, paddingTop: 40 },
-  headerButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  headerButton: { width: 44, height: 44, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.18)', alignItems: 'center', justifyContent: 'center' },
   headerTitle: { flex: 1, textAlign: 'center', fontSize: 20, fontWeight: '700' },
   content: { padding: 16 },
   section: { marginBottom: 16 },
@@ -249,7 +249,6 @@ const styles = StyleSheet.create({
   profileImageSection: { alignItems: 'center', marginBottom: 24 },
   profileImageBox: { width: 120, height: 120, borderRadius: 60, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#e5e7eb', marginBottom: 12 },
   profileImage: { width: '100%', height: '100%', borderRadius: 60 },
-  placeholderIcon: { fontSize: 48 },
   changeImageBtn: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 8, gap: 6 },
   changeImageText: { color: '#fff', fontWeight: '700', fontSize: 13 },
   saveBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 14, borderRadius: 12, gap: 8, marginTop: 8 },

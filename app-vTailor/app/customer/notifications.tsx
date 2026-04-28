@@ -1,5 +1,8 @@
+import { Ionicons } from '@expo/vector-icons';
+import { SURFACE_MUTED, TEXT_DARK, UI } from '@/constants/ui';
+import AppBackButton from '@/components/AppBackButton';
 import React from 'react';
-import { ScrollView, Pressable, StyleSheet } from 'react-native';
+import { ScrollView, Pressable, StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -16,7 +19,7 @@ const CustomerNotifications = () => {
       message: 'Ahmad Master Tailor has accepted your Long Frock request. They will contact you soon!',
       time: '5 min ago',
       color: '#059669',
-      icon: '✅',
+      icon: 'checkmark-circle-outline' as const,
     },
     {
       id: 2,
@@ -25,7 +28,7 @@ const CustomerNotifications = () => {
       message: 'Your Long Frock cutting is completed. Stitching begins tomorrow!',
       time: '2 hours ago',
       color: '#f59e0b',
-      icon: '📦',
+      icon: 'cube-outline' as const,
     },
     {
       id: 3,
@@ -34,7 +37,7 @@ const CustomerNotifications = () => {
       message: '3 days left for Shalwar Kameez delivery',
       time: '5 hours ago',
       color: null,
-      icon: '⏱️',
+      icon: 'time-outline' as const,
     },
     {
       id: 4,
@@ -43,7 +46,7 @@ const CustomerNotifications = () => {
       message: 'Your Casual Kurta order has been completed. Ready for pickup!',
       time: '1 day ago',
       color: null,
-      icon: '✅',
+      icon: 'shield-checkmark-outline' as const,
     },
     {
       id: 5,
@@ -52,7 +55,7 @@ const CustomerNotifications = () => {
       message: 'Rs. 8,500 payment received for Long Frock',
       time: '2 days ago',
       color: '#0f172a',
-      icon: '💳',
+      icon: 'card-outline' as const,
     },
     {
       id: 6,
@@ -61,7 +64,7 @@ const CustomerNotifications = () => {
       message: 'Tailor cancelled your order. Refund initiated.',
       time: '3 days ago',
       color: '#ef4444',
-      icon: '❌',
+      icon: 'close-circle-outline' as const,
     },
   ];
 
@@ -73,16 +76,19 @@ const CustomerNotifications = () => {
   return (
     <ThemedView style={styles.container}>
       <ThemedView style={styles.header}>
-        <Pressable style={styles.backButton} onPress={() => (router as any).back()}>
-          <ThemedText style={styles.backText}>←</ThemedText>
-        </Pressable>
-        <ThemedText style={styles.title}>Notifications</ThemedText>
+        <AppBackButton onPress={() => (router as any).back()} />
+        <View style={{ flex: 1 }}>
+          <ThemedText style={styles.title}>Notifications</ThemedText>
+          <ThemedText style={[styles.subtitle, { color: muted }]}>Order, delivery, and wallet updates</ThemedText>
+        </View>
       </ThemedView>
 
       <ScrollView contentContainerStyle={styles.list}>
         {notifications.length === 0 ? (
           <ThemedView style={styles.empty}>
-            <ThemedText style={styles.emptyIcon}>🔔</ThemedText>
+            <View style={styles.emptyIcon}>
+              <Ionicons name="notifications-outline" size={34} color={tint} />
+            </View>
             <ThemedText style={styles.emptyTitle}>No Notifications</ThemedText>
             <ThemedText style={styles.emptyDesc}>You're all caught up!</ThemedText>
           </ThemedView>
@@ -90,10 +96,13 @@ const CustomerNotifications = () => {
           notifications.map((notif) => (
             <ThemedView key={notif.id} style={styles.card}>
               <ThemedView style={[styles.iconBox, { backgroundColor: (notif.color ? notif.color + '22' : iconBg) }]}>
-                <ThemedText style={[styles.icon, { color: tint }]}>{notif.icon}</ThemedText>
+                <Ionicons name={notif.icon} size={21} color={notif.color || tint} />
               </ThemedView>
               <ThemedView style={styles.content}>
-                <ThemedText style={styles.nTitle}>{notif.title}</ThemedText>
+                <View style={styles.titleRow}>
+                  <ThemedText style={styles.nTitle}>{notif.title}</ThemedText>
+                  <View style={[styles.dot, { backgroundColor: notif.color || tint }]} />
+                </View>
                 <ThemedText style={[styles.nMessage, { color: muted }]}>{notif.message}</ThemedText>
                 <ThemedText style={[styles.nTime, { color: muted }]}>{notif.time}</ThemedText>
               </ThemedView>
@@ -106,21 +115,22 @@ const CustomerNotifications = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
-  header: { flexDirection: 'row', alignItems: 'center', paddingTop: 40, paddingHorizontal: 16, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: '#e5e7eb' },
-  backButton: { padding: 8, marginRight: 8 },
-  backText: { fontSize: 18 },
-  title: { fontSize: 18, fontWeight: '700' },
-  list: { padding: 12, paddingBottom: 120 },
-  card: { flexDirection: 'row', padding: 12, backgroundColor: '#f9fafb', borderRadius: 12, marginBottom: 10, borderWidth: 1, borderColor: '#e5e7eb' },
-  iconBox: { width: 40, height: 40, borderRadius: 10, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
-  icon: { fontSize: 18 },
+  container: { flex: 1, backgroundColor: SURFACE_MUTED },
+  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingBottom: 16, paddingTop: 10 },
+  backButton: { width: 42, height: 42, borderRadius: 14, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', marginRight: 10, ...UI.softShadow },
+  title: { fontSize: 23, fontWeight: '900', color: TEXT_DARK },
+  subtitle: { fontSize: 12, marginTop: 3, fontWeight: '600' },
+  list: { padding: 16, paddingBottom: 120 },
+  card: { flexDirection: 'row', padding: 14, backgroundColor: '#fff', borderRadius: UI.radius.lg, marginBottom: 12, borderWidth: 1, borderColor: '#fbcfe8', ...UI.softShadow },
+  iconBox: { width: 46, height: 46, borderRadius: 16, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
   content: { flex: 1 },
-  nTitle: { fontSize: 14, fontWeight: '600', marginBottom: 4 },
-  nMessage: { fontSize: 13, color: '#6b7280' },
+  titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  dot: { width: 8, height: 8, borderRadius: 4 },
+  nTitle: { fontSize: 14, fontWeight: '800', marginBottom: 4, color: TEXT_DARK },
+  nMessage: { fontSize: 13, color: '#6b7280', lineHeight: 18 },
   nTime: { fontSize: 11, color: '#9ca3af', marginTop: 8 },
   empty: { alignItems: 'center', paddingTop: 60 },
-  emptyIcon: { fontSize: 40, marginBottom: 12 },
+  emptyIcon: { width: 66, height: 66, borderRadius: 24, backgroundColor: '#fdf2f8', alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
   emptyTitle: { fontSize: 16, fontWeight: '600' },
   emptyDesc: { fontSize: 13, color: '#6b7280', marginTop: 6 },
 });

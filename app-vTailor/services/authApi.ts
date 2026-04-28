@@ -57,21 +57,22 @@ function buildBaseUrl(host: string) {
 }
 
 function getCandidateBaseUrls() {
-  if (cachedBaseUrl) return [cachedBaseUrl];
+  const urls: string[] = [];
+  if (cachedBaseUrl) urls.push(cachedBaseUrl);
 
   const normalizedEnvBase = normalizeApiBase(EXPO_API_BASE);
-  if (normalizedEnvBase) return [normalizedEnvBase];
+  if (normalizedEnvBase) urls.push(normalizedEnvBase);
 
   if (Platform.OS === 'web') {
     const webHost = (typeof window !== 'undefined' && window.location && window.location.hostname) || 'localhost';
-    return [
+    urls.push(
       `http://${webHost}:8000${API_PREFIX}`,
       `http://127.0.0.1:8000${API_PREFIX}`,
       `http://localhost:8000${API_PREFIX}`,
-    ];
+    );
+    return Array.from(new Set(urls));
   }
 
-  const urls: string[] = [];
   const scriptHost = extractHostFromScriptUrl();
   if (scriptHost) urls.push(buildBaseUrl(scriptHost));
   if (Platform.OS === 'android') urls.push(buildBaseUrl(EMULATOR_ANDROID_HOST));

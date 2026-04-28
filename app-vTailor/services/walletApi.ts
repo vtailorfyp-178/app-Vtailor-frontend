@@ -18,23 +18,24 @@ function buildBaseUrl(host: string) {
 }
 
 function getCandidateBaseUrls() {
-  if (EXPO_API_BASE) return [EXPO_API_BASE];
+  const urls: string[] = [];
+  if (EXPO_API_BASE) urls.push(EXPO_API_BASE);
 
   if (Platform.OS === 'web') {
     const webHost = (typeof window !== 'undefined' && window.location && window.location.hostname) || 'localhost';
-    return [
+    urls.push(
       `http://${webHost}:8000/app/api/v1`,
       'http://127.0.0.1:8000/app/api/v1',
       'http://localhost:8000/app/api/v1',
-    ];
+    );
+    return Array.from(new Set(urls));
   }
 
-  const urls: string[] = [];
   if (Platform.OS === 'android') urls.push(buildBaseUrl(EMULATOR_ANDROID_HOST));
   urls.push(...expoHostCandidates.map(buildBaseUrl));
   urls.push(buildBaseUrl('127.0.0.1'));
   urls.push(buildBaseUrl('localhost'));
-  return urls;
+  return Array.from(new Set(urls));
 }
 
 async function fetchWithFallback(path: string, init?: RequestInit) {

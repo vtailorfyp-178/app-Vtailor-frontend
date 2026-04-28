@@ -4,6 +4,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useThemeColor } from '@/hooks/use-theme-color';
+import AppBackButton from '@/components/AppBackButton';
 
 export default function PreviewCustomization() {
   const router = useRouter();
@@ -42,11 +43,9 @@ export default function PreviewCustomization() {
   return (
     <ThemedView style={styles.container}>
       <View style={[styles.header, { backgroundColor: tint }]}> 
-        <Pressable onPress={() => (router as any).back()}>
-          <ThemedText style={{ color: '#fff' }}>{'< Back'}</ThemedText>
-        </Pressable>
+        <AppBackButton onPress={() => (router as any).back()} variant="tint" />
         <ThemedText style={styles.headerTitle}>Preview</ThemedText>
-        <View style={{ width: 56 }} />
+        <View style={styles.headerSpacer} />
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll}>
@@ -80,7 +79,8 @@ export default function PreviewCustomization() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   header: { paddingTop: 40, padding: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  headerTitle: { color: '#fff', fontWeight: '700' },
+  headerSpacer: { width: 84 },
+  headerTitle: { flex: 1, color: '#fff', fontWeight: '700', textAlign: 'center' },
   scroll: { padding: 12 },
   preview: { height: 320, borderRadius: 12, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
   previewImage: { width: '100%', height: '100%' },

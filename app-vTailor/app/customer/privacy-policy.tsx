@@ -5,6 +5,7 @@ import { ThemedText } from '@/components/themed-text';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import AppBackButton from '@/components/AppBackButton';
 
 export default function CustomerPrivacyPolicy() {
   const router = useRouter();
@@ -18,9 +19,7 @@ export default function CustomerPrivacyPolicy() {
       <View style={[styles.container, { backgroundColor: bg }]}>
         {/* Header */}
         <View style={[styles.header, { backgroundColor: tint }]}>
-          <Pressable onPress={() => router.replace('/customer/settings')} style={styles.headerButton}>
-            <Ionicons name="chevron-back" size={26} color="#fff" />
-          </Pressable>
+          <AppBackButton onPress={() => router.replace('/customer/settings')} variant="tint" />
           <ThemedText style={[styles.headerTitle, { color: '#fff' }]}>Privacy Policy</ThemedText>
           <View style={styles.headerButton} />
         </View>
@@ -203,7 +202,7 @@ export default function CustomerPrivacyPolicy() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, paddingTop: 40 },
-  headerButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  headerButton: { width: 84, height: 44, alignItems: 'center', justifyContent: 'center' },
   headerTitle: { flex: 1, textAlign: 'center', fontSize: 20, fontWeight: '700' },
   content: { padding: 16 },
   infoCard: { padding: 16, borderRadius: 12, marginBottom: 16 },

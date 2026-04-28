@@ -1,7 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
+import { SURFACE_MUTED, TEXT_DARK, UI } from '@/constants/ui';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useMemo, useState } from 'react';
-import { Linking, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/contexts/AuthContext';
 import { confirmWalletTransaction, createWalletTransaction, failWalletTransaction, getWalletSummary } from '@/services/walletApi';
 
@@ -13,6 +15,7 @@ const isValidPakMobile = (phone: string) => /^(03\d{9}|\+923\d{9})$/.test(phone.
 
 const WalletTransactionScreen = () => {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const params = useLocalSearchParams();
   const transactionType = (params?.transactionType as string) || 'add';
   const paymentMethod = (params?.paymentMethod as string) || 'EasyPaisa';
@@ -191,15 +194,31 @@ const WalletTransactionScreen = () => {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: Math.max(insets.top + 10, 28) }]}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.headerRow}>
-          <Pressable onPress={() => router.back()} style={styles.backBtn}>
-            <Ionicons name="arrow-back" size={22} color="#111827" />
+          <Pressable onPress={() => router.replace(walletPath as any)} style={styles.backBtn}>
+            <Ionicons name="chevron-back" size={24} color={TEXT_DARK} />
           </Pressable>
           <View style={{ flex: 1 }}>
             <Text style={styles.title}>{screenTitle}</Text>
-            <Text style={styles.subtitle}>{screenSubtitle}</Text>
+          </View>
+        </View>
+
+        <View style={styles.heroCard}>
+          <View style={styles.heroTop}>
+            <View style={styles.heroIcon}>
+              <Ionicons name={isWithdraw ? 'arrow-up-circle-outline' : 'add-circle-outline'} size={30} color="#fff" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.heroLabel}>{providerLabel}</Text>
+              <Text style={styles.heroTitle}>{isWithdraw ? 'Withdraw funds' : 'Add wallet money'}</Text>
+            </View>
+          </View>
+          <Text style={styles.heroSubtitle}>{screenSubtitle}</Text>
+          <View style={styles.balancePill}>
+            <Text style={styles.balancePillLabel}>Available Balance</Text>
+            <Text style={styles.balancePillValue}>Rs {balance.toLocaleString()}</Text>
           </View>
         </View>
 
@@ -228,22 +247,28 @@ const WalletTransactionScreen = () => {
 
         <View style={styles.formCard}>
           <Text style={styles.inputLabel}>Amount</Text>
-          <TextInput
-            placeholder="Enter amount"
-            value={amount}
-            onChangeText={setAmount}
-            keyboardType="numeric"
-            style={styles.input}
-          />
+          <View style={styles.inputWrap}>
+            <Text style={styles.currencyPrefix}>Rs</Text>
+            <TextInput
+              placeholder="Enter amount"
+              value={amount}
+              onChangeText={setAmount}
+              keyboardType="numeric"
+              style={styles.input}
+            />
+          </View>
 
           <Text style={[styles.inputLabel, { marginTop: 16 }]}>Phone Number</Text>
-          <TextInput
-            placeholder="03XXXXXXXXX"
-            value={phone}
-            onChangeText={setPhone}
-            keyboardType="phone-pad"
-            style={styles.input}
-          />
+          <View style={styles.inputWrap}>
+            <Ionicons name="call-outline" size={18} color="#9ca3af" />
+            <TextInput
+              placeholder="03XXXXXXXXX"
+              value={phone}
+              onChangeText={setPhone}
+              keyboardType="phone-pad"
+              style={styles.input}
+            />
+          </View>
         </View>
 
         {simulationStep === 'connecting' && (
@@ -327,11 +352,10 @@ export default WalletTransactionScreen;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f3f4f6',
-    paddingTop: Platform.select({ ios: 60, android: 28, default: 28 }),
+    backgroundColor: SURFACE_MUTED,
   },
   content: {
-    paddingHorizontal: 16,
+    paddingHorizontal: UI.screenPadding,
     paddingBottom: 40,
   },
   headerRow: {
@@ -340,26 +364,83 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   backBtn: {
-    padding: 6,
+    width: 42,
+    height: 42,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#fff',
     marginRight: 10,
+    ...UI.softShadow,
   },
   title: {
     fontSize: 22,
     fontWeight: '800',
-    color: '#111827',
+    color: TEXT_DARK,
   },
-  subtitle: {
+  heroCard: {
+    backgroundColor: '#ec4899',
+    borderRadius: UI.radius.xl,
+    padding: 18,
+    marginBottom: 16,
+    ...UI.shadow,
+  },
+  heroTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 14,
+  },
+  heroIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.22)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  heroLabel: {
+    color: '#ffe4f0',
+    fontSize: 12,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  heroTitle: {
+    color: '#fff',
+    fontSize: 22,
+    fontWeight: '900',
+  },
+  heroSubtitle: {
+    color: '#ffe4f0',
     fontSize: 13,
-    color: '#6b7280',
-    marginTop: 2,
+    lineHeight: 19,
+  },
+  balancePill: {
+    marginTop: 14,
+    backgroundColor: '#fff',
+    borderRadius: 18,
+    padding: 12,
+  },
+  balancePillLabel: {
+    color: '#9f1239',
+    fontSize: 11,
+    fontWeight: '800',
+    marginBottom: 2,
+  },
+  balancePillValue: {
+    color: TEXT_DARK,
+    fontSize: 20,
+    fontWeight: '900',
   },
   summaryCard: {
     backgroundColor: '#fff',
-    borderRadius: 12,
+    borderRadius: UI.radius.lg,
     padding: 14,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: '#fbcfe8',
     marginBottom: 16,
+    ...UI.softShadow,
   },
   rowBetween: {
     flexDirection: 'row',
@@ -373,15 +454,16 @@ const styles = StyleSheet.create({
   value: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#111827',
+    color: TEXT_DARK,
   },
   formCard: {
     backgroundColor: '#fff',
-    borderRadius: 12,
+    borderRadius: UI.radius.lg,
     padding: 14,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: '#fbcfe8',
     marginBottom: 16,
+    ...UI.softShadow,
   },
   inputLabel: {
     fontSize: 12,
@@ -389,17 +471,30 @@ const styles = StyleSheet.create({
     marginBottom: 6,
     fontWeight: '600',
   },
-  input: {
+  inputWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
     borderWidth: 1,
     borderColor: '#e5e7eb',
-    borderRadius: 10,
-    padding: 12,
+    borderRadius: 14,
+    paddingHorizontal: 12,
     backgroundColor: '#f9fafb',
+  },
+  currencyPrefix: {
+    color: '#9ca3af',
     fontSize: 14,
+    fontWeight: '900',
+    marginRight: 8,
+  },
+  input: {
+    flex: 1,
+    paddingVertical: 13,
+    fontSize: 14,
+    color: TEXT_DARK,
   },
   flowCard: {
     backgroundColor: '#ecfeff',
-    borderRadius: 12,
+    borderRadius: UI.radius.lg,
     padding: 12,
     borderWidth: 1,
     borderColor: '#a5f3fc',
@@ -433,7 +528,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#ecfeff',
-    borderRadius: 12,
+    borderRadius: UI.radius.lg,
     padding: 12,
     borderWidth: 1,
     borderColor: '#a5f3fc',
@@ -449,7 +544,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#ecfdf3',
-    borderRadius: 12,
+    borderRadius: UI.radius.lg,
     padding: 12,
     borderWidth: 1,
     borderColor: '#bbf7d0',
@@ -468,7 +563,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#fef2f2',
-    borderRadius: 12,
+    borderRadius: UI.radius.lg,
     padding: 12,
     borderWidth: 1,
     borderColor: '#fecaca',
@@ -484,7 +579,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#fefce8',
-    borderRadius: 12,
+    borderRadius: UI.radius.lg,
     padding: 12,
     borderWidth: 1,
     borderColor: '#fde68a',
@@ -512,10 +607,11 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   proceedBtn: {
-    backgroundColor: '#2563eb',
+    backgroundColor: '#ec4899',
     paddingVertical: 14,
-    borderRadius: 12,
+    borderRadius: 16,
     alignItems: 'center',
+    ...UI.softShadow,
   },
   proceedText: {
     color: '#fff',

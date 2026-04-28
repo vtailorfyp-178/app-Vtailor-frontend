@@ -1,4 +1,3 @@
-import BottomTabBar, { TAB_BAR_HEIGHT } from '@/components/BottomTabBar';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { useFocusEffect, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useState } from 'react';
@@ -35,9 +34,8 @@ const TailorDashboard = () => {
 
   return (
     <ProtectedRoute requiredRole="tailor">
-      <View style={{ flex: 1, paddingBottom: TAB_BAR_HEIGHT }}>
+      <View style={{ flex: 1 }}>
         {renderTab()}
-        <BottomTabBar basePath="tailor" onTabChange={setActiveTab} activeTab={activeTab} />
       </View>
     </ProtectedRoute>
   );

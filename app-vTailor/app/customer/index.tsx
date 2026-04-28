@@ -1,4 +1,3 @@
-import BottomTabBar, { TAB_BAR_HEIGHT } from '@/components/BottomTabBar';
 import CustomerChat from '@/components/CustomerChat';
 import CustomerHome from '@/components/CustomerHome';
 import CustomerOrders from '@/components/CustomerOrders';
@@ -11,7 +10,7 @@ import { View } from 'react-native';
 
 const CustomerDashboard = () => {
   const params = useLocalSearchParams();
-  const [activeTab, setActiveTab] = useState(() => 
+  const [activeTab, setActiveTab] = useState(() =>
     typeof params?.tab === 'string' ? params.tab : 'home'
   );
 
@@ -35,9 +34,8 @@ const CustomerDashboard = () => {
 
   return (
     <ProtectedRoute requiredRole="customer">
-      <View style={{ flex: 1, paddingBottom: TAB_BAR_HEIGHT }}>
+      <View style={{ flex: 1 }}>
         {renderTab()}
-        <BottomTabBar basePath="customer" onTabChange={setActiveTab} activeTab={activeTab} />
       </View>
     </ProtectedRoute>
   );

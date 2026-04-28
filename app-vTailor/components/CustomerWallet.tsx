@@ -7,9 +7,49 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { ThemedText } from './themed-text';
 import { useAuth } from '@/contexts/AuthContext';
 import { getWalletSummary, WalletSummary } from '@/services/walletApi';
+import { SURFACE_MUTED, TEXT_DARK, UI } from '@/constants/ui';
+
+type PenaltyOrder = {
+  id: string;
+  customerName: string;
+  orderAmount: number;
+  lateDays: number;
+};
+
+const toNumber = (value: unknown) => {
+  const numberValue = Number(value);
+  return Number.isFinite(numberValue) ? numberValue : 0;
+};
+
+const toText = (value: unknown, fallback = 'Unknown') => {
+  if (typeof value === 'string' && value.trim()) return value;
+  if (typeof value === 'number' && Number.isFinite(value)) return String(value);
+  return fallback;
+};
+
+const normalizePenaltyOrders = (value: unknown): PenaltyOrder[] => {
+  if (!Array.isArray(value)) return [];
+
+  return value
+    .map((order, index) => {
+      if (!order || typeof order !== 'object') return null;
+
+      const item = order as Record<string, unknown>;
+      const lateDays = toNumber(item.lateDays ?? item.daysLate);
+      if (lateDays <= 0) return null;
+
+      return {
+        id: toText(item.id ?? item.orderId, `Order ${index + 1}`),
+        customerName: toText(item.customerName ?? item.tailorName, 'Customer'),
+        orderAmount: toNumber(item.orderAmount ?? item.orderPrice ?? item.amount),
+        lateDays,
+      };
+    })
+    .filter((order): order is PenaltyOrder => Boolean(order));
+};
 
 const CustomerWallet = () => {
-  const [penalties, setPenalties] = useState<any[]>([]);
+  const [penalties, setPenalties] = useState<PenaltyOrder[]>([]);
   const [wallet, setWallet] = useState<WalletSummary | null>(null);
   const { token } = useAuth();
 
@@ -20,18 +60,17 @@ const CustomerWallet = () => {
         const data = await AsyncStorage.getItem('vtailor_penalty_orders');
         if (data) {
           const orders = JSON.parse(data);
-          // Filter only late orders with penalties
-          const penaltyOrders = orders.filter((o: any) => o.lateDays && o.lateDays > 0);
-          setPenalties(penaltyOrders);
+          setPenalties(normalizePenaltyOrders(orders));
+        } else {
+          setPenalties([]);
         }
-      } catch (error) {
-        // fail silently
+      } catch {
+        setPenalties([]);
       }
     };
     loadPenalties();
   }, []);
 
-  const background = useThemeColor({}, 'background');
   const tint = useThemeColor({}, 'tint');
   const card = useThemeColor({}, 'card');
   const inputBorder = useThemeColor({}, 'inputBorder');
@@ -62,12 +101,14 @@ const CustomerWallet = () => {
   );
 
   return (
-    <View style={[styles.container, { backgroundColor: background }]}> 
+    <View style={styles.container}> 
       <View style={[styles.headerSection, { backgroundColor: tint }] }>
         <ThemedText style={[styles.headerTitle, { color: '#fff' }]}>My Wallet</ThemedText>
         <View style={[styles.balanceCard, { backgroundColor: card }] }>
           <View style={styles.balanceTop}>
-            <View style={[styles.walletIcon, { backgroundColor: '#fbbf24' }]}><ThemedText style={styles.walletEmoji}>💰</ThemedText></View>
+            <View style={[styles.walletIcon, { backgroundColor: '#fef3c7' }]}>
+              <Ionicons name="wallet-outline" size={25} color="#d97706" />
+            </View>
             <View>
               <ThemedText style={styles.balanceLabel}>Available Balance</ThemedText>
               <ThemedText style={styles.balanceAmount}>Rs. {(wallet?.balance ?? 0).toLocaleString()}</ThemedText>
@@ -107,7 +148,7 @@ const CustomerWallet = () => {
         {/* Delivery Status & Penalty Information Section */}
         <View style={styles.deliverySection}>
           <Pressable 
-            style={[styles.deliveryStatusCard, { backgroundColor: card }]}
+            style={[styles.deliveryStatusCard, { backgroundColor: card, borderColor: inputBorder }]}
             onPress={() => router.push('/customer/delivery-penalty-details')}
           >
             <View style={styles.deliveryStatusIcon}>
@@ -129,7 +170,12 @@ const CustomerWallet = () => {
               <ThemedText style={styles.penaltySubtitle}>2% deduction per day late</ThemedText>
             </View>
             
-            {penalties.map((order: any) => (
+            {penalties.map((order) => {
+              const penaltyPercent = order.lateDays * 2;
+              const penaltyAmount = (order.orderAmount * penaltyPercent) / 100;
+              const updatedAmount = order.orderAmount - penaltyAmount;
+
+              return (
               <View key={order.id} style={styles.penaltyCard}>
                 {/* Order Info */}
                 <View style={styles.penaltyCardHeader}>
@@ -145,14 +191,14 @@ const CustomerWallet = () => {
                 {/* Original Amount */}
                 <View style={styles.penaltyDetailRow}>
                   <ThemedText style={styles.penaltyLabel}>Original Amount</ThemedText>
-                  <ThemedText style={styles.penaltyAmount}>Rs {order.orderAmount?.toLocaleString() || 0}</ThemedText>
+                  <ThemedText style={styles.penaltyAmount}>Rs {order.orderAmount.toLocaleString()}</ThemedText>
                 </View>
 
                 {/* Per Day Deduction */}
                 <View style={styles.penaltyDetailRow}>
-                  <ThemedText style={styles.penaltyLabel}>Deduction (2% × {order.lateDays || 0} days)</ThemedText>
+                  <ThemedText style={styles.penaltyLabel}>Deduction (2% × {order.lateDays} days)</ThemedText>
                   <ThemedText style={[styles.penaltyAmount, { color: '#ef4444' }]}>
-                    - Rs {((order.orderAmount || 0) * ((order.lateDays || 0) * 2)) / 100}
+                    - Rs {penaltyAmount.toLocaleString()}
                   </ThemedText>
                 </View>
 
@@ -161,18 +207,19 @@ const CustomerWallet = () => {
                 <View style={styles.penaltyDetailRow}>
                   <ThemedText style={[styles.penaltyLabel, { fontWeight: '700', color: '#111827' }]}>Tailor Updated Amount</ThemedText>
                   <ThemedText style={[styles.penaltyAmount, { color: '#f59e0b', fontWeight: '700', fontSize: 16 }]}>
-                    Rs {(order.orderAmount || 0) - (((order.orderAmount || 0) * ((order.lateDays || 0) * 2)) / 100)}
+                    Rs {updatedAmount.toLocaleString()}
                   </ThemedText>
                 </View>
 
                 {/* Breakdown Info */}
                 <View style={styles.penaltyBreakdown}>
                   <ThemedText style={styles.breakdownText}>
-                    Per day rate: 2% × {order.lateDays || 0} = {(order.lateDays || 0) * 2}%
+                    Per day rate: 2% × {order.lateDays} = {penaltyPercent}%
                   </ThemedText>
                 </View>
               </View>
-            ))}
+              );
+            })}
           </View>
         )}
 
@@ -180,13 +227,13 @@ const CustomerWallet = () => {
         <View style={styles.transactionSection}>
           <View style={styles.transactionHeader}>
             <ThemedText style={styles.transactionTitle}>Transaction History</ThemedText>
-            <ThemedText style={styles.historyIcon}>📜</ThemedText>
+            <Ionicons name="receipt-outline" size={18} color={tint} />
           </View>
           <View style={styles.transactionsList}>
             {(wallet?.transactions ?? []).map((tx) => (
-              <View key={tx.id} style={styles.transactionCard}>
+              <View key={tx.id} style={[styles.transactionCard, { borderColor: inputBorder }]}>
                 <View style={[styles.txIcon, { backgroundColor: tx.transaction_type === 'add' ? '#d1fae5' : '#fee2e2' }]}>
-                  <ThemedText style={styles.txArrowIcon}>{tx.transaction_type === 'add' ? '↓' : '↑'}</ThemedText>
+                  <Ionicons name={tx.transaction_type === 'add' ? 'arrow-down-outline' : 'arrow-up-outline'} size={18} color={tx.transaction_type === 'add' ? '#059669' : '#dc2626'} />
                 </View>
                 <View style={styles.txContent}>
                   <ThemedText style={styles.txDescription}>{tx.transaction_type === 'add' ? `Wallet Top-up via ${tx.payment_method}` : `Withdrawal via ${tx.payment_method}`}</ThemedText>
@@ -199,7 +246,7 @@ const CustomerWallet = () => {
               </View>
             ))}
             {(wallet?.transactions?.length ?? 0) === 0 && (
-              <View style={styles.transactionCard}>
+              <View style={[styles.transactionCard, { borderColor: inputBorder }]}>
                 <ThemedText style={styles.txDate}>No transactions yet</ThemedText>
               </View>
             )}
@@ -212,29 +259,26 @@ const CustomerWallet = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#ffffff' },
-  headerSection: { paddingHorizontal: 16, paddingTop: 40, paddingBottom: 20, borderBottomLeftRadius: 24, borderBottomRightRadius: 24 },
-  headerTitle: { fontSize: 22, fontWeight: '700', marginBottom: 20 },
-  balanceCard: { borderRadius: 16, padding: 16 },
+  container: { flex: 1, backgroundColor: SURFACE_MUTED },
+  headerSection: { margin: 16, paddingHorizontal: 18, paddingTop: 24, paddingBottom: 18, borderRadius: 24, ...UI.shadow },
+  headerTitle: { fontSize: 24, fontWeight: '900', marginBottom: 20 },
+  balanceCard: { borderRadius: 20, padding: 16, ...UI.softShadow },
   balanceTop: { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
   walletIcon: { width: 48, height: 48, borderRadius: 12, backgroundColor: '#fbbf24', justifyContent: 'center', alignItems: 'center', marginRight: 12 },
-  walletEmoji: { fontSize: 24 },
   balanceLabel: { fontSize: 12, color: '#6b7280', marginBottom: 4 },
-  balanceAmount: { fontSize: 24, fontWeight: '700', color: '#000000' },
+  balanceAmount: { fontSize: 26, fontWeight: '900', color: TEXT_DARK },
   addMoneyBtn: { paddingVertical: 12, paddingHorizontal: 16, borderRadius: 12, alignItems: 'center' },
   addMoneyText: { color: '#ffffff', fontWeight: '600', fontSize: 14 },
   actionRow: { flexDirection: 'row', gap: 8, marginTop: 8 },
-  tabBtn: { flex: 1, paddingVertical: 12, paddingHorizontal: 16, borderRadius: 12, alignItems: 'center' },
-  tabBtnText: { fontWeight: '600', fontSize: 14 },
+  tabBtn: { flex: 1, paddingVertical: 12, paddingHorizontal: 16, borderRadius: 14, alignItems: 'center' },
+  tabBtnText: { fontWeight: '800', fontSize: 14 },
   scrollView: { flex: 1 },
   transactionSection: { paddingHorizontal: 16, paddingTop: 24 },
   transactionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
-  transactionTitle: { fontSize: 16, fontWeight: '600' },
-  historyIcon: { fontSize: 16 },
+  transactionTitle: { fontSize: 17, fontWeight: '900', color: TEXT_DARK },
   transactionsList: { gap: 12 },
-  transactionCard: { flexDirection: 'row', alignItems: 'center', padding: 14, backgroundColor: '#f9fafb', borderRadius: 12, borderWidth: 1, borderColor: '#e5e7eb' },
+  transactionCard: { flexDirection: 'row', alignItems: 'center', padding: 15, backgroundColor: '#fff', borderRadius: 18, borderWidth: 1, ...UI.softShadow },
   txIcon: { width: 40, height: 40, borderRadius: 10, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
-  txArrowIcon: { fontSize: 18, fontWeight: '600' },
   txContent: { flex: 1 },
   txDescription: { fontSize: 13, fontWeight: '500', marginBottom: 2 },
   txDate: { fontSize: 11, color: '#6b7280' },
@@ -247,11 +291,12 @@ const styles = StyleSheet.create({
   penaltySubtitle: { fontSize: 12, color: '#6b7280' },
   penaltyCard: { 
     backgroundColor: '#fef2f2', 
-    borderRadius: 12, 
+    borderRadius: 18, 
     padding: 14, 
     marginBottom: 12, 
     borderLeftWidth: 4, 
-    borderLeftColor: '#ef4444' 
+    borderLeftColor: '#ef4444',
+    ...UI.softShadow,
   },
   penaltyCardHeader: { 
     flexDirection: 'row', 
@@ -272,7 +317,7 @@ const styles = StyleSheet.create({
   lateDaysBadge: { 
     paddingHorizontal: 10, 
     paddingVertical: 6, 
-    borderRadius: 8, 
+    borderRadius: 999, 
     backgroundColor: '#fee2e2' 
   },
   lateDaysText: { 
@@ -314,16 +359,16 @@ const styles = StyleSheet.create({
     textAlign: 'center' 
   },
   // Delivery Status & Penalty Information Styles
-  deliverySection: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 0 },
+  deliverySection: { paddingHorizontal: 16, paddingTop: 6, paddingBottom: 0 },
   deliveryStatusCard: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 16,
-    borderRadius: 12,
+    borderRadius: 18,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#dbeafe',
     backgroundColor: '#eff6ff',
+    ...UI.softShadow,
   },
   deliveryStatusIcon: {
     width: 50,

@@ -11,7 +11,9 @@ import {
   Alert,
   Image,
   Linking,
+  Modal,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -19,6 +21,7 @@ import { useThemeColor } from '@/hooks/use-theme-color';
 import { useAuth } from '@/contexts/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import * as FileSystem from 'expo-file-system/legacy';
 import { VideoView, useVideoPlayer } from 'expo-video';
 import {
   Conversations,
@@ -29,6 +32,7 @@ import {
   formatMessageTime,
   type ChatMessage,
 } from '@/services/conversationApi';
+import AppBackButton from '@/components/AppBackButton';
 
 function ChatVideoPreview({ uri, style }: { uri: string; style: any }) {
   const player = useVideoPlayer(uri, (videoPlayer) => {
@@ -121,6 +125,21 @@ function initials(name: string) {
     .join('') || 'T';
 }
 
+async function buildFallbackMediaUrl(asset: ImagePicker.ImagePickerAsset, kind: 'image' | 'video', mime: string) {
+  if (kind === 'image' && (!asset.fileSize || asset.fileSize <= 4_500_000)) {
+    try {
+      const base64 = await FileSystem.readAsStringAsync(asset.uri, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+      return `data:${mime};base64,${base64}`;
+    } catch {
+      return asset.uri;
+    }
+  }
+
+  return asset.uri;
+}
+
 export default function ChatConversation() {
   const router = useRouter();
   const params = useLocalSearchParams();
@@ -152,6 +171,8 @@ export default function ChatConversation() {
   );
   const flatListRef = useRef<FlatList>(null);
   const socketRef = useRef<ConversationSocket | null>(null);
+  const insets = useSafeAreaInsets();
+  const [imageViewerUri, setImageViewerUri] = useState<string | null>(null);
 
   // Initialize WebSocket and load messages
   useEffect(() => {
@@ -313,10 +334,7 @@ export default function ChatConversation() {
     }
 
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes:
-        kind === 'image'
-          ? ImagePicker.MediaTypeOptions.Images
-          : ImagePicker.MediaTypeOptions.Videos,
+      mediaTypes: kind === 'image' ? ['images'] as any : ['videos'] as any,
       quality: 0.7,
     });
 
@@ -356,14 +374,23 @@ export default function ChatConversation() {
           return;
         }
 
-        const uploaded = await Media.upload({
-          conversation_id: activeConversationId,
-          sender_id: userId,
-          fileUri: asset.uri,
-          filename: asset.fileName || (kind === 'image' ? 'image.jpg' : 'video.mp4'),
-          content_type: mime,
-          file_size: asset.fileSize || 0,
-        });
+        let uploaded: { media_url: string; media_key: string };
+        try {
+          uploaded = await Media.upload({
+            conversation_id: activeConversationId,
+            sender_id: userId,
+            fileUri: asset.uri,
+            filename: asset.fileName || (kind === 'image' ? 'image.jpg' : 'video.mp4'),
+            content_type: mime,
+            file_size: asset.fileSize || 0,
+          });
+        } catch (uploadError) {
+          console.warn(`Cloud ${kind} upload failed, sending fallback media:`, uploadError);
+          uploaded = {
+            media_url: await buildFallbackMediaUrl(asset, kind, mime),
+            media_key: `local-${kind}-${Date.now()}`,
+          };
+        }
 
         const sentMedia = await Messages.sendMedia({
           conversation_id: activeConversationId,
@@ -389,6 +416,7 @@ export default function ChatConversation() {
   };
 
   const handleSendImage = () => sendPickedMedia('image');
+  const handleSendVideo = () => sendPickedMedia('video');
   const handleStartCall = () => {
     if (!otherUserPhone) {
       Alert.alert('Phone number unavailable', 'This tailor has not shared a phone number yet.');
@@ -442,7 +470,13 @@ export default function ChatConversation() {
           {item.message_type === 'image' && (
             <View style={styles.mediaWrap}>
               {item.media_url ? (
-                <Image source={{ uri: item.media_url }} style={styles.mediaPreview} resizeMode="cover" />
+                <Pressable
+                  onPress={() => setImageViewerUri(item.media_url!)}
+                  accessibilityRole="button"
+                  accessibilityLabel="View photo full screen"
+                >
+                  <Image source={{ uri: item.media_url }} style={styles.mediaPreview} resizeMode="cover" />
+                </Pressable>
               ) : (
                 <ThemedText style={{ fontSize: 14, color: isOwn ? '#fff' : text }}>
                   📷 Image
@@ -498,12 +532,7 @@ export default function ChatConversation() {
     <ThemedView style={styles.container}>
       {/* Header */}
       <View style={[styles.header, { backgroundColor: tint }]}>
-        <Pressable
-          onPress={() => router.back()}
-          style={styles.backButton}
-        >
-          <Ionicons name="chevron-back" size={28} color="#fff" />
-        </Pressable>
+        <AppBackButton onPress={() => router.back()} variant="tint" />
         <View style={styles.headerTitle}>
           <View style={styles.headerProfileRow}>
             <View style={styles.headerAvatar}>
@@ -527,8 +556,9 @@ export default function ChatConversation() {
       </View>
 
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior="padding"
         style={{ flex: 1 }}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
       >
         <FlatList
           ref={flatListRef}
@@ -536,6 +566,7 @@ export default function ChatConversation() {
           renderItem={renderMessage}
           keyExtractor={(item) => item.message_id}
           contentContainerStyle={styles.messagesList}
+          keyboardShouldPersistTaps="handled"
           onContentSizeChange={() =>
             flatListRef.current?.scrollToEnd({ animated: true })
           }
@@ -557,6 +588,10 @@ export default function ChatConversation() {
                 <Ionicons name="image" size={18} color={tint} />
                 <ThemedText style={styles.mediaOptionText}>Image</ThemedText>
               </Pressable>
+              <Pressable style={styles.mediaOptionBtn} onPress={handleSendVideo} disabled={sending}>
+                <Ionicons name="videocam" size={18} color={tint} />
+                <ThemedText style={styles.mediaOptionText}>Video</ThemedText>
+              </Pressable>
             </View>
           ) : null}
           <TextInput
@@ -570,6 +605,7 @@ export default function ChatConversation() {
             onChangeText={setInputText}
             editable={!sending}
             multiline
+            onFocus={() => setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 120)}
           />
           <Pressable
             onPress={handleSendMessage}
@@ -588,6 +624,30 @@ export default function ChatConversation() {
           </Pressable>
         </View>
       </KeyboardAvoidingView>
+
+      <Modal
+        visible={!!imageViewerUri}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setImageViewerUri(null)}
+      >
+        <View style={[styles.lightboxBackdrop, { paddingTop: insets.top }]}>
+          <Pressable
+            style={[styles.lightboxClose, { top: insets.top + 6 }]}
+            onPress={() => setImageViewerUri(null)}
+            hitSlop={12}
+          >
+            <Ionicons name="close" size={28} color="#fff" />
+          </Pressable>
+          {imageViewerUri ? (
+            <Image
+              source={{ uri: imageViewerUri }}
+              style={styles.lightboxImage}
+              resizeMode="contain"
+            />
+          ) : null}
+        </View>
+      </Modal>
     </ThemedView>
   );
 }
@@ -763,5 +823,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 4,
+  },
+  lightboxBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.94)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 12,
+  },
+  lightboxClose: {
+    position: 'absolute',
+    right: 14,
+    zIndex: 10,
+    padding: 8,
+  },
+  lightboxImage: {
+    width: '100%',
+    height: '88%',
   },
 });

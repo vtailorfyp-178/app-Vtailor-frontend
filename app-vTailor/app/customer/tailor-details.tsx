@@ -6,7 +6,7 @@ import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { ThemedText } from '@/components/themed-text';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { Ionicons } from '@expo/vector-icons';
-import BottomTabBar, { TAB_BAR_HEIGHT } from '@/components/BottomTabBar';
+import AppBackButton from '@/components/AppBackButton';
 
 export default function TailorDetails() {
   const params = useLocalSearchParams();
@@ -41,12 +41,10 @@ export default function TailorDetails() {
 
   return (
     <ProtectedRoute requiredRole="customer">
-      <View style={[styles.container, { backgroundColor: bg, paddingBottom: TAB_BAR_HEIGHT }]}>
+      <View style={[styles.container, { backgroundColor: bg }]}>
         {/* Header */}
         <View style={[styles.header, { backgroundColor: tint }]}>
-          <Pressable onPress={() => router.replace(`/customer?tab=${fromTab}`)} style={styles.headerButton}>
-            <Ionicons name="chevron-back" size={26} color="#fff" />
-          </Pressable>
+          <AppBackButton onPress={() => (router as any).replace(`/customer?tab=${fromTab}`)} variant="tint" />
           <ThemedText style={[styles.headerTitle, { color: '#fff' }]}>Tailor Details</ThemedText>
           <View style={styles.headerButton} />
         </View>
@@ -56,12 +54,12 @@ export default function TailorDetails() {
           <View style={[styles.profileCard, { backgroundColor: cardBg }]}>
             <View style={styles.avatarSection}>
               <View style={[styles.avatar, { backgroundColor: tint }]}>
-                <Text style={styles.avatarText}>👤</Text>
+                <Ionicons name="person-outline" size={38} color="#fff" />
               </View>
               <View style={styles.profileInfo}>
                 <ThemedText style={styles.tailorName}>{tailorData.name}</ThemedText>
                 <View style={styles.ratingRow}>
-                  <Text style={styles.star}>⭐</Text>
+                  <Ionicons name="star" size={15} color="#f59e0b" style={styles.star} />
                   <ThemedText style={styles.rating}>{tailorData.rating}</ThemedText>
                   <ThemedText style={[styles.reviews, { color: muted }]}>({tailorData.reviews} reviews)</ThemedText>
                 </View>
@@ -74,7 +72,7 @@ export default function TailorDetails() {
             <Text style={[styles.sectionTitle, { color: muted }]}>CONTACT INFORMATION</Text>
             <View style={[styles.infoCard, { backgroundColor: cardBg }]}>
               <View style={styles.infoRow}>
-                <Text style={styles.infoIcon}>📱</Text>
+                <Ionicons name="call-outline" size={20} color={tint} style={styles.infoIcon} />
                 <View style={styles.infoContent}>
                   <Text style={[styles.infoLabel, { color: muted }]}>Phone</Text>
                   <Text style={styles.infoValue}>{tailorData.phone}</Text>
@@ -82,7 +80,7 @@ export default function TailorDetails() {
               </View>
               <View style={[styles.divider, { backgroundColor: muted }]} />
               <View style={styles.infoRow}>
-                <Text style={styles.infoIcon}>✉️</Text>
+                <Ionicons name="mail-outline" size={20} color={tint} style={styles.infoIcon} />
                 <View style={styles.infoContent}>
                   <Text style={[styles.infoLabel, { color: muted }]}>Email</Text>
                   <Text style={styles.infoValue}>{tailorData.email}</Text>
@@ -90,7 +88,7 @@ export default function TailorDetails() {
               </View>
               <View style={[styles.divider, { backgroundColor: muted }]} />
               <View style={styles.infoRow}>
-                <Text style={styles.infoIcon}>📍</Text>
+                <Ionicons name="location-outline" size={20} color={tint} style={styles.infoIcon} />
                 <View style={styles.infoContent}>
                   <Text style={[styles.infoLabel, { color: muted }]}>Address</Text>
                   <Text style={styles.infoValue}>{tailorData.address}</Text>
@@ -124,17 +122,17 @@ export default function TailorDetails() {
             <Text style={[styles.sectionTitle, { color: muted }]}>DETAILS</Text>
             <View style={styles.detailsGrid}>
               <View style={[styles.detailItem, { backgroundColor: cardBg }]}>
-                <Text style={styles.detailIcon}>💼</Text>
+                <Ionicons name="briefcase-outline" size={24} color={tint} style={styles.detailIcon} />
                 <Text style={[styles.detailValue, { color: tint }]}>{tailorData.experience}</Text>
                 <Text style={[styles.detailLabel, { color: muted }]}>Experience</Text>
               </View>
               <View style={[styles.detailItem, { backgroundColor: cardBg }]}>
-                <Text style={styles.detailIcon}>📋</Text>
+                <Ionicons name="clipboard-outline" size={24} color={tint} style={styles.detailIcon} />
                 <Text style={[styles.detailValue, { color: tint }]}>{tailorData.availableOrders}</Text>
                 <Text style={[styles.detailLabel, { color: muted }]}>Available Orders</Text>
               </View>
               <View style={[styles.detailItem, { backgroundColor: cardBg }]}>
-                <Text style={styles.detailIcon}>⏱️</Text>
+                <Ionicons name="time-outline" size={24} color={tint} style={styles.detailIcon} />
                 <Text style={[styles.detailValue, { color: tint }]}>{tailorData.deliveryTime}</Text>
                 <Text style={[styles.detailLabel, { color: muted }]}>Delivery Time</Text>
               </View>
@@ -154,8 +152,6 @@ export default function TailorDetails() {
 
           <View style={{ height: 40 }} />
         </ScrollView>
-
-        <BottomTabBar basePath="customer" />
       </View>
     </ProtectedRoute>
   );
@@ -164,13 +160,12 @@ export default function TailorDetails() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, paddingTop: 40 },
-  headerButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  headerButton: { width: 84, height: 44, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.18)', alignItems: 'center', justifyContent: 'center' },
   headerTitle: { flex: 1, textAlign: 'center', fontSize: 20, fontWeight: '700' },
   content: { padding: 16 },
   profileCard: { padding: 16, borderRadius: 16, marginBottom: 20 },
   avatarSection: { flexDirection: 'row', alignItems: 'center' },
   avatar: { width: 80, height: 80, borderRadius: 40, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
-  avatarText: { fontSize: 40 },
   profileInfo: { flex: 1 },
   tailorName: { fontSize: 18, fontWeight: '700', marginBottom: 6 },
   ratingRow: { flexDirection: 'row', alignItems: 'center' },
@@ -181,7 +176,7 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', marginBottom: 10, letterSpacing: 0.5 },
   infoCard: { borderRadius: 12, padding: 12, overflow: 'hidden' },
   infoRow: { flexDirection: 'row', alignItems: 'flex-start', paddingVertical: 8 },
-  infoIcon: { fontSize: 20, marginRight: 12 },
+  infoIcon: { marginRight: 12 },
   infoContent: { flex: 1 },
   infoLabel: { fontSize: 11, marginBottom: 2 },
   infoValue: { fontSize: 14, fontWeight: '600' },
@@ -193,7 +188,7 @@ const styles = StyleSheet.create({
   chipText: { fontSize: 12, fontWeight: '600' },
   detailsGrid: { flexDirection: 'row', gap: 10 },
   detailItem: { flex: 1, alignItems: 'center', padding: 14, borderRadius: 12 },
-  detailIcon: { fontSize: 24, marginBottom: 6 },
+  detailIcon: { marginBottom: 6 },
   detailValue: { fontSize: 16, fontWeight: '700', marginBottom: 2 },
   detailLabel: { fontSize: 11 },
   buttonSection: { gap: 10, marginTop: 10 },
