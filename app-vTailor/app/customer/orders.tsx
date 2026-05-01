@@ -250,7 +250,6 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: SURFACE_MUTED },
   header: { paddingHorizontal: 18, paddingTop: Platform.select({ ios: 20, android: 12, default: 12 }), paddingBottom: 16 },
   headerRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 14 },
-  backButton: { width: 44, height: 44, borderRadius: 14, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', ...UI.softShadow },
   headerSpacer: { width: 84 },
   headerTitleWrap: { flex: 1, alignItems: 'center' },
   title: { textAlign: 'center', fontSize: 23, fontWeight: '900', color: TEXT_DARK },

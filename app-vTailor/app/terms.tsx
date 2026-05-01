@@ -17,7 +17,7 @@ export default function Terms() {
   const tint = useThemeColor({}, 'tint');
   const selectedPink = ROLE_COLORS.customer.primary;
   const muted = useThemeColor({}, 'muted');
-  const cardBg = useThemeColor({}, 'card');
+  const screenPink = ROLE_COLORS.customer.soft;
   const iconBg = useThemeColor({}, 'iconBg');
   const buttonStart = useThemeColor({}, 'buttonStart');
 
@@ -55,8 +55,8 @@ export default function Terms() {
   };
 
   return (
-    <ThemedView style={styles.screen}>
-      <ScrollView contentContainerStyle={styles.container}>
+    <ThemedView style={[styles.screen, { backgroundColor: screenPink }]}>
+      <ScrollView contentContainerStyle={styles.container} style={{ backgroundColor: screenPink }}>
         <View style={styles.header}>
           <Image source={logo} style={styles.logo} />
           <ThemedText type="title">Terms & Conditions</ThemedText>

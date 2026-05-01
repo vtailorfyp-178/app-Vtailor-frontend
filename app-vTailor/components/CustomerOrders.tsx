@@ -99,12 +99,16 @@ const CustomerOrders = () => {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'Delivered': return '#14b8a6';
+      case 'Delivered':
+        return '#14b8a6';
       case 'In Progress':
-      case 'Cutting': return '#f59e0b';
+      case 'Cutting':
+        return '#f59e0b';
       case 'Canceled':
-      case 'Cancelled': return '#ef4444';
-      default: return '#6b7280';
+      case 'Cancelled':
+        return '#ef4444';
+      default:
+        return '#6b7280';
     }
   };
 
