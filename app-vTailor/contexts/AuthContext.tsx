@@ -100,25 +100,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (storedToken) {
           try {
             const remoteProfile = await getProfile(storedToken);
-            if (remoteProfile?.user_id) setUserId(remoteProfile.user_id);
-            if (remoteProfile?.email) setLoginEmail(remoteProfile.email);
+            const rid = remoteProfile.user_id;
+            if (rid) setUserId(rid);
+            const remail = remoteProfile.email;
+            if (remail) setLoginEmail(remail);
             const profileRole = (remoteProfile.role as UserRole) || role;
             if (profileRole) {
               const profile: UserProfile = {
-                name: remoteProfile.name,
-                email: remoteProfile.email,
-                phone: remoteProfile.phone,
-                address: remoteProfile.address,
-                experience: remoteProfile.experience,
-                specialization: remoteProfile.specialization,
-                description: remoteProfile.description,
-                avatar: remoteProfile.avatar,
+                name: remoteProfile.name ?? undefined,
+                email: remoteProfile.email ?? undefined,
+                phone: remoteProfile.phone ?? undefined,
+                address: remoteProfile.address ?? undefined,
+                experience: remoteProfile.experience ?? undefined,
+                specialization: remoteProfile.specialization ?? undefined,
+                description: remoteProfile.description ?? undefined,
+                avatar: remoteProfile.avatar ?? undefined,
               };
               profileRole === 'customer' ? setCustomerProfile(profile) : setTailorProfile(profile);
-              await AsyncStorage.setItem(profileKey(profileRole, remoteProfile.user_id || storedUserId), JSON.stringify(profile));
+              await AsyncStorage.setItem(profileKey(profileRole, rid || storedUserId), JSON.stringify(profile));
               if (remoteProfile.name || remoteProfile.address || remoteProfile.phone) {
                 setIsProfileCompleted(true);
-                await AsyncStorage.setItem(completedKey(profileRole, remoteProfile.user_id || storedUserId), 'true');
+                await AsyncStorage.setItem(completedKey(profileRole, rid || storedUserId), 'true');
               }
             }
           } catch (error) {

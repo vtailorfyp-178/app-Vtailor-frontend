@@ -54,16 +54,8 @@ export default function AuthScreen() {
     setSendingOtp(true);
     try {
       const res = await sendEmailOtp(email);
-
-      // Backend returns { status: 'success', method_id: '...', message: '...' } on success
-      // or { detail: '...' } (HTTP error body) on failure.
-      if (res && res.status === 'success' && res.method_id) {
-        setMethodId(res.method_id);
-        setStep('otp');
-      } else {
-        const msg = res?.detail || res?.message || 'Failed to send OTP. Please try again.';
-        Alert.alert('Send OTP Failed', String(msg));
-      }
+      setMethodId(res.method_id);
+      setStep('otp');
     } catch (err) {
       console.log('OTP send error', err);
       const message = err instanceof Error ? err.message : 'Unable to reach server. Check your connection and try again.';
@@ -87,14 +79,9 @@ export default function AuthScreen() {
     setSendingOtp(true);
     try {
       const res = await sendEmailOtp(email);
-      if (res && res.status === 'success' && res.method_id) {
-        setMethodId(res.method_id);
-        resetOtpInputs();
-        Alert.alert('OTP Sent', `A new code has been sent to ${email}. Please use the latest code.`);
-      } else {
-        const msg = res?.detail || res?.message || 'Failed to resend OTP. Please try again.';
-        Alert.alert('Resend OTP Failed', String(msg));
-      }
+      setMethodId(res.method_id);
+      resetOtpInputs();
+      Alert.alert('OTP Sent', `A new code has been sent to ${email}. Please use the latest code.`);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unable to reach server. Check your connection and try again.';
       Alert.alert('Resend OTP Failed', message);
@@ -159,28 +146,30 @@ export default function AuthScreen() {
       const result = await verifyEmailOtp(methodId, otpValue, role);
 
       if (result?.access_token) {
-        // Pass the email so it is auto-populated in profile-setup and stored per-role
         const resolvedRole: UserRole = result.role === 'tailor' ? 'tailor' : 'customer';
         const userId = result.user_id;
         login(result.access_token, resolvedRole, result.email ?? email, userId);
 
-        // Migrate user's customizations from global storage to user-specific storage
         if (userId) {
           await migrateCustomizationsToUser(userId);
         }
 
         try {
           const profile = await getProfile(result.access_token);
-          updateProfile({
-            name: profile?.name,
-            email: profile?.email,
-            phone: profile?.phone,
-            address: profile?.address,
-            experience: profile?.experience,
-            specialization: profile?.specialization,
-            description: profile?.description,
-            avatar: profile?.avatar,
-          }, resolvedRole, userId);
+          updateProfile(
+            {
+              name: profile.name ?? undefined,
+              email: profile.email ?? undefined,
+              phone: profile.phone ?? undefined,
+              address: profile.address ?? undefined,
+              experience: profile.experience ?? undefined,
+              specialization: profile.specialization ?? undefined,
+              description: profile.description ?? undefined,
+              avatar: profile.avatar ?? undefined,
+            },
+            resolvedRole,
+            userId ?? null,
+          );
           const hasExistingProfile = Boolean(profile?.name && profile?.address);
           if (hasExistingProfile) {
             await markProfileCompleted(resolvedRole, userId);
@@ -193,8 +182,7 @@ export default function AuthScreen() {
           router.replace('/profile-setup');
         }
       } else {
-        const msg = result?.detail || result?.message || 'Invalid or expired code.';
-        Alert.alert('Verification failed', String(msg));
+        Alert.alert('Verification failed', 'Invalid or expired code.');
       }
     } catch (err) {
       const rawMessage = err instanceof Error ? err.message : '';

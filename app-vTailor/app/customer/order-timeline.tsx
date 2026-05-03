@@ -48,6 +48,7 @@ const selectionNameMap: Record<string, Record<string, string>> = {
     black: 'Black',
     white: 'White',
     yellow: 'Yellow',
+    beige: 'Beige',
   },
 };
 
