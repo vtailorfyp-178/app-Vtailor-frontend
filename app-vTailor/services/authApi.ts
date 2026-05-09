@@ -58,10 +58,7 @@ function buildBaseUrl(host: string) {
 
 function getCandidateBaseUrls() {
   const urls: string[] = [];
-  if (cachedBaseUrl) urls.push(cachedBaseUrl);
-
   const normalizedEnvBase = normalizeApiBase(EXPO_API_BASE);
-  if (normalizedEnvBase) urls.push(normalizedEnvBase);
 
   if (Platform.OS === 'web') {
     const webHost = (typeof window !== 'undefined' && window.location && window.location.hostname) || 'localhost';
@@ -70,15 +67,23 @@ function getCandidateBaseUrls() {
       `http://127.0.0.1:8000${API_PREFIX}`,
       `http://localhost:8000${API_PREFIX}`,
     );
+    if (normalizedEnvBase) urls.push(normalizedEnvBase);
+    if (cachedBaseUrl) urls.push(cachedBaseUrl);
     return Array.from(new Set(urls));
   }
 
+  // On real devices, prefer Expo/Metro host-derived LAN IP first.
   const scriptHost = extractHostFromScriptUrl();
   if (scriptHost) urls.push(buildBaseUrl(scriptHost));
-  if (Platform.OS === 'android') urls.push(buildBaseUrl(EMULATOR_ANDROID_HOST));
   urls.push(...expoHostCandidates.map(buildBaseUrl));
-  urls.push(buildBaseUrl('127.0.0.1'));
-  urls.push(buildBaseUrl('localhost'));
+  if (cachedBaseUrl) urls.push(cachedBaseUrl);
+  if (normalizedEnvBase) urls.push(normalizedEnvBase);
+
+  // Keep emulator-localhost fallback only for Android emulator-like cases.
+  if (Platform.OS === 'android') {
+    urls.push(buildBaseUrl(EMULATOR_ANDROID_HOST));
+  }
+
   return Array.from(new Set(urls));
 }
 

@@ -57,6 +57,17 @@ export async function getUserCustomizations(userId: string): Promise<any[]> {
   }
 }
 
+/** Global customization list (tailor 3D review / cross-role preview on one device). */
+export async function getGlobalCustomizations(): Promise<any[]> {
+  try {
+    const raw = await AsyncStorage.getItem('CUSTOMIZATIONS');
+    return raw ? JSON.parse(raw) : [];
+  } catch (error) {
+    console.error('Failed to get global customizations:', error);
+    return [];
+  }
+}
+
 /**
  * Save a new customization for the user.
  * Stores in both user-specific and global keys for backward compat.
@@ -74,6 +85,19 @@ export async function saveUserCustomization(userId: string, customization: any):
     await AsyncStorage.setItem('CUSTOMIZATIONS', JSON.stringify(customizations));
   } catch (error) {
     console.error('Failed to save customization:', error);
+  }
+}
+
+/** Replace full customization lists (user key + global) in one write — used when deduping before append. */
+export async function setCustomizationsSnapshot(userId: string | null | undefined, list: any[]): Promise<void> {
+  try {
+    const json = JSON.stringify(list);
+    await AsyncStorage.setItem('CUSTOMIZATIONS', json);
+    if (userId) {
+      await AsyncStorage.setItem(userCustomizationsKey(userId), json);
+    }
+  } catch (error) {
+    console.error('Failed to set customizations snapshot:', error);
   }
 }
 

@@ -8,7 +8,31 @@ import { ProtectedRoute } from '@/components/ProtectedRoute';
 import AppBackButton from '@/components/AppBackButton';
 import { SURFACE_MUTED, TEXT_DARK, UI } from '@/constants/ui';
 
-const SAMPLE_ORDERS = [
+type OrderCustomization = {
+  modelId: string;
+  modelName: string;
+  selections: Record<string, string | null>;
+};
+
+type SampleOrder = {
+  id: string;
+  customerId: number;
+  customer: string;
+  phone: string;
+  garment: string;
+  status: string;
+  amount: number;
+  timeLeft: string;
+  penalty: number;
+  delivery: string;
+  deliveryDate: string;
+  urgent: boolean;
+  occasion: boolean;
+  hasMeasurements: boolean;
+  customization?: OrderCustomization;
+};
+
+const SAMPLE_ORDERS: SampleOrder[] = [
   {
     id: 'ORD001',
     customerId: 1,
@@ -24,6 +48,17 @@ const SAMPLE_ORDERS = [
     urgent: false,
     occasion: false,
     hasMeasurements: true,
+    customization: {
+      modelId: 'long-frock',
+      modelName: 'Long Frock',
+      selections: {
+        neck: 'v-neck',
+        sleeves: 'bell',
+        bottom: null,
+        'frock-style': 'flared-bottom',
+        colors: 'beige',
+      },
+    },
   },
   {
     id: 'ORD002',
@@ -56,6 +91,17 @@ const SAMPLE_ORDERS = [
     urgent: false,
     occasion: false,
     hasMeasurements: true,
+    customization: {
+      modelId: 'sharara',
+      modelName: 'Sharara',
+      selections: {
+        neck: 'round',
+        sleeves: 'full',
+        bottom: 'flared',
+        'frock-style': null,
+        colors: 'beige',
+      },
+    },
   },
 ];
 
@@ -169,7 +215,23 @@ export default function OrderDetail() {
                 <Text style={[styles.actionText, { color: '#111827' }]}>Measurements</Text>
               </Pressable>
               <Pressable style={[styles.actionBtn, { borderColor: '#ec4899', borderWidth: 1 }]}
-                onPress={() => router.push({ pathname: '/tailor/3d-view', params: { customerId: String(customerId), customerName: order.customer } })}>
+                onPress={() => {
+                  const c = order.customization;
+                  const baseParams = { customerId: String(customerId), customerName: order.customer };
+                  if (c?.modelId && c.selections) {
+                    router.push({
+                      pathname: '/tailor/3d-view',
+                      params: {
+                        ...baseParams,
+                        modelId: c.modelId,
+                        modelName: c.modelName || order.garment,
+                        selections: JSON.stringify(c.selections),
+                      },
+                    });
+                  } else {
+                    router.push({ pathname: '/tailor/3d-view', params: baseParams });
+                  }
+                }}>
                 <Ionicons name="cube" size={18} color="#ec4899" />
                 <Text style={[styles.actionText, { color: '#ec4899' }]}>3D Preview</Text>
               </Pressable>

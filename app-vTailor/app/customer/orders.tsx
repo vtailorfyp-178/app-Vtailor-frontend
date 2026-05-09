@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useMemo, useState } from 'react';
 import { Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { dressPreviewFromOrderDescription } from '@/services/orderDressPreview';
 
 type OrderStatusFilter = 'All' | 'Active' | 'Delivered' | 'Canceled';
 
@@ -22,7 +23,7 @@ const orders = [
     status: 'In Progress',
     date: '2026-12-25',
     price: 8500,
-    sample: { neck: 'Round Neck', sleeves: 'Full Sleeves', style: 'Flared Bottom', color: 'Red' },
+    sample: { neck: 'Round Neck', sleeves: 'Bell Sleeves', style: 'Flared Bottom', color: 'Beige' },
   },
   {
     id: 2,
@@ -35,7 +36,7 @@ const orders = [
     status: 'Cutting',
     date: '2026-12-20',
     price: 25000,
-    sample: { neck: 'V-Neck', sleeves: 'Bell Sleeves', style: 'Straight Style', color: 'Blue' },
+    sample: { neck: 'V-Neck', sleeves: 'Bell Sleeves', style: 'Straight Style', color: 'Beige' },
   },
   {
     id: 3,
@@ -48,7 +49,7 @@ const orders = [
     status: 'Delivered',
     date: '2026-12-15',
     price: 3500,
-    sample: { neck: 'Round Neck', sleeves: 'Full Sleeves', style: 'Tulip Style', color: 'Green' },
+    sample: { neck: 'Round Neck', sleeves: 'Bell Sleeves', style: 'Straight Style', color: 'Beige' },
   },
   {
     id: 4,
@@ -61,7 +62,7 @@ const orders = [
     status: 'Delivered',
     date: '2026-12-10',
     price: 6000,
-    sample: { neck: 'V-Neck', sleeves: 'Bell Sleeves', style: 'Flared Style', color: 'Black' },
+    sample: { neck: 'Round Neck', sleeves: 'Bell Sleeves', style: 'Flared Style', color: 'Beige' },
   },
   {
     id: 5,
@@ -74,7 +75,7 @@ const orders = [
     status: 'Canceled',
     date: '2026-12-05',
     price: 12000,
-    sample: { neck: 'Boat Neck', sleeves: 'Half Sleeves', style: 'A-Line', color: 'Pink' },
+    sample: { neck: 'V-Neck', sleeves: 'Bell Sleeves', style: 'Flared Bottom', color: 'Beige' },
   },
 ];
 
@@ -120,6 +121,7 @@ export default function CustomerOrders() {
   }), []);
 
   const openTimeline = (order: (typeof orders)[number]) => {
+    const preview = dressPreviewFromOrderDescription(order.name);
     router.push({
       pathname: '/customer/order-timeline',
       params: {
@@ -127,6 +129,7 @@ export default function CustomerOrders() {
         demo: '1',
         orderDescription: order.name,
         orderDate: order.date,
+        orderPrice: String(order.price),
         tailorName: order.tailor,
         tailorId: order.tailorId,
         tailorPhone: order.tailorPhone,
@@ -137,6 +140,12 @@ export default function CustomerOrders() {
         sampleSleeves: order.sample.sleeves,
         sampleStyle: order.sample.style,
         sampleColor: order.sample.color,
+        ...(preview
+          ? {
+              modelId: preview.modelId,
+              selections: JSON.stringify(preview.selections),
+            }
+          : {}),
       },
     });
   };

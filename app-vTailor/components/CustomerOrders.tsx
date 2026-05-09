@@ -5,6 +5,7 @@ import { useRouter } from 'expo-router';
 import { SURFACE_MUTED, TEXT_DARK, UI } from '@/constants/ui';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { Ionicons } from '@expo/vector-icons';
+import { dressPreviewFromOrderDescription } from '@/services/orderDressPreview';
 
 type OrderStatusFilter = 'All' | 'Active' | 'Delivered' | 'Canceled';
 
@@ -23,7 +24,7 @@ const orders = [
     tailorId: 'sample-tailor-aliya-formal',
     tailorPhone: '+923215560190',
     rating: '4.8 (245 reviews)',
-    sample: { neck: 'Round Neck', sleeves: 'Full Sleeves', style: 'Flared Bottom', color: 'Red' },
+    sample: { neck: 'Round Neck', sleeves: 'Bell Sleeves', style: 'Flared Bottom', color: 'Beige' },
     measurements: { chest: '36 in', waist: '30 in', length: '52 in', shoulder: '15 in' },
   },
   {
@@ -38,7 +39,7 @@ const orders = [
     tailorId: 'sample-tailor-fatima-traditional',
     tailorPhone: '+923129018820',
     rating: '4.6 (180 reviews)',
-    sample: { neck: 'V-Neck', sleeves: 'Bell Sleeves', style: 'Straight Style', color: 'Blue' },
+    sample: { neck: 'V-Neck', sleeves: 'Bell Sleeves', style: 'Straight Style', color: 'Beige' },
     measurements: { chest: '38 in', waist: '32 in', length: '44 in', shoulder: '16 in' },
   },
   {
@@ -53,7 +54,7 @@ const orders = [
     tailorId: 'sample-tailor-noor-party',
     tailorPhone: '+923332198744',
     rating: '4.7 (132 reviews)',
-    sample: { neck: 'Round Neck', sleeves: 'Full Sleeves', style: 'Tulip Style', color: 'Green' },
+    sample: { neck: 'Round Neck', sleeves: 'Bell Sleeves', style: 'Straight Style', color: 'Beige' },
     measurements: { chest: '35 in', waist: '29 in', length: '40 in', shoulder: '14.5 in' },
   },
   {
@@ -68,7 +69,7 @@ const orders = [
     tailorId: 'sample-tailor-zainab-bridal',
     tailorPhone: '+923004102231',
     rating: '4.8 (245 reviews)',
-    sample: { neck: 'V-Neck', sleeves: 'Bell Sleeves', style: 'Flared Style', color: 'Black' },
+    sample: { neck: 'Round Neck', sleeves: 'Bell Sleeves', style: 'Flared Style', color: 'Beige' },
     measurements: { chest: '37 in', waist: '31 in', length: '54 in', shoulder: '15.5 in' },
   },
 ];
@@ -149,11 +150,13 @@ const CustomerOrders = () => {
             <Pressable
               key={order.id}
               style={[styles.orderCard, { borderColor: inputBorder }]}
-              onPress={() =>
+              onPress={() => {
+                const preview = dressPreviewFromOrderDescription(order.name);
                 router.push({
                   pathname: '/customer/order-timeline',
                   params: {
                     orderId: `ORD-${String(order.id).padStart(3, '0')}`,
+                    demo: '1',
                     orderDescription: order.name,
                     orderDate: order.date,
                     orderPrice: String(order.price),
@@ -171,9 +174,15 @@ const CustomerOrders = () => {
                     measurementWaist: order.measurements.waist,
                     measurementLength: order.measurements.length,
                     measurementShoulder: order.measurements.shoulder,
+                    ...(preview
+                      ? {
+                          modelId: preview.modelId,
+                          selections: JSON.stringify(preview.selections),
+                        }
+                      : {}),
                   },
-                } as any)
-              }
+                } as any);
+              }}
             >
               <View style={styles.orderHeader}>
                 <View style={styles.avatar}>

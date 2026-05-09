@@ -22,6 +22,14 @@ const ZOOM_MIN = 2.35;
 const ZOOM_MAX = 13.5;
 const ZOOM_DEFAULT = 5.25;
 const ZOOM_BUTTON_STEP = 0.78;
+/** Vertical focus offset (world Y): lower = frame hem/feet, higher = neck/shoulders. */
+const LOOK_Y_MIN = -0.72;
+const LOOK_Y_MAX = 1.05;
+/** Vertical drag: shift camera to frame hem vs neck (same as before). */
+const PAN_Y_SENS = 0.0048;
+/** Horizontal drag: radians per px — tuned so a full swipe gives ~full 360° spin. */
+const ROT_Y_SENS = 0.0132;
+const LOOK_BUTTON_STEP = 0.075;
 
 function base64ToArrayBuffer(base64: string): ArrayBuffer {
   const clean = base64.replace(/\s/g, '');
@@ -97,11 +105,15 @@ type Props = {
 };
 
 export function TraditionalDressGlbViewer({ glbModule, width, height, style }: Props): JSX.Element {
+  /** Y-axis rotation (radians); unbounded so you can spin past 360° smoothly. */
   const rotY = useRef(-0.38);
   /** Camera distance along Z toward pivot (smaller = closer / zoom in). */
   const zoomRef = useRef(ZOOM_DEFAULT);
   const pinchStartZoom = useRef(ZOOM_DEFAULT);
-  const panStartY = useRef(0);
+  /** Offsets camera + lookAt on Y so zoomed view can frame neck vs bottom. */
+  const lookOffsetYRef = useRef(0);
+  const panStartRotY = useRef(0);
+  const panStartLookY = useRef(0);
 
   const layoutRef = useRef({ width: Math.floor(width), height: Math.floor(height) });
   layoutRef.current = { width: Math.floor(width), height: Math.floor(height) };
@@ -122,6 +134,14 @@ export function TraditionalDressGlbViewer({ glbModule, width, height, style }: P
 
   const applyZoomOut = useCallback(() => {
     zoomRef.current = THREE.MathUtils.clamp(zoomRef.current / ZOOM_BUTTON_STEP, ZOOM_MIN, ZOOM_MAX);
+  }, []);
+
+  const applyLookUp = useCallback(() => {
+    lookOffsetYRef.current = THREE.MathUtils.clamp(lookOffsetYRef.current + LOOK_BUTTON_STEP, LOOK_Y_MIN, LOOK_Y_MAX);
+  }, []);
+
+  const applyLookDown = useCallback(() => {
+    lookOffsetYRef.current = THREE.MathUtils.clamp(lookOffsetYRef.current - LOOK_BUTTON_STEP, LOOK_Y_MIN, LOOK_Y_MAX);
   }, []);
 
   useEffect(() => {
@@ -162,8 +182,9 @@ export function TraditionalDressGlbViewer({ glbModule, width, height, style }: P
     }
 
     const z = THREE.MathUtils.clamp(zoomRef.current, ZOOM_MIN, ZOOM_MAX);
-    cam.position.set(0, PIVOT_Y, z);
-    cam.lookAt(0, PIVOT_Y, 0);
+    const pivotY = PIVOT_Y + THREE.MathUtils.clamp(lookOffsetYRef.current, LOOK_Y_MIN, LOOK_Y_MAX);
+    cam.position.set(0, pivotY, z);
+    cam.lookAt(0, pivotY, 0);
 
     root.rotation.order = 'YXZ';
     root.rotation.y = rotY.current;
@@ -193,14 +214,15 @@ export function TraditionalDressGlbViewer({ glbModule, width, height, style }: P
     try {
       setBanner('Loading 3D dress…');
       zoomRef.current = ZOOM_DEFAULT;
+      lookOffsetYRef.current = 0;
 
       const scene = new THREE.Scene();
       scene.background = new THREE.Color(0xfeffff);
       sceneRef.current = scene;
 
       const camera = new THREE.PerspectiveCamera(40, w / h, 0.08, 500);
-      camera.position.set(0, PIVOT_Y, zoomRef.current);
-      camera.lookAt(0, PIVOT_Y, 0);
+      camera.position.set(0, PIVOT_Y + lookOffsetYRef.current, zoomRef.current);
+      camera.lookAt(0, PIVOT_Y + lookOffsetYRef.current, 0);
       cameraRef.current = camera;
 
       const renderer = createRenderer(gl, w, h);
@@ -298,14 +320,18 @@ export function TraditionalDressGlbViewer({ glbModule, width, height, style }: P
 
   const composedGesture = useMemo(() => {
     const panGesture = Gesture.Pan()
-      .activeOffsetX([-10, 10])
-      .failOffsetY([-28, 28])
+      .minDistance(6)
       .onStart(() => {
-        panStartY.current = rotY.current;
+        panStartRotY.current = rotY.current;
+        panStartLookY.current = lookOffsetYRef.current;
       })
       .onUpdate((e) => {
-        const sens = 0.0112;
-        rotY.current = panStartY.current + e.translationX * sens;
+        rotY.current = panStartRotY.current + e.translationX * ROT_Y_SENS;
+        lookOffsetYRef.current = THREE.MathUtils.clamp(
+          panStartLookY.current - e.translationY * PAN_Y_SENS,
+          LOOK_Y_MIN,
+          LOOK_Y_MAX,
+        );
       });
 
     const pinchGesture = Gesture.Pinch()
@@ -332,6 +358,22 @@ export function TraditionalDressGlbViewer({ glbModule, width, height, style }: P
       )}
       {banner == null && (
         <>
+          <View style={styles.panBar} pointerEvents="box-none">
+            <Pressable
+              onPress={applyLookUp}
+              style={({ pressed }) => [styles.zoomBtn, styles.zoomBtnSpacing, pressed && styles.zoomBtnPressed]}
+              accessibilityLabel="Pan view up, show upper dress and neck"
+            >
+              <Text style={styles.panBtnText}>↑</Text>
+            </Pressable>
+            <Pressable
+              onPress={applyLookDown}
+              style={({ pressed }) => [styles.zoomBtn, pressed && styles.zoomBtnPressed]}
+              accessibilityLabel="Pan view down, show lower dress and hem"
+            >
+              <Text style={styles.panBtnText}>↓</Text>
+            </Pressable>
+          </View>
           <View style={styles.zoomBar} pointerEvents="box-none">
             <Pressable
               onPress={applyZoomIn}
@@ -349,7 +391,9 @@ export function TraditionalDressGlbViewer({ glbModule, width, height, style }: P
             </Pressable>
           </View>
           <View style={styles.hintOverlay} pointerEvents="none">
-            <Text style={styles.hintText}>Drag left/right to rotate · pinch or ± to zoom</Text>
+            <Text style={styles.hintText}>
+              Drag left/right for 360° · up/down hem/neck · pinch or ± zoom · ↑↓ fine tune
+            </Text>
           </View>
         </>
       )}
@@ -364,6 +408,13 @@ export function TraditionalDressGlbViewer({ glbModule, width, height, style }: P
 }
 
 const styles = StyleSheet.create({
+  panBar: {
+    position: 'absolute',
+    top: 10,
+    left: 10,
+    flexDirection: 'column',
+    zIndex: 20,
+  },
   zoomBar: {
     position: 'absolute',
     top: 10,
@@ -389,6 +440,7 @@ const styles = StyleSheet.create({
   },
   zoomBtnPressed: { backgroundColor: 'rgba(241,245,249,0.98)' },
   zoomBtnText: { fontSize: 22, fontWeight: '700', color: '#334155', lineHeight: 24, marginTop: -2 },
+  panBtnText: { fontSize: 20, fontWeight: '700', color: '#334155', lineHeight: 22, marginTop: -2 },
   hintOverlay: {
     position: 'absolute',
     bottom: 8,

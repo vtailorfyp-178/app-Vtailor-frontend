@@ -1,10 +1,27 @@
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import AppBackButton from '@/components/AppBackButton';
+import { TraditionalDressGlbViewer } from '@/components/TraditionalDressGlbViewer';
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useAuth } from '@/contexts/AuthContext';
+import { dressPreviewFromOrderDescription } from '@/services/orderDressPreview';
+import { getUserCustomizations } from '@/services/userDataService';
+import { resolveBundledDressGlb, type TabId } from '@/services/dressGlbResolver';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useCallback, useEffect, useState } from "react";
-import { Alert, FlatList, Linking, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  Alert,
+  FlatList,
+  Image,
+  Linking,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  useWindowDimensions,
+  View,
+} from "react-native";
 
 const STEPS = [
   "Order Accepted",
@@ -18,10 +35,43 @@ const STEPS = [
 
 type CustomizationItem = {
   id: string;
+  modelId?: string;
   modelName?: string;
   createdAt?: string;
   selections?: Record<string, string | null>;
 };
+
+const defaultSelections: Record<TabId, string | null> = {
+  neck: null,
+  sleeves: null,
+  bottom: null,
+  'frock-style': null,
+  colors: null,
+};
+
+function mergedSelections(selections: Record<string, string | null>): Record<TabId, string | null> {
+  return { ...defaultSelections, ...selections } as Record<TabId, string | null>;
+}
+
+function imageForModel(modelId: string) {
+  if (modelId === 'kurti') return require('../../2d model/kurti 2.jpeg');
+  if (modelId === 'kurti-trouser') return require('../../2d model/kurti 2.jpeg');
+  if (modelId === 'short-frock') return require('../../2d model/short frock.jpeg');
+  if (modelId === 'short-frock-shalwar') return require('../../2d model/short frock.jpeg');
+  if (modelId === 'long-frock') return require('../../2d model/long frock 1.jpeg');
+  if (modelId === 'shalwar-kameez') return require('../../2d model/shalwar kameez 1.jpeg');
+  if (modelId === 'sharara') return require('../../2d model/shrara.jpg');
+  return null;
+}
+
+function safeParseSelections(json: string): Record<string, string | null> {
+  try {
+    const v = JSON.parse(json) as Record<string, string | null>;
+    return v && typeof v === 'object' ? v : {};
+  } catch {
+    return {};
+  }
+}
 
 const selectionNameMap: Record<string, Record<string, string>> = {
   neck: {
@@ -66,6 +116,11 @@ function formatOrderDate(value?: string) {
 
 export default function CustomerOrderTimelineScreen() {
   const params = useLocalSearchParams();
+  const { width: screenW } = useWindowDimensions();
+  const glPreviewW = Math.max(260, Math.floor(screenW - 64));
+  const glPreviewH = 220;
+  const { userId } = useAuth();
+
   const demoMode = (params.demo as string) === '1';
   const orderDescriptionFromParams = (params.orderDescription as string) || 'Customized Dress';
   const orderDateFromParams = formatOrderDate(params.orderDate as string);
@@ -98,9 +153,24 @@ export default function CustomerOrderTimelineScreen() {
     { label: 'Style', value: 'Not selected' },
     { label: 'Color', value: 'Not selected' },
   ]);
+  const [previewModelId, setPreviewModelId] = useState<string | null>(null);
+  const [previewSelections, setPreviewSelections] = useState<Record<string, string | null>>({});
   const router = useRouter();
   const ORDER_ID = (params.orderId as string) || 'ORD-001';
   const STORAGE_KEY = `order_progress_${ORDER_ID}`;
+
+  const paramModelId = (params.modelId as string) || '';
+  const paramSelectionsJson = (params.selections as string) || '';
+
+  const mergedPreviewSelections = useMemo(
+    () => mergedSelections(previewSelections || {}),
+    [previewSelections],
+  );
+  const previewGlbModule =
+    previewModelId != null && previewModelId.length > 0
+      ? resolveBundledDressGlb(mergedPreviewSelections, previewModelId)
+      : null;
+  const preview2d = previewModelId ? imageForModel(previewModelId) : null;
 
   const handleContactTailor = () => {
     router.push({
@@ -122,26 +192,32 @@ export default function CustomerOrderTimelineScreen() {
     });
   };
 
-  // Load saved progress when component mounts
-  useEffect(() => {
-    loadProgressFromStorage();
-    loadCustomizationDetails();
-  }, []);
+  const loadCustomizationDetails = useCallback(async () => {
+    const applyPreview = (modelId: string | null | undefined, selections: Record<string, string | null>) => {
+      if (modelId && String(modelId).trim().length > 0) {
+        setPreviewModelId(String(modelId).trim());
+        setPreviewSelections(selections || {});
+      } else {
+        setPreviewModelId(null);
+        setPreviewSelections({});
+      }
+    };
 
-  // Reload progress every time screen is focused
-  useFocusEffect(
-    useCallback(() => {
-      loadProgressFromStorage();
-      loadCustomizationDetails();
-    }, [])
-  );
+    const applyFromRouteOrPreset = () => {
+      if (paramModelId) {
+        applyPreview(paramModelId, safeParseSelections(paramSelectionsJson));
+        return;
+      }
+      const preset = dressPreviewFromOrderDescription(orderDescriptionFromParams);
+      if (preset) {
+        applyPreview(preset.modelId, preset.selections as Record<string, string | null>);
+      } else {
+        applyPreview(null, {});
+      }
+    };
 
-  const loadCustomizationDetails = async () => {
     try {
-      const raw = await AsyncStorage.getItem('CUSTOMIZATIONS');
-      const list: CustomizationItem[] = raw ? JSON.parse(raw) : [];
-      if (!list.length) {
-        // Evaluator/demo fallback to verify expected UI behavior without prior saved customizations
+      if (demoMode) {
         setOrderDescription(orderDescriptionFromParams);
         setOrderDate(orderDateFromParams);
         setTailorName(tailorNameFromParams);
@@ -150,8 +226,32 @@ export default function CustomerOrderTimelineScreen() {
           { label: 'Neck', value: (params.sampleNeck as string) || 'Round Neck' },
           { label: 'Sleeves', value: (params.sampleSleeves as string) || 'Full Sleeves' },
           { label: 'Style', value: (params.sampleStyle as string) || 'Flared Bottom' },
-          { label: 'Color', value: (params.sampleColor as string) || 'Red' },
+          { label: 'Color', value: (params.sampleColor as string) || 'Beige' },
         ]);
+        applyFromRouteOrPreset();
+        return;
+      }
+
+      let list: CustomizationItem[] = [];
+      if (userId) {
+        list = await getUserCustomizations(userId);
+      } else {
+        const rawGlobal = await AsyncStorage.getItem('CUSTOMIZATIONS');
+        list = rawGlobal ? (JSON.parse(rawGlobal) as CustomizationItem[]) : [];
+      }
+
+      if (!list.length) {
+        setOrderDescription(orderDescriptionFromParams);
+        setOrderDate(orderDateFromParams);
+        setTailorName(tailorNameFromParams);
+        setTailorRating(tailorRatingFromParams);
+        setOrderInfoRows([
+          { label: 'Neck', value: (params.sampleNeck as string) || 'Round Neck' },
+          { label: 'Sleeves', value: (params.sampleSleeves as string) || 'Full Sleeves' },
+          { label: 'Style', value: (params.sampleStyle as string) || 'Flared Bottom' },
+          { label: 'Color', value: (params.sampleColor as string) || 'Beige' },
+        ]);
+        applyFromRouteOrPreset();
         return;
       }
 
@@ -167,8 +267,8 @@ export default function CustomerOrderTimelineScreen() {
       const selections = latest.selections || {};
       const style = selections['frock-style'] || selections.bottom;
 
-      setOrderDescription(latest.modelName || 'Customized Dress');
-      setOrderDate(formatOrderDate(latest.createdAt));
+      setOrderDescription(latest.modelName || orderDescriptionFromParams || 'Customized Dress');
+      setOrderDate(formatOrderDate(latest.createdAt || orderDateFromParams));
       setTailorName(tailorNameFromParams);
       setTailorRating(tailorRatingFromParams);
       setOrderInfoRows([
@@ -177,10 +277,53 @@ export default function CustomerOrderTimelineScreen() {
         { label: 'Style', value: readSelectionLabel(selections['frock-style'] ? 'frock-style' : 'bottom', style) },
         { label: 'Color', value: readSelectionLabel('colors', selections.colors) },
       ]);
+
+      const mid = latest.modelId || paramModelId;
+      if (mid) {
+        applyPreview(mid, selections);
+      } else {
+        const preset = dressPreviewFromOrderDescription(latest.modelName || orderDescriptionFromParams);
+        if (preset) {
+          applyPreview(preset.modelId, preset.selections as Record<string, string | null>);
+        } else {
+          applyPreview(null, {});
+        }
+      }
     } catch (error) {
       console.log('Error loading customization details:', error);
     }
-  };
+  }, [
+    demoMode,
+    userId,
+    orderDescriptionFromParams,
+    orderDateFromParams,
+    tailorNameFromParams,
+    tailorRatingFromParams,
+    paramModelId,
+    paramSelectionsJson,
+    params.sampleNeck,
+    params.sampleSleeves,
+    params.sampleStyle,
+    params.sampleColor,
+    params.customizationId,
+  ]);
+
+  // Load saved progress when component mounts
+  useEffect(() => {
+    loadProgressFromStorage();
+  }, []);
+
+  useEffect(() => {
+    loadCustomizationDetails();
+  }, [loadCustomizationDetails]);
+
+  // Reload progress every time screen is focused
+  useFocusEffect(
+    useCallback(() => {
+      loadProgressFromStorage();
+      loadCustomizationDetails();
+    }, [loadCustomizationDetails])
+  );
 
   const loadProgressFromStorage = async () => {
     try {
@@ -296,6 +439,27 @@ export default function CustomerOrderTimelineScreen() {
                   ) : null}
                 </View>
               </View>
+
+              {previewModelId && (previewGlbModule != null || preview2d != null) ? (
+                <View style={styles.previewCard}>
+                  <View style={styles.cardTitleRow}>
+                    <Ionicons name="cube-outline" size={18} color="#be185d" />
+                    <Text style={styles.sectionTitle}>Ordered 3D design</Text>
+                  </View>
+                  <View style={styles.previewViewport}>
+                    {previewGlbModule != null ? (
+                      <TraditionalDressGlbViewer
+                        key={`${ORDER_ID}-${previewGlbModule}`}
+                        glbModule={previewGlbModule}
+                        width={glPreviewW}
+                        height={glPreviewH}
+                      />
+                    ) : preview2d ? (
+                      <Image source={preview2d} style={styles.preview2d} resizeMode="contain" />
+                    ) : null}
+                  </View>
+                </View>
+              ) : null}
 
               <View style={styles.designCard}>
                 <View style={styles.cardTitleRow}>
@@ -500,6 +664,25 @@ const styles = StyleSheet.create({
   },
   orderDetailsSection: {
     marginBottom: 12,
+  },
+  previewCard: {
+    backgroundColor: '#fff',
+    borderRadius: 18,
+    padding: 13,
+    borderWidth: 1,
+    borderColor: '#fbcfe8',
+    marginTop: 12,
+  },
+  previewViewport: {
+    width: '100%',
+    alignItems: 'center',
+    backgroundColor: '#f8fafc',
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  preview2d: {
+    width: '100%',
+    height: 220,
   },
   sectionTitle: {
     fontSize: 14,
