@@ -1,0 +1,299 @@
+[
+  {
+    "role": "WORKING lehnga circular",
+    "path": "3d model/3d lehnga/circular lehnga/optimized/optimized-white-round-neck-full-sleeves-circular-lehnga.glb",
+    "error": "NOT IN CATALOG"
+  },
+  {
+    "role": "WORKING lehnga (mobile)",
+    "path": "3d model/3d lehnga/circular lehnga/mobile/white round neck full sleeves circular lehnga.glb",
+    "error": "NOT IN CATALOG"
+  },
+  {
+    "label": "BROKEN grarah shirt (resolver)",
+    "fileSizeKB": 5545,
+    "binSizeKB": 5544,
+    "extensionsUsed": [],
+    "extensionsRequired": [],
+    "imageCount": 0,
+    "textureCount": 0,
+    "materialCount": 1,
+    "meshCount": 1,
+    "images": [],
+    "textures": [],
+    "materials": [
+      {
+        "index": 0,
+        "name": "tripo_node_7becfc85-6cf6-474b-a2aa-a829bb071645_material",
+        "hasBaseColorTex": false,
+        "doubleSided": true,
+        "extensions": []
+      }
+    ],
+    "meshes": [
+      {
+        "index": 0,
+        "name": "meshes[0]",
+        "primitives": [
+          {
+            "material": 0,
+            "attributes": [
+              "POSITION",
+              "NORMAL"
+            ],
+            "mode": 4
+          }
+        ]
+      }
+    ],
+    "nodes": [
+      {
+        "index": 0,
+        "name": "tripo_node_7becfc85-6cf6-474b-a2aa-a829bb071645",
+        "mesh": 0
+      }
+    ],
+    "catalogPath": "3d model/3d grarah/shirt/mobile/white-round-neck-full-sleeves-shirt.glb",
+    "url": "https://res.cloudinary.com/db7k22ekb/raw/upload/v1779395140/vtailor-models/3d-grarah/shirt-mobile/wh…"
+  },
+  {
+    "label": "BROKEN grarah peplum",
+    "fileSizeKB": 5579,
+    "binSizeKB": 5578,
+    "extensionsUsed": [],
+    "extensionsRequired": [],
+    "imageCount": 0,
+    "textureCount": 0,
+    "materialCount": 1,
+    "meshCount": 1,
+    "images": [],
+    "textures": [],
+    "materials": [
+      {
+        "index": 0,
+        "name": "tripo_material_96618967-ff8e-4b37-99a0-b315c3ad0e86",
+        "hasBaseColorTex": false,
+        "extensions": []
+      }
+    ],
+    "meshes": [
+      {
+        "index": 0,
+        "name": "meshes[0]",
+        "primitives": [
+          {
+            "material": 0,
+            "attributes": [
+              "POSITION",
+              "NORMAL"
+            ],
+            "mode": 4
+          }
+        ]
+      }
+    ],
+    "nodes": [
+      {
+        "index": 0,
+        "name": "tripo_node_96618967-ff8e-4b37-99a0-b315c3ad0e86",
+        "mesh": 0
+      }
+    ],
+    "catalogPath": "3d model/3d grarah/peplum/mobile/white-round-neck-full-sleeves-peplum.glb",
+    "url": "https://res.cloudinary.com/db7k22ekb/raw/upload/v1779394586/vtailor-models/3d-grarah/peplum-mobile/w…"
+  },
+  {
+    "label": "BROKEN grarah optimized",
+    "fileSizeKB": 440,
+    "binSizeKB": 439,
+    "extensionsUsed": [
+      "KHR_draco_mesh_compression"
+    ],
+    "extensionsRequired": [
+      "KHR_draco_mesh_compression"
+    ],
+    "imageCount": 0,
+    "textureCount": 0,
+    "materialCount": 1,
+    "meshCount": 1,
+    "images": [],
+    "textures": [],
+    "materials": [
+      {
+        "index": 0,
+        "name": "tripo_node_7becfc85-6cf6-474b-a2aa-a829bb071645_material",
+        "hasBaseColorTex": false,
+        "doubleSided": true,
+        "extensions": []
+      }
+    ],
+    "meshes": [
+      {
+        "index": 0,
+        "name": "meshes[0]",
+        "primitives": [
+          {
+            "material": 0,
+            "attributes": [
+              "POSITION",
+              "NORMAL"
+            ],
+            "mode": 4
+          }
+        ]
+      }
+    ],
+    "nodes": [
+      {
+        "index": 0,
+        "name": "tripo_node_7becfc85-6cf6-474b-a2aa-a829bb071645",
+        "mesh": 0
+      }
+    ],
+    "catalogPath": "3d model/3d grarah/shirt/optimized-white-round-neck-full-sleeves-shirt.glb",
+    "url": "https://res.cloudinary.com/db7k22ekb/raw/upload/v1779395118/vtailor-models/3d-grarah/shirt-mobile/op…"
+  },
+  {
+    "label": "BROKEN grarah red",
+    "fileSizeKB": 5609,
+    "binSizeKB": 5608,
+    "extensionsUsed": [],
+    "extensionsRequired": [],
+    "imageCount": 0,
+    "textureCount": 0,
+    "materialCount": 1,
+    "meshCount": 1,
+    "images": [],
+    "textures": [],
+    "materials": [
+      {
+        "index": 0,
+        "name": "tripo_node_5ab06087-868b-4982-bbb0-3d632c1112cc_material",
+        "hasBaseColorTex": false,
+        "doubleSided": true,
+        "extensions": []
+      }
+    ],
+    "meshes": [
+      {
+        "index": 0,
+        "name": "meshes[0]",
+        "primitives": [
+          {
+            "material": 0,
+            "attributes": [
+              "POSITION",
+              "NORMAL"
+            ],
+            "mode": 4
+          }
+        ]
+      }
+    ],
+    "nodes": [
+      {
+        "index": 0,
+        "name": "tripo_node_5ab06087-868b-4982-bbb0-3d632c1112cc",
+        "mesh": 0
+      }
+    ],
+    "catalogPath": "3d model/3d grarah/shirt/mobile/red-round-neck-bell-sleeves-shirt.glb",
+    "url": "https://res.cloudinary.com/db7k22ekb/raw/upload/v1779395126/vtailor-models/3d-grarah/shirt-mobile/re…"
+  },
+  {
+    "label": "WORKING long frock",
+    "fileSizeKB": 2385,
+    "binSizeKB": 2383,
+    "extensionsUsed": [
+      "KHR_draco_mesh_compression",
+      "KHR_materials_volume"
+    ],
+    "extensionsRequired": [
+      "KHR_draco_mesh_compression"
+    ],
+    "imageCount": 3,
+    "textureCount": 3,
+    "materialCount": 1,
+    "meshCount": 1,
+    "images": [
+      {
+        "index": 0,
+        "mimeType": "image/jpeg",
+        "bufferView": 0,
+        "uri": null,
+        "embedded": true,
+        "external": false
+      },
+      {
+        "index": 1,
+        "mimeType": "image/jpeg",
+        "bufferView": 1,
+        "uri": null,
+        "embedded": true,
+        "external": false
+      },
+      {
+        "index": 2,
+        "mimeType": "image/jpeg",
+        "bufferView": 2,
+        "uri": null,
+        "embedded": true,
+        "external": false
+      }
+    ],
+    "textures": [
+      {
+        "index": 0,
+        "source": 0,
+        "sampler": 0
+      },
+      {
+        "index": 1,
+        "source": 2,
+        "sampler": 0
+      },
+      {
+        "index": 2,
+        "source": 1,
+        "sampler": 0
+      }
+    ],
+    "materials": [
+      {
+        "index": 0,
+        "name": "tripo_material_7030688a-a331-4da1-987a-43549f849d15",
+        "hasBaseColorTex": true,
+        "baseColorTexIndex": 0,
+        "metallicRoughnessTex": 2,
+        "normalTex": 1,
+        "extensions": []
+      }
+    ],
+    "meshes": [
+      {
+        "index": 0,
+        "name": "meshes[0]",
+        "primitives": [
+          {
+            "material": 0,
+            "attributes": [
+              "POSITION",
+              "NORMAL",
+              "TEXCOORD_0"
+            ],
+            "mode": 4
+          }
+        ]
+      }
+    ],
+    "nodes": [
+      {
+        "index": 0,
+        "name": "tripo_node_7030688a-a331-4da1-987a-43549f849d15",
+        "mesh": 0
+      }
+    ],
+    "catalogPath": "3d model/3d long frock/optimized/optimized-white-round-neck-full-sleeves-flarred.glb",
+    "url": "https://res.cloudinary.com/db7k22ekb/raw/upload/v1779395321/vtailor-models/3d-long-frock/optimized/o…"
+  }
+]

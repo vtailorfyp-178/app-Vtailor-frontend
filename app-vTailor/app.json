@@ -1,0 +1,75 @@
+{
+  "expo": {
+    "name": "app-vTailor",
+    "slug": "app-vTailor",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/vTailorlogo.png",
+    "scheme": "appvtailor",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "vTailor uses your location to find nearby tailors and update tailor availability on the map.",
+        "NSAppTransportSecurity": {
+          "NSAllowsLocalNetworking": true
+        }
+      }
+    },
+    "android": {
+      "usesCleartextTraffic": true,
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/images/vTailorlogo.png",
+        "backgroundImage": "./assets/images/vTailorlogo.png",
+        "monochromeImage": "./assets/images/vTailorlogo.png"
+      },
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION"
+      ]
+    },
+    "web": {
+      "output": "static",
+      "favicon": "./assets/images/vTailorlogo.jpeg"
+    },
+    "splash": {
+      "image": "./assets/images/vTailorlogo.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff",
+      "dark": {
+        "backgroundColor": "#000000"
+      }
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "vTailor uses your location to show nearby tailors and keep tailor location updated."
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/images/vTailorlogo.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "backgroundColor": "#ffffff",
+          "dark": {
+            "backgroundColor": "#000000"
+          }
+        }
+      ],
+      "expo-video",
+      "expo-web-browser",
+      "expo-asset"
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": false
+    }
+  }
+}

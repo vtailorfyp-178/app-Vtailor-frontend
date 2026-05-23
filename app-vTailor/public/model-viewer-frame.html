@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <!-- Same-origin page so fetch(/3dModels/…) works when Expo proxies GLBs on the dev origin -->
+  <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.5.0/model-viewer.min.js"></script>
+  <style>
+    html, body { margin: 0; height: 100%; background: #f4f6f8; overflow: hidden; }
+    model-viewer {
+      width: 100%;
+      height: 100%;
+      --poster-color: transparent;
+    }
+  </style>
+</head>
+<body>
+  <model-viewer
+    id="mv"
+    camera-controls
+    touch-action="none"
+    auto-rotate="false"
+    shadow-intensity="1"
+    exposure="1.55"
+    tone-mapping="aces"
+    environment-image="neutral"
+    interaction-prompt="none"
+    camera-orbit="0deg 75deg auto"
+    field-of-view="auto"
+    alt="Dress 3D preview"
+  ></model-viewer>
+  <script type="module">
+    const MV_SOURCE = 'vtailor-mv';
+    function post(type, detail) {
+      window.parent.postMessage({ source: MV_SOURCE, type, detail }, '*');
+    }
+    const params = new URLSearchParams(window.location.search);
+    const encoded = params.get('glb');
+    const mv = document.getElementById('mv');
+    if (!encoded) {
+      post('error', 'missing_glb');
+    } else {
+      let src;
+      try {
+        src = decodeURIComponent(encoded);
+      } catch {
+        post('error', 'bad_glb_param');
+      }
+      if (src) mv.setAttribute('src', src);
+    }
+    function frameDress() {
+      try {
+        const center = mv.getBoundingBoxCenter && mv.getBoundingBoxCenter();
+        const dim = mv.getDimensions && mv.getDimensions();
+        if (center) {
+          mv.cameraTarget = center.x.toFixed(3) + 'm ' + center.y.toFixed(3) + 'm ' + center.z.toFixed(3) + 'm';
+        }
+        if (dim && dim.y > 0.01) {
+          var maxDim = Math.max(dim.x, dim.y, dim.z);
+          mv.cameraOrbit = '0deg 75deg ' + Math.round(maxDim * 88) + '%';
+          mv.fieldOfView = '18deg';
+        }
+        if (typeof mv.updateFraming === 'function') mv.updateFraming();
+        if (center && typeof mv.zoom === 'function') mv.zoom(0.15);
+      } catch (_) {}
+    }
+    mv.addEventListener('load', () => {
+      frameDress();
+      requestAnimationFrame(frameDress);
+      [80, 200, 450, 900].forEach((ms) => setTimeout(frameDress, ms));
+      post('loaded');
+    });
+    mv.addEventListener('error', () => post('error', 'model_error'));
+  </script>
+</body>
+</html>
