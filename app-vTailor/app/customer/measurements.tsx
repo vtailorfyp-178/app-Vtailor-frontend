@@ -113,9 +113,13 @@ export default function MeasurementForm() {
       <KeyboardAvoidingView behavior="padding" style={styles.keyboardArea} keyboardVerticalOffset={Platform.OS === 'ios' ? 8 : 0}>
       <ScrollView
         ref={scrollRef}
-        contentContainerStyle={[styles.scroll, { paddingBottom: keyboardVisible ? 360 : 24 }]}
+        contentContainerStyle={[styles.scroll, { paddingBottom: keyboardVisible ? 96 : 16 }]}
         keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
         showsVerticalScrollIndicator={false}
+        bounces={false}
+        alwaysBounceVertical={false}
+        overScrollMode="never"
       >
         <View style={[styles.previewBox, { backgroundColor: card, borderColor: inputBorder }]}> 
           <ThemedText style={{ fontWeight: '700', marginBottom: 8 }}>3D Model Guidance</ThemedText>
@@ -232,7 +236,7 @@ const styles = StyleSheet.create({
   keyboardArea: { flex: 1 },
   header: { paddingTop: 40, padding: 16, gap: 12 },
   headerTitle: { color: '#fff', fontWeight: '800', fontSize: 18 },
-  scroll: { padding: 12, paddingBottom: 24 },
+  scroll: { padding: 12, flexGrow: 0 },
   infoCard: { padding: 12, borderRadius: 12, borderWidth: 1 },
   formGroup: { marginTop: 12 },
   sectionTitle: { fontSize: 16, fontWeight: '700', marginBottom: 8 },

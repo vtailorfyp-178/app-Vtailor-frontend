@@ -62,7 +62,7 @@ function fitDressCamera(
   const vFovRad = (camera.fov * Math.PI) / 180;
   const hFovRad = 2 * Math.atan(Math.tan(vFovRad / 2) * aspect);
   const fitFov = Math.min(vFovRad, hFovRad);
-  const dist = (maxDim / 2) / Math.tan(fitFov / 2) * 1.14;
+  const dist = (maxDim / 2) / Math.tan(fitFov / 2) * 1.26;
 
   return {
     pivotY: center.y,
@@ -372,6 +372,10 @@ export function TraditionalDressGlbViewer({
     return () => {
       cancelled = true;
       clearTimeout(startTimer);
+      if (displayedUrlRef.current !== glbUrl) {
+        preloadedModelRef.current = null;
+        displayedUrlRef.current = null;
+      }
     };
   }, [glbUrl, tryInstantFromCache, mountModelInScene]);
 

@@ -66,6 +66,9 @@ function registerSlugForPath(relativePath: string, url: string): void {
   const slug = normalizeBasenameSlug(relativePath);
   const cat = dressCategoryKey(relativePath);
   slugToUrlByCategory.set(`${cat}::${slug}`, url);
+  if (slug.includes('sleeeves')) {
+    slugToUrlByCategory.set(`${cat}::${slug.replace(/sleeeves/g, 'sleeves')}`, url);
+  }
 }
 
 function registerCatalogPath(relativePath: string, url: string): void {
@@ -194,6 +197,18 @@ function glbPathLookupVariants(relativePath: string): string[] {
   out.add(norm.replace(/\.glb\.glb$/i, '.glb'));
   if (/\.glb$/i.test(norm) && !/\.glb\.glb$/i.test(norm)) {
     out.add(`${norm}.glb`);
+  }
+  const stem = norm.replace(/\.glb$/i, '');
+  if (/-\.glb$/i.test(norm) || stem.endsWith('-')) {
+    out.add(`${stem.replace(/-+$/, '')}.glb`);
+    out.add(`${stem.replace(/-+$/, '')}--.glb`);
+    out.add(`${stem.replace(/-+$/, '')}-.glb`);
+  }
+  if (/sleeeves/i.test(stem)) {
+    out.add(`${stem.replace(/sleeeves/gi, 'sleeves')}.glb`);
+  }
+  if (/flarred/i.test(stem)) {
+    out.add(`${stem.replace(/flarred/gi, 'flared')}.glb`);
   }
   return [...out];
 }

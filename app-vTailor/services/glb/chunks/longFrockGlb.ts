@@ -100,8 +100,8 @@ function resolveLongFrockByColor(s: Record<TabId, string | null>): string | null
       });
     if (s.colors === 'red')
       return resolveLongFrockSplit(s, {
-        roundBell: GLB_RED_LONG_FROCK_ROUND_BELL_SPLIT,
-        roundFull: GLB_RED_LONG_FROCK_ROUND_FULL_SPLIT,
+        roundBell: GLB_RED_LONG_FROCK_ROUND_FULL_SPLIT,
+        roundFull: GLB_RED_LONG_FROCK_ROUND_BELL_SPLIT,
         vBell: GLB_RED_LONG_FROCK_V_BELL_SPLIT,
         vFull: GLB_RED_LONG_FROCK_V_FULL_SPLIT,
       });

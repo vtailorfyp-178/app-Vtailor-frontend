@@ -44,8 +44,8 @@ export function buildModelViewerShellHtml(): string {
     tone-mapping="aces"
     environment-image="neutral"
     interaction-prompt="none"
-    camera-orbit="0deg 75deg auto"
-    field-of-view="auto"
+    camera-orbit="0deg 88deg auto"
+    field-of-view="22deg"
     alt="Dress 3D preview"
   ></model-viewer>
   <div id="err">Could not load 3D model. Check Wi-Fi and that the API server is running.</div>
@@ -53,7 +53,13 @@ export function buildModelViewerShellHtml(): string {
     const MV_SOURCE = 'vtailor-mv';
     const mv = document.getElementById('mv');
     const err = document.getElementById('err');
-    let loadBound = false;
+    let loadGen = 0;
+    let loadWatchTimer = null;
+    function stripReloadParam(u) {
+      return String(u || '')
+        .replace(/[?&]vt_reload=\\d+/g, '')
+        .replace(/[?&]$/, '');
+    }
     function post(type, detail) {
       const msg = { source: MV_SOURCE, type, detail };
       if (window.ReactNativeWebView) {
@@ -65,6 +71,9 @@ export function buildModelViewerShellHtml(): string {
     }
     function frameDress() {
       try {
+        mv.autoRotate = false;
+        mv.removeAttribute('auto-rotate');
+        mv.setAttribute('auto-rotate', 'false');
         const center = mv.getBoundingBoxCenter && mv.getBoundingBoxCenter();
         const dim = mv.getDimensions && mv.getDimensions();
         if (center) {
@@ -72,28 +81,49 @@ export function buildModelViewerShellHtml(): string {
         }
         if (dim && dim.y > 0.01) {
           var maxDim = Math.max(dim.x, dim.y, dim.z);
-          mv.cameraOrbit = '0deg 75deg ' + Math.round(maxDim * 88) + '%';
-          mv.fieldOfView = '18deg';
+          mv.cameraOrbit = '0deg 88deg ' + Math.round(maxDim * 102) + '%';
+          mv.fieldOfView = '22deg';
         }
         if (typeof mv.updateFraming === 'function') mv.updateFraming();
-        if (center && typeof mv.zoom === 'function') mv.zoom(0.15);
       } catch (_) {}
     }
-    function bindLoadOnce() {
-      if (loadBound) return;
-      loadBound = true;
-      mv.addEventListener('load', () => {
-        frameDress();
-        requestAnimationFrame(frameDress);
-        [80, 200, 450, 900].forEach(function (ms) { setTimeout(frameDress, ms); });
-        post('loaded');
-      });
-      mv.addEventListener('error', () => {
-        err.style.display = 'block';
-        post('error');
-      });
+    function clearLoadWatch() {
+      if (loadWatchTimer) {
+        clearTimeout(loadWatchTimer);
+        loadWatchTimer = null;
+      }
     }
-    bindLoadOnce();
+    function finishLoad(gen) {
+      if (gen !== loadGen) return;
+      clearLoadWatch();
+      frameDress();
+      requestAnimationFrame(frameDress);
+      [80, 200, 450].forEach(function (ms) { setTimeout(function () {
+        if (gen === loadGen) frameDress();
+      }, ms); });
+      afterModelReady();
+      post('loaded');
+    }
+    function failLoad(gen) {
+      if (gen !== loadGen) return;
+      clearLoadWatch();
+      err.style.display = 'block';
+      post('error');
+    }
+    function armLoadWatch(gen) {
+      clearLoadWatch();
+      loadWatchTimer = setTimeout(function () {
+        if (gen !== loadGen) return;
+        if (mv.model) finishLoad(gen);
+        else failLoad(gen);
+      }, 14000);
+    }
+    mv.addEventListener('load', function () {
+      finishLoad(loadGen);
+    });
+    mv.addEventListener('error', function () {
+      failLoad(loadGen);
+    });
     function srgbByteToLinear(byte) {
       var c = byte / 255;
       return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
@@ -183,21 +213,25 @@ export function buildModelViewerShellHtml(): string {
     window.__vtailorSetWeddingColor = applyWeddingDressColor;
     window.__vtailorSetGlb = function (url) {
       if (!url) return;
+      var gen = ++loadGen;
       currentGlbUrl = url;
       err.style.display = 'none';
       post('loading');
       applyViewerLighting(url);
-      if (mv.src === url) {
-        frameDress();
-        afterModelReady();
-        post('loaded');
+      var base = stripReloadParam(url);
+      var currentBase = stripReloadParam(mv.src || '');
+      if (currentBase === base && mv.model) {
+        finishLoad(gen);
         return;
       }
-      mv.src = url;
+      var loadUrl = url;
+      if (currentBase === base) {
+        loadUrl = url + (url.indexOf('?') >= 0 ? '&' : '?') + 'vt_reload=' + Date.now();
+      }
+      armLoadWatch(gen);
+      try { mv.dismissPoster && mv.dismissPoster(); } catch (_) {}
+      mv.src = loadUrl;
     };
-    mv.addEventListener('load', function () {
-      afterModelReady();
-    });
     post('ready');
   </script>
 </body>
@@ -260,8 +294,8 @@ export function buildModelViewerHtml(glbUrl: string): string {
     tone-mapping="aces"
     environment-image="neutral"
     interaction-prompt="none"
-    camera-orbit="0deg 75deg auto"
-    field-of-view="auto"
+    camera-orbit="0deg 88deg auto"
+    field-of-view="22deg"
     alt="Dress 3D preview"
   ></model-viewer>
   <div id="err">Could not load 3D model. Check Wi-Fi and that the API server is running.</div>
@@ -280,6 +314,8 @@ export function buildModelViewerHtml(glbUrl: string): string {
     }
     function frameDress() {
       try {
+        mv.autoRotate = false;
+        mv.setAttribute('auto-rotate', 'false');
         const center = mv.getBoundingBoxCenter && mv.getBoundingBoxCenter();
         const dim = mv.getDimensions && mv.getDimensions();
         if (center) {
@@ -287,11 +323,10 @@ export function buildModelViewerHtml(glbUrl: string): string {
         }
         if (dim && dim.y > 0.01) {
           var maxDim = Math.max(dim.x, dim.y, dim.z);
-          mv.cameraOrbit = '0deg 75deg ' + Math.round(maxDim * 88) + '%';
-          mv.fieldOfView = '18deg';
+          mv.cameraOrbit = '0deg 88deg ' + Math.round(maxDim * 102) + '%';
+          mv.fieldOfView = '22deg';
         }
         if (typeof mv.updateFraming === 'function') mv.updateFraming();
-        if (center && typeof mv.zoom === 'function') mv.zoom(0.15);
       } catch (_) {}
     }
     mv.addEventListener('load', () => {

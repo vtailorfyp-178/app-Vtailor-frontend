@@ -11,7 +11,6 @@ import { type TabId } from '@/services/dressGlbResolver';
 import {
   CASUAL_FABRIC_COLOR_FAMILIES,
   fabricColorHexFromId,
-  fabricColorNameFromId,
   getDefaultShadeForFamily,
   getFamilyIdForShade,
   getShadesForFamily,
@@ -558,16 +557,6 @@ export default function Customize3D() {
     return Boolean(selections[tab.id]);
   }).length;
   const isComplete = completed === availableTabs.length;
-  const activeOptionName = getOptions(activeTab).find((opt) => opt.id === selections[activeTab])?.name;
-  const modelName = (params.modelName as string) || 'your dress';
-  const selectedColor =
-    usesFabricTint && selections.colors
-      ? fabricColorNameFromId(selections.colors) ?? undefined
-      : customizationColors.find((opt) => opt.id === selections.colors)?.name;
-  const suggestionText = selectedColor
-    ? `${selectedColor} works beautifully for ${modelName}. Pair it with balanced sleeves and a clean neckline for an elegant stitched look.`
-    : `Choose a color first to get fabric, season, and styling suggestions for ${modelName}.`;
-
   const selectionKeyFor3d = JSON.stringify(selectionsFor3d);
   const canShowGlb = canShowGlbPreview(modelId, selectionsFor3d);
   const readyFor3d = isReadyFor3dPreview(modelId, selections);
@@ -601,14 +590,17 @@ export default function Customize3D() {
     prefetchDressModelCatalog();
   }, [catalogHas3d, modelId]);
 
-  /** Warm URL + GLB download on every pick so first paint is fast and correct */
+  /** Warm URL + GLB for current picks (debounced — avoids network storms when switching tabs fast). */
   useEffect(() => {
     if (!catalogHas3d || !modelId) return;
-    void resolveDressGlbUrlCached(selectionsFor3d, modelId)
-      .then((hit) => {
-        if (hit?.url) prefetchGltfScene(hit.url);
-      })
-      .catch(() => {});
+    const timer = setTimeout(() => {
+      void resolveDressGlbUrlCached(selectionsFor3d, modelId)
+        .then((hit) => {
+          if (hit?.url) prefetchGltfScene(hit.url);
+        })
+        .catch(() => {});
+    }, 280);
+    return () => clearTimeout(timer);
   }, [catalogHas3d, modelId, selectionKeyFor3d]);
 
   return (
@@ -728,30 +720,8 @@ export default function Customize3D() {
           <ThemedText style={styles.previewHint}>{dressGlb.error}</ThemedText>
         ) : null}
 
-        <Pressable
-          onPress={() => (router as any).push('/customer/ai-assistant')}
-          style={[styles.aiStyleCard, { borderColor: inputBorder, backgroundColor: card }]}
-        >
-          <View style={[styles.aiIconBox, { backgroundColor: '#fdf2f8' }]}>
-            <Ionicons name="sparkles-outline" size={22} color={tint} />
-          </View>
-          <View style={{ flex: 1 }}>
-            <View style={styles.aiTitleRow}>
-              <ThemedText style={styles.aiTitle}>AI Style Suggestions</ThemedText>
-              <View style={[styles.aiPill, { backgroundColor: tint }]}>
-                <ThemedText style={styles.aiPillText}>Ask AI</ThemedText>
-              </View>
-            </View>
-            <ThemedText style={styles.aiDesc}>{suggestionText}</ThemedText>
-            <ThemedText style={styles.aiMeta}>
-              {activeOptionName
-                ? `Current ${availableTabs.find((t) => t.id === activeTab)?.label ?? activeTab}: ${activeOptionName}`
-                : 'Select options to personalize suggestions'}
-            </ThemedText>
-          </View>
-        </Pressable>
-
-        <View style={styles.optionsWrap}>
+        <View style={styles.optionsSection}>
+          <View style={styles.optionsWrap}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             {availableTabs.map((t) => (
               <Pressable
@@ -868,6 +838,19 @@ export default function Customize3D() {
               ))}
             </ScrollView>
           )}
+          </View>
+
+          <Pressable
+            onPress={() => (router as any).push('/customer/ai-assistant')}
+            style={({ pressed }) => [
+              styles.aiFab,
+              { backgroundColor: tint, borderColor: inputBorder, opacity: pressed ? 0.88 : 1 },
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel="AI style suggestions"
+          >
+            <Ionicons name="sparkles" size={22} color="#fff" />
+          </Pressable>
         </View>
       </ScrollView>
 
@@ -932,15 +915,32 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     paddingHorizontal: 12,
   },
-  aiStyleCard: { flexDirection: 'row', padding: 14, borderRadius: 16, borderWidth: 1, marginTop: 12, alignItems: 'flex-start' },
-  aiIconBox: { width: 44, height: 44, borderRadius: 16, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
-  aiTitleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
-  aiTitle: { fontSize: 15, fontWeight: '800' },
-  aiPill: { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 },
-  aiPillText: { color: '#fff', fontSize: 10, fontWeight: '800' },
-  aiDesc: { marginTop: 6, fontSize: 12, lineHeight: 18, color: '#4b5563' },
-  aiMeta: { marginTop: 8, fontSize: 11, color: '#be185d', fontWeight: '700' },
-  optionsWrap: { paddingTop: 12 },
+  optionsSection: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginTop: 8,
+    gap: 8,
+  },
+  optionsWrap: { flex: 1, minWidth: 0, paddingTop: 4 },
+  aiFab: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 4,
+    borderWidth: 1,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.15,
+        shadowRadius: 4,
+      },
+      android: { elevation: 4 },
+      default: {},
+    }),
+  },
   tabBtn: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, marginRight: 8, alignItems: 'center', borderWidth: 1, borderColor: 'transparent' },
   optCard: { width: 92, padding: 6, borderRadius: 12, marginRight: 8, borderWidth: 1, alignItems: 'center' },
   optImage: { width: '100%', height: 56, borderRadius: 10, backgroundColor: '#f3f4f6' },

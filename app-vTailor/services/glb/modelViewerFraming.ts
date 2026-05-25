@@ -10,6 +10,14 @@ export type ModelViewerElement = HTMLElement & {
   zoom?: (delta: number) => void;
 };
 
+/** Eye-level front view (polar ~88°), not top-down. */
+export const DRESS_CAMERA_ORBIT_DEFAULT = '0deg 88deg auto';
+export const DRESS_CAMERA_FOV_DEFAULT = '22deg';
+
+export function dressCameraOrbitRadius(maxDim: number): string {
+  return `${Math.round(maxDim * 102)}%`;
+}
+
 export const DRESS_MODEL_VIEWER_ATTRS: Record<string, string> = {
   'camera-controls': '',
   'touch-action': 'none',
@@ -19,8 +27,8 @@ export const DRESS_MODEL_VIEWER_ATTRS: Record<string, string> = {
   'tone-mapping': 'aces',
   'environment-image': 'neutral',
   'interaction-prompt': 'none',
-  'camera-orbit': '0deg 75deg auto',
-  'field-of-view': 'auto',
+  'camera-orbit': DRESS_CAMERA_ORBIT_DEFAULT,
+  'field-of-view': DRESS_CAMERA_FOV_DEFAULT,
   alt: 'Dress 3D preview',
 };
 
@@ -43,16 +51,12 @@ export function frameDressModelViewer(mv: ModelViewerElement): void {
 
     if (dim && dim.y > 0.01) {
       const maxDim = Math.max(dim.x, dim.y, dim.z);
-      mv.cameraOrbit = `0deg 75deg ${Math.round(maxDim * 88)}%`;
-      mv.fieldOfView = '18deg';
+      mv.cameraOrbit = `0deg 88deg ${dressCameraOrbitRadius(maxDim)}`;
+      mv.fieldOfView = DRESS_CAMERA_FOV_DEFAULT;
     }
 
     if (typeof mv.updateFraming === 'function') {
       mv.updateFraming();
-    }
-
-    if (center && typeof mv.zoom === 'function') {
-      mv.zoom(0.15);
     }
   } catch {
     try {

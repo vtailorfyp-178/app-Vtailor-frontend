@@ -96,13 +96,18 @@ export function useBundledDressGlb(
       };
     }
 
-    setState((prev) => ({
-      url: prev.url,
-      path: prev.path,
-      loading: true,
-      error: null,
-      resolvedKey: prev.resolvedKey,
-    }));
+    setState((prev) => {
+      if (prev.resolvedKey === selectionKey && prev.url) {
+        return { ...prev, loading: false, error: null };
+      }
+      return {
+        url: prev.url,
+        path: prev.path,
+        loading: true,
+        error: null,
+        resolvedKey: prev.resolvedKey,
+      };
+    });
 
     const runResolve = () => {
       resolveDressGlbUrlCached(selections, modelId).then(applyHit).catch(applyError);

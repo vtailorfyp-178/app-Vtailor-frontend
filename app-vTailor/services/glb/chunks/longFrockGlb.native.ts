@@ -18,7 +18,7 @@ const GLB_BLACK_LONG_FROCK_V_FULL_FLARED = lf('black-v-neck-full-sleeves-flarred
 const GLB_BLACK_LONG_FROCK_V_FULL_SPLIT = lf('black-v-neck-full-sleeves-split');
 
 const GLB_BLUE_LONG_FROCK_ROUND_BELL_FLARED = lf('blue-round-neck-bell-sleeves-flarred');
-const GLB_BLUE_LONG_FROCK_ROUND_BELL_SPLIT = lf('blue-round-neck-bell-sleeves-split');
+const GLB_BLUE_LONG_FROCK_ROUND_BELL_SPLIT = lf('blue-round-neck-bell-sleeves');
 const GLB_BLUE_LONG_FROCK_ROUND_FULL_FLARED = lf('blue-round-neck-full-sleeves-flarred');
 const GLB_BLUE_LONG_FROCK_ROUND_FULL_SPLIT = lf('blue-round-neck-full-sleeves-split');
 const GLB_BLUE_LONG_FROCK_V_BELL_SPLIT = lf('blue-v-neck-bell-sleeves-split');
@@ -41,7 +41,7 @@ const GLB_WHITE_LONG_FROCK_ROUND_FULL_FLARED = lf('white-round-neck-full-sleeves
 const GLB_WHITE_LONG_FROCK_ROUND_FULL_SPLIT = lf('white-round-neck-full-sleeves-split');
 const GLB_WHITE_LONG_FROCK_V_BELL_SPLIT = lf('white-v-neck-bell-sleeves-split');
 const GLB_WHITE_LONG_FROCK_V_BELL_FLARED = lf('white-v-neck-bell-sleeves-flarred');
-const GLB_WHITE_LONG_FROCK_V_FULL_FLARED = lf('white-v-neck-full-sleeves-flarred-');
+const GLB_WHITE_LONG_FROCK_V_FULL_FLARED = lf('white-v-neck-full-sleeves-flarred--');
 const GLB_WHITE_LONG_FROCK_V_FULL_SPLIT = lf('white-v-neck-full-sleeves-split');
 
 type LongFrockFlaredSet = {
@@ -99,8 +99,9 @@ function resolveLongFrockByColor(s: Record<TabId, string | null>): string | null
       });
     if (s.colors === 'red')
       return resolveLongFrockSplit(s, {
-        roundBell: GLB_RED_LONG_FROCK_ROUND_BELL_SPLIT,
-        roundFull: GLB_RED_LONG_FROCK_ROUND_FULL_SPLIT,
+        /** Cloudinary filenames: full ↔ bell split assets are swapped for red open slit. */
+        roundBell: GLB_RED_LONG_FROCK_ROUND_FULL_SPLIT,
+        roundFull: GLB_RED_LONG_FROCK_ROUND_BELL_SPLIT,
         vBell: GLB_RED_LONG_FROCK_V_BELL_SPLIT,
         vFull: GLB_RED_LONG_FROCK_V_FULL_SPLIT,
       });

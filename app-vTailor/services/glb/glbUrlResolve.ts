@@ -9,7 +9,7 @@ import {
   shouldRefreshStaleGlbUrl,
 } from '@/services/glb/cloudinaryModelCatalog';
 
-const URL_CACHE_VERSION = 'display-v24-grarah-variant-swap';
+const URL_CACHE_VERSION = 'display-v28-red-split-swap';
 
 /** Cloudinary URL lookup path (optimized long frock, mobile grarah/patiyala). */
 export function pathForPreviewUrl(relativePath: GlbModelPath): GlbModelPath {
@@ -89,10 +89,9 @@ function prefetchColorVariants(
   }
 }
 
-/** Warm GLB URL + download + Three.js parse while user picks options. */
-export function prefetchDressGlbUrl(selections: DressSelections, modelId: string): void {
-  queueResolve(selections, modelId);
+let variantPrefetchTimer: ReturnType<typeof setTimeout> | null = null;
 
+function prefetchSiblingVariants(selections: DressSelections, modelId: string): void {
   const pickedColor = selections.colors;
 
   if (
@@ -112,39 +111,17 @@ export function prefetchDressGlbUrl(selections: DressSelections, modelId: string
     if (otherFs) {
       queueResolve({ ...selections, 'frock-style': otherFs }, modelId);
     }
-    const sleevesList =
-      fs === 'front-slit' ? LONG_FROCK_SLEEVES_SPLIT : LONG_FROCK_SLEEVES_FLARED;
-    for (const neck of LONG_FROCK_NECKS) {
-      if (neck === selections.neck) continue;
-      queueResolve({ ...selections, neck }, modelId);
-    }
-    for (const sleeves of sleevesList) {
-      if (sleeves === selections.sleeves) continue;
-      queueResolve({ ...selections, sleeves }, modelId);
-    }
   }
+}
 
-  if (modelId === 'saree') {
-    for (const style of SAREE_STYLES) {
-      if (style === selections['saree-style']) continue;
-      queueResolve({ ...selections, 'saree-style': style }, modelId);
-    }
-  }
-
-  if (
-    modelId === 'shalwar-kameez-short' &&
-    (selections.bottom === 'patiyala' || selections.bottom == null)
-  ) {
-    for (const neck of SHALWAR_NECKS) {
-      if (neck === selections.neck) continue;
-      queueResolve({ ...selections, neck, bottom: 'patiyala' }, modelId);
-    }
-    for (const sleeves of SHALWAR_SLEEVES) {
-      if (sleeves === selections.sleeves) continue;
-      queueResolve({ ...selections, sleeves, bottom: 'patiyala' }, modelId);
-    }
-    prefetchColorVariants({ ...selections, bottom: 'patiyala' }, modelId, pickedColor);
-  }
+/** Warm current GLB immediately; sibling variants after a short pause (avoids network storms). */
+export function prefetchDressGlbUrl(selections: DressSelections, modelId: string): void {
+  queueResolve(selections, modelId);
+  if (variantPrefetchTimer) clearTimeout(variantPrefetchTimer);
+  variantPrefetchTimer = setTimeout(() => {
+    variantPrefetchTimer = null;
+    prefetchSiblingVariants(selections, modelId);
+  }, 450);
 }
 
 export function clearDressGlbUrlCache(): void {

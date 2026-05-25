@@ -25,8 +25,8 @@
     tone-mapping="aces"
     environment-image="neutral"
     interaction-prompt="none"
-    camera-orbit="0deg 75deg auto"
-    field-of-view="auto"
+    camera-orbit="0deg 88deg auto"
+    field-of-view="22deg"
     alt="Dress 3D preview"
   ></model-viewer>
   <script type="module">
@@ -50,6 +50,8 @@
     }
     function frameDress() {
       try {
+        mv.autoRotate = false;
+        mv.setAttribute('auto-rotate', 'false');
         const center = mv.getBoundingBoxCenter && mv.getBoundingBoxCenter();
         const dim = mv.getDimensions && mv.getDimensions();
         if (center) {
@@ -57,11 +59,10 @@
         }
         if (dim && dim.y > 0.01) {
           var maxDim = Math.max(dim.x, dim.y, dim.z);
-          mv.cameraOrbit = '0deg 75deg ' + Math.round(maxDim * 88) + '%';
-          mv.fieldOfView = '18deg';
+          mv.cameraOrbit = '0deg 88deg ' + Math.round(maxDim * 102) + '%';
+          mv.fieldOfView = '22deg';
         }
         if (typeof mv.updateFraming === 'function') mv.updateFraming();
-        if (center && typeof mv.zoom === 'function') mv.zoom(0.15);
       } catch (_) {}
     }
     mv.addEventListener('load', () => {

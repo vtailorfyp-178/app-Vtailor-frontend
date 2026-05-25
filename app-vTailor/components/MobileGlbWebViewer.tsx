@@ -35,6 +35,7 @@ type Props = {
 type LoadState = 'loading' | 'ready' | 'error';
 
 const SHELL_HTML = buildModelViewerShellHtml();
+const INJECT_DEBOUNCE_MS = 72;
 
 export function MobileGlbWebViewer({
   glbUrl,
@@ -48,8 +49,13 @@ export function MobileGlbWebViewer({
 }: Props): React.ReactElement {
   const webRef = useRef<WebView>(null);
   const shellReadyRef = useRef(false);
+  const glbUrlRef = useRef(glbUrl);
+  const injectGenRef = useRef(0);
+  const injectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const baseUrl = useMemo(() => modelViewerBaseUrl(glbUrl), [glbUrl]);
   const [state, setState] = useState<LoadState>('loading');
+
+  glbUrlRef.current = glbUrl;
 
   const injectGlb = useCallback((url: string) => {
     if (!url || !webRef.current || !shellReadyRef.current) return;
@@ -68,17 +74,33 @@ export function MobileGlbWebViewer({
     webRef.current.injectJavaScript(injectModelViewerWeddingColorScript(tintHex));
   }, []);
 
+  const scheduleInject = useCallback(
+    (url: string, fabric: string | null, wedding: string | null) => {
+      if (!url) return;
+      const gen = (injectGenRef.current += 1);
+      if (injectTimerRef.current) clearTimeout(injectTimerRef.current);
+      injectTimerRef.current = setTimeout(() => {
+        if (gen !== injectGenRef.current || glbUrlRef.current !== url) return;
+        if (!shellReadyRef.current) return;
+        setState((s) => (s === 'error' ? 'loading' : s === 'ready' ? s : 'loading'));
+        injectGlb(url);
+        injectFabricColor(fabric, url);
+        injectWeddingColor(wedding, url);
+      }, INJECT_DEBOUNCE_MS);
+    },
+    [injectGlb, injectFabricColor, injectWeddingColor],
+  );
+
   useEffect(() => {
     if (!glbUrl) return;
-    if (shellReadyRef.current) {
-      setState((s) => (s === 'error' ? s : 'loading'));
-      injectGlb(glbUrl);
-      injectFabricColor(fabricColorHex ?? null, glbUrl);
-      injectWeddingColor(weddingColorHex ?? null, glbUrl);
-    }
-  }, [glbUrl, fabricColorHex, weddingColorHex, injectGlb, injectFabricColor, injectWeddingColor]);
+    setState((s) => (s === 'error' ? 'loading' : s));
+    scheduleInject(glbUrl, fabricColorHex ?? null, weddingColorHex ?? null);
+    return () => {
+      if (injectTimerRef.current) clearTimeout(injectTimerRef.current);
+    };
+  }, [glbUrl, fabricColorHex, weddingColorHex, scheduleInject]);
 
-  const showOverlay = state === 'loading' || isUpdating;
+  const showOverlay = (state === 'loading' && !isUpdating) || (isUpdating && state !== 'ready');
 
   if (state === 'error') {
     return (
@@ -112,34 +134,41 @@ export function MobileGlbWebViewer({
         allowsFullscreenVideo
         onLoadEnd={() => {
           shellReadyRef.current = true;
-          injectGlb(glbUrl);
-          injectFabricColor(fabricColorHex ?? null, glbUrl);
-          injectWeddingColor(weddingColorHex ?? null, glbUrl);
+          scheduleInject(glbUrlRef.current, fabricColorHex ?? null, weddingColorHex ?? null);
         }}
         onMessage={(event) => {
           try {
             const data = JSON.parse(event.nativeEvent.data) as { type?: string };
+            const activeUrl = glbUrlRef.current;
             if (data.type === 'ready') {
               shellReadyRef.current = true;
-              injectGlb(glbUrl);
-              injectFabricColor(fabricColorHex ?? null, glbUrl);
-              injectWeddingColor(weddingColorHex ?? null, glbUrl);
+              scheduleInject(activeUrl, fabricColorHex ?? null, weddingColorHex ?? null);
             }
-            if (data.type === 'loading') setState('loading');
+            if (data.type === 'loading') {
+              setState((s) => (s === 'error' ? s : 'loading'));
+            }
             if (data.type === 'loaded') {
               setState('ready');
-              injectFabricColor(fabricColorHex ?? null, glbUrl);
-              injectWeddingColor(weddingColorHex ?? null, glbUrl);
+              injectFabricColor(fabricColorHex ?? null, activeUrl);
+              injectWeddingColor(weddingColorHex ?? null, activeUrl);
             }
             if (data.type === 'error') {
-              setTimeout(() => setState((s) => (s === 'loading' ? 'error' : s)), 2000);
+              setTimeout(() => {
+                if (glbUrlRef.current === activeUrl) {
+                  setState((s) => (s === 'loading' ? 'error' : s));
+                }
+              }, 1800);
             }
           } catch {
             /* ignore */
           }
         }}
-        onHttpError={() => setState('error')}
-        onError={() => setState('error')}
+        onHttpError={() => {
+          if (glbUrlRef.current === glbUrl) setState('error');
+        }}
+        onError={() => {
+          if (glbUrlRef.current === glbUrl) setState('error');
+        }}
       />
       {showOverlay ? (
         <View style={styles.loadingOverlay} pointerEvents="none">
@@ -160,7 +189,7 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(244,246,248,0.75)',
+    backgroundColor: 'rgba(244,246,248,0.55)',
   },
   loadingText: {
     marginTop: 10,
