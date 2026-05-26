@@ -23,6 +23,39 @@ export function buildModelViewerShellHtml(): string {
       --poster-color: transparent;
       --progress-bar-color: transparent;
     }
+    #controls {
+      position: absolute;
+      right: 10px;
+      bottom: 12px;
+      z-index: 5;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      align-items: center;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
+    }
+    .control-pill {
+      width: 48px;
+      height: 48px;
+      border: 0;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.82);
+      color: #fff;
+      font-size: 24px;
+      font-weight: 700;
+      box-shadow: 0 8px 20px rgba(15, 23, 42, 0.22);
+    }
+    .control-label {
+      margin-top: 2px;
+      font-family: system-ui, sans-serif;
+      font-size: 11px;
+      color: #334155;
+      background: rgba(255, 255, 255, 0.88);
+      padding: 4px 8px;
+      border-radius: 999px;
+    }
     #err {
       display: none;
       padding: 16px;
@@ -39,6 +72,8 @@ export function buildModelViewerShellHtml(): string {
     camera-controls
     touch-action="none"
     auto-rotate="false"
+    min-camera-orbit="auto 88deg auto"
+    max-camera-orbit="auto 88deg auto"
     shadow-intensity="1"
     exposure="1.35"
     tone-mapping="aces"
@@ -49,16 +84,49 @@ export function buildModelViewerShellHtml(): string {
     alt="Dress 3D preview"
   ></model-viewer>
   <div id="err">Could not load 3D model. Check Wi-Fi and that the API server is running.</div>
+  <div id="controls" aria-label="Move model up or down">
+    <button id="upBtn" class="control-pill" type="button" aria-label="Move model up">↑</button>
+    <button id="downBtn" class="control-pill" type="button" aria-label="Move model down">↓</button>
+    <div class="control-label">Drag up / down</div>
+  </div>
   <script>
     const MV_SOURCE = 'vtailor-mv';
     const mv = document.getElementById('mv');
     const err = document.getElementById('err');
+    const upBtn = document.getElementById('upBtn');
+    const downBtn = document.getElementById('downBtn');
     let loadGen = 0;
     let loadWatchTimer = null;
+    let baseTarget = null;
+    let targetYOffset = 0;
+    let targetStep = 0.04;
+    let dragStartY = null;
+    let dragStartOffset = 0;
     function stripReloadParam(u) {
       return String(u || '')
         .replace(/[?&]vt_reload=\\d+/g, '')
         .replace(/[?&]$/, '');
+    }
+    function clamp(value, min, max) {
+      return Math.min(max, Math.max(min, value));
+    }
+    function applyCameraTarget() {
+      if (!baseTarget) return;
+      const nextY = baseTarget.y + targetYOffset;
+      mv.cameraTarget = baseTarget.x.toFixed(3) + 'm ' + nextY.toFixed(3) + 'm ' + baseTarget.z.toFixed(3) + 'm';
+    }
+    function setTargetFromModel() {
+      const center = mv.getBoundingBoxCenter && mv.getBoundingBoxCenter();
+      const dim = mv.getDimensions && mv.getDimensions();
+      if (center) {
+        baseTarget = { x: center.x, y: center.y, z: center.z };
+        if (dim && dim.y > 0.01) {
+          const maxDim = Math.max(dim.x, dim.y, dim.z);
+          targetStep = Math.max(0.02, maxDim * 0.04);
+          targetYOffset = clamp(targetYOffset, -maxDim * 0.25, maxDim * 0.25);
+        }
+        applyCameraTarget();
+      }
     }
     function post(type, detail) {
       const msg = { source: MV_SOURCE, type, detail };
@@ -74,19 +142,47 @@ export function buildModelViewerShellHtml(): string {
         mv.autoRotate = false;
         mv.removeAttribute('auto-rotate');
         mv.setAttribute('auto-rotate', 'false');
-        const center = mv.getBoundingBoxCenter && mv.getBoundingBoxCenter();
         const dim = mv.getDimensions && mv.getDimensions();
-        if (center) {
-          mv.cameraTarget = center.x.toFixed(3) + 'm ' + center.y.toFixed(3) + 'm ' + center.z.toFixed(3) + 'm';
-        }
         if (dim && dim.y > 0.01) {
           var maxDim = Math.max(dim.x, dim.y, dim.z);
           mv.cameraOrbit = '0deg 88deg ' + Math.round(maxDim * 102) + '%';
           mv.fieldOfView = '22deg';
         }
+        setTargetFromModel();
         if (typeof mv.updateFraming === 'function') mv.updateFraming();
       } catch (_) {}
     }
+    function nudgeTarget(delta) {
+      if (!baseTarget) return;
+      targetYOffset = clamp(targetYOffset + delta, -3, 3);
+      applyCameraTarget();
+    }
+    function attachDragControl(btn, direction) {
+      btn.addEventListener('pointerdown', function (event) {
+        event.preventDefault();
+        dragStartY = event.clientY;
+        dragStartOffset = targetYOffset;
+        btn.setPointerCapture && btn.setPointerCapture(event.pointerId);
+      });
+      btn.addEventListener('pointermove', function (event) {
+        if (dragStartY == null || !btn.hasPointerCapture || !btn.hasPointerCapture(event.pointerId)) return;
+        const delta = (dragStartY - event.clientY) * 0.0025;
+        targetYOffset = clamp(dragStartOffset + delta * direction, -3, 3);
+        applyCameraTarget();
+      });
+      btn.addEventListener('pointerup', function (event) {
+        dragStartY = null;
+        try { btn.releasePointerCapture && btn.releasePointerCapture(event.pointerId); } catch (_) {}
+      });
+      btn.addEventListener('pointercancel', function () {
+        dragStartY = null;
+      });
+      btn.addEventListener('click', function () {
+        nudgeTarget(targetStep * direction);
+      });
+    }
+    attachDragControl(upBtn, 1);
+    attachDragControl(downBtn, -1);
     function clearLoadWatch() {
       if (loadWatchTimer) {
         clearTimeout(loadWatchTimer);
@@ -216,6 +312,8 @@ export function buildModelViewerShellHtml(): string {
       var gen = ++loadGen;
       currentGlbUrl = url;
       err.style.display = 'none';
+      baseTarget = null;
+      targetYOffset = 0;
       post('loading');
       applyViewerLighting(url);
       var base = stripReloadParam(url);
@@ -289,6 +387,8 @@ export function buildModelViewerHtml(glbUrl: string): string {
     camera-controls
     touch-action="none"
     auto-rotate="false"
+    min-camera-orbit="auto 88deg auto"
+    max-camera-orbit="auto 88deg auto"
     shadow-intensity="1"
     exposure="1.35"
     tone-mapping="aces"

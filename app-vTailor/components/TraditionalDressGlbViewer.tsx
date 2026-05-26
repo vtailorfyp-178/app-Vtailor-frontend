@@ -42,9 +42,9 @@ const ZOOM_DEFAULT = 5.1;
 const ZOOM_BUTTON_STEP = 0.78;
 const LOOK_Y_MIN = -0.72;
 const LOOK_Y_MAX = 1.05;
-const PAN_Y_SENS = 0.0048;
+const ZOOM_DRAG_SENS = 0.0048;
 const ROT_Y_SENS = 0.0132;
-const LOOK_BUTTON_STEP = 0.075;
+const ZOOM_BUTTON_STEP_DRAG = 0.075;
 
 /** Frame full dress in viewport after centerAndScaleScene (normalized height ~2.45). */
 function fitDressCamera(
@@ -214,9 +214,10 @@ export function TraditionalDressGlbViewer({
   const rotY = useRef(0);
   const zoomRef = useRef(ZOOM_DEFAULT);
   const pivotYRef = useRef(PIVOT_Y_DEFAULT);
-  const lookOffsetYRef = useRef(0);
+  const zoomOffsetRef = useRef(0);
   const panStartRotY = useRef(0);
-  const panStartLookY = useRef(0);
+  const panStartZoom = useRef(0);
+  const panAxis = useRef<'rotate' | 'zoom' | null>(null);
 
   const layoutRef = useRef({ width: Math.floor(width), height: Math.floor(height) });
   layoutRef.current = { width: Math.floor(width), height: Math.floor(height) };
@@ -289,7 +290,7 @@ export function TraditionalDressGlbViewer({
         );
         pivotYRef.current = pivotY;
         zoomRef.current = zoom;
-        lookOffsetYRef.current = 0;
+        zoomOffsetRef.current = 0;
       }
 
       preloadedModelRef.current = model;
@@ -445,7 +446,7 @@ export function TraditionalDressGlbViewer({
 
     const z = THREE.MathUtils.clamp(zoomRef.current, ZOOM_MIN, ZOOM_MAX);
     const pivotY =
-      pivotYRef.current + THREE.MathUtils.clamp(lookOffsetYRef.current, LOOK_Y_MIN, LOOK_Y_MAX);
+      pivotYRef.current + THREE.MathUtils.clamp(zoomOffsetRef.current, LOOK_Y_MIN, LOOK_Y_MAX);
     cam.position.set(0, pivotY, z);
     cam.lookAt(0, pivotY, 0);
     root.rotation.order = 'YXZ';
@@ -467,7 +468,7 @@ export function TraditionalDressGlbViewer({
 
       try {
         zoomRef.current = ZOOM_DEFAULT;
-        lookOffsetYRef.current = 0;
+        zoomOffsetRef.current = 0;
 
         const scene = new THREE.Scene();
         scene.background = hasBackdrop ? null : new THREE.Color(0xfeffff);
@@ -530,11 +531,19 @@ export function TraditionalDressGlbViewer({
   }, []);
 
   const applyLookUp = useCallback(() => {
-    lookOffsetYRef.current = THREE.MathUtils.clamp(lookOffsetYRef.current + LOOK_BUTTON_STEP, LOOK_Y_MIN, LOOK_Y_MAX);
+    zoomOffsetRef.current = THREE.MathUtils.clamp(
+      zoomOffsetRef.current - ZOOM_BUTTON_STEP_DRAG,
+      LOOK_Y_MIN,
+      LOOK_Y_MAX,
+    );
   }, []);
 
   const applyLookDown = useCallback(() => {
-    lookOffsetYRef.current = THREE.MathUtils.clamp(lookOffsetYRef.current - LOOK_BUTTON_STEP, LOOK_Y_MIN, LOOK_Y_MAX);
+    zoomOffsetRef.current = THREE.MathUtils.clamp(
+      zoomOffsetRef.current + ZOOM_BUTTON_STEP_DRAG,
+      LOOK_Y_MIN,
+      LOOK_Y_MAX,
+    );
   }, []);
 
   const panResponder = useMemo(
@@ -544,14 +553,22 @@ export function TraditionalDressGlbViewer({
         onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dx) > 4 || Math.abs(g.dy) > 4,
         onPanResponderGrant: () => {
           panStartRotY.current = rotY.current;
-          panStartLookY.current = lookOffsetYRef.current;
+          panStartZoom.current = zoomRef.current;
+          panAxis.current = null;
         },
         onPanResponderMove: (_, g) => {
-          rotY.current = panStartRotY.current + g.dx * ROT_Y_SENS;
-          lookOffsetYRef.current = THREE.MathUtils.clamp(
-            panStartLookY.current - g.dy * PAN_Y_SENS,
-            LOOK_Y_MIN,
-            LOOK_Y_MAX,
+          if (!panAxis.current) {
+            if (Math.abs(g.dx) < 4 && Math.abs(g.dy) < 4) return;
+            panAxis.current = Math.abs(g.dx) >= Math.abs(g.dy) ? 'rotate' : 'zoom';
+          }
+          if (panAxis.current === 'rotate') {
+            rotY.current = panStartRotY.current + g.dx * ROT_Y_SENS;
+            return;
+          }
+          zoomRef.current = THREE.MathUtils.clamp(
+            panStartZoom.current * Math.exp(g.dy * ZOOM_DRAG_SENS),
+            ZOOM_MIN,
+            ZOOM_MAX,
           );
         },
       }),
@@ -603,14 +620,14 @@ export function TraditionalDressGlbViewer({
             <Pressable
               onPress={applyLookUp}
               style={({ pressed }) => [styles.zoomBtn, styles.zoomBtnSpacing, pressed && styles.zoomBtnPressed]}
-              accessibilityLabel="Pan view up"
+              accessibilityLabel="Zoom in"
             >
               <Text style={styles.panBtnText}>↑</Text>
             </Pressable>
             <Pressable
               onPress={applyLookDown}
               style={({ pressed }) => [styles.zoomBtn, pressed && styles.zoomBtnPressed]}
-              accessibilityLabel="Pan view down"
+              accessibilityLabel="Zoom out"
             >
               <Text style={styles.panBtnText}>↓</Text>
             </Pressable>
@@ -632,7 +649,7 @@ export function TraditionalDressGlbViewer({
             </Pressable>
           </View>
           <View style={styles.hintOverlay} pointerEvents="none">
-            <Text style={styles.hintText}>Drag to rotate & move · ± zoom</Text>
+            <Text style={styles.hintText}>Drag horizontally to rotate · drag vertically to zoom · ± zoom</Text>
           </View>
         </>
       )}

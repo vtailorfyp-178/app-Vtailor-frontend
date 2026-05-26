@@ -24,9 +24,28 @@ const CustomerHome = () => {
   ];
 
   const currentOrders = [
-    { id: 1, name: 'Long Frock', tailor: 'Ahmad Tailor', status: 'In Progress', daysLeft: 5, price: 8500 },
-    { id: 2, name: 'Shalwar Kameez', tailor: 'Master Tailors', status: 'Cutting', daysLeft: 12, price: 25000 },
+    { id: 1, name: 'Long Frock', tailor: 'Ahmad Tailor', tailorId: 'sample-tailor-aliya-formal', tailorPhone: '+923215560190', tailorAvatar: 'AT', tailorRating: '⭐ 4.8 (245 reviews)', status: 'In Progress', daysLeft: 5, price: 8500 },
+    { id: 2, name: 'Shalwar Kameez', tailor: 'Master Tailors', tailorId: 'sample-tailor-fatima-traditional', tailorPhone: '+923129018820', tailorAvatar: 'MT', tailorRating: '⭐ 4.6 (180 reviews)', status: 'Cutting', daysLeft: 12, price: 25000 },
   ];
+
+  const openOrderTimeline = (order: (typeof currentOrders)[number]) => {
+    router.push({
+      pathname: '/customer/order-timeline',
+      params: {
+        orderId: `ORD-${String(order.id).padStart(3, '0')}`,
+        demo: '1',
+        orderDescription: order.name,
+        orderDate: new Date().toISOString().slice(0, 10),
+        orderPrice: String(order.price),
+        tailorName: order.tailor,
+        tailorId: order.tailorId,
+        tailorPhone: order.tailorPhone,
+        tailorAvatar: order.tailorAvatar,
+        tailorRating: order.tailorRating,
+        statusLabel: order.status,
+      },
+    } as any);
+  };
 
   return (
     <View style={[styles.container, { backgroundColor: SURFACE_MUTED }]}>
@@ -92,13 +111,13 @@ const CustomerHome = () => {
               <Pressable 
                 key={order.id} 
                 style={[styles.orderCard, { backgroundColor: card, borderColor: inputBorder }]}
-                onPress={() => router.push(`/customer/tailor-details?tailorId=${order.id}&from=home`)}
+                  onPress={() => openOrderTimeline(order)}
               > 
                 <View style={styles.orderTop}>
                   <View>
                     <ThemedText style={styles.orderName}>{order.name}</ThemedText>
-                    <Pressable onPress={() => router.push(`/customer/tailor-details?tailorId=${order.id}&from=home`)}>
-                      <ThemedText style={[styles.orderTailor, { color: '#3b82f6', fontWeight: '600' }]}>{order.tailor}</ThemedText>
+                      <Pressable onPress={() => openOrderTimeline(order)}>
+                      <ThemedText style={[styles.orderTailor, { color: tint, fontWeight: '600' }]}>{order.tailor}</ThemedText>
                     </Pressable>
                   </View>
                   <View style={styles.statusBadge}>

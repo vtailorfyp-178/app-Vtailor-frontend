@@ -42,9 +42,6 @@ export function resolveCustomizePreviewImage(
     if (!showing3d) {
       return longFrockStyleImage(selections['frock-style']);
     }
-    if (selections.neck && !selections.sleeves) {
-      return neckStyleImage(selections.neck) ?? longFrockStyleImage(selections['frock-style']);
-    }
     if (!selections.neck) {
       return longFrockStyleImage(selections['frock-style']);
     }
@@ -56,9 +53,6 @@ export function resolveCustomizePreviewImage(
       if (selections['saree-style'] === 'frill') return IMG_FRILL_SAREE;
       if (selections['saree-style'] === 'plain') return IMG_PLAIN_SAREE;
       return IMG_SAREE;
-    }
-    if (selections.neck && !selections.sleeves) {
-      return neckStyleImage(selections.neck) ?? IMG_SAREE;
     }
     if (selections['saree-style'] === 'frill') return IMG_FRILL_SAREE;
     if (selections['saree-style'] === 'plain') return IMG_PLAIN_SAREE;

@@ -22,6 +22,8 @@ export const DRESS_MODEL_VIEWER_ATTRS: Record<string, string> = {
   'camera-controls': '',
   'touch-action': 'none',
   'auto-rotate': 'false',
+  'min-camera-orbit': 'auto 88deg auto',
+  'max-camera-orbit': 'auto 88deg auto',
   'shadow-intensity': '1',
   exposure: '1.35',
   'tone-mapping': 'aces',

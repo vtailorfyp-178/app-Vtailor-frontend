@@ -20,7 +20,6 @@ const variationByOptionId: Record<string, ImageSourcePropType> = {
   full: require('../2d model/variations/full-sleeves.png'),
   bell: require('../2d model/variations/bell-sleeves.png'),
   patiyala: imgPatiyala,
-  straight: require('../2d model/variations/straight-style.png'),
   plain: imgPlainSaree,
   frill: imgFrillSaree,
 };
@@ -68,9 +67,6 @@ export function resolveDressMobilePreviewImage(
   if (modelId === 'shalwar-kameez-short') {
     if (selections.bottom === 'patiyala') {
       return imgPatiyala;
-    }
-    if (selections.bottom === 'straight') {
-      return variationByOptionId.straight ?? imgShortShirtShalwar;
     }
   }
 

@@ -440,9 +440,7 @@ export default function Customize3D() {
     shalwarTypeName ||
     (selections.bottom === 'patiyala'
       ? 'Patiyala shalwar'
-      : selections.bottom === 'straight'
-        ? 'Straight shalwar'
-        : '');
+      : '');
 
   const selectionsFor3d = useMemo(
     () => with3dPreviewDefaults(modelId, selections),
@@ -701,8 +699,8 @@ export default function Customize3D() {
         </View>
         {catalogHas3d && !canShowGlb ? (
           <ThemedText style={styles.previewHint}>
-            {isCasualShortShirt && selections.bottom === 'straight'
-              ? '3D preview is available for Patiyala shalwar. Choose Patiyala at the shalwar step, then pick neck and sleeves.'
+            {isCasualShortShirt
+              ? '3D preview is available for Patiyala shalwar only. Choose Patiyala at the shalwar step, then pick neck and sleeves.'
               : modelId === 'long-frock'
                 ? 'Choose dress style (Flared or Front slit), then pick round or V-neck to start the 3D preview.'
                 : modelId === 'saree'

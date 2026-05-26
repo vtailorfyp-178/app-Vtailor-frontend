@@ -58,7 +58,7 @@ export function useBundledDressGlb(
           path: null,
           loading: false,
           error: straightOnly
-            ? '3D preview is available for Patiyala shalwar only. Straight shalwar uses the image preview.'
+            ? '3D preview is available for Patiyala shalwar only.'
             : 'No 3D model for this combination. Pick neck, sleeves, and color (red, blue, white, or black for long frock).',
           resolvedKey: selectionKey,
         });

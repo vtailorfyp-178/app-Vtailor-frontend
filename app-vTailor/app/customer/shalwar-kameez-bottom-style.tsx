@@ -6,12 +6,10 @@ import { ThemedView } from '@/components/themed-view';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import AppBackButton from '@/components/AppBackButton';
 
-const straightImage = require('../../2d model/variations/straight-style.png');
 const patiyalaImage = require('../../2d model/variations/patiyala-shalwar.png');
 
 const shalwarTypes = [
   { id: 'patiyala', name: 'Patiyala shalwar', image: patiyalaImage },
-  { id: 'straight', name: 'Straight shalwar', image: straightImage },
 ] as const;
 
 export default function ShalwarKameezBottomStyleScreen() {
