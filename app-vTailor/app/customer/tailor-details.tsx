@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Linking } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, Alert } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { useRouter } from 'expo-router';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
@@ -110,12 +110,6 @@ export default function TailorDetails() {
     router.push(`/customer/chat?tailorId=${tailorData.id}&tailorName=${tailorData.name}`);
   };
 
-  const handleCallTailor = async () => {
-    if (!tailorData.phone) return;
-    const phoneNumber = String(tailorData.phone).replace(/\s+/g, '');
-    await Linking.openURL(`tel:${phoneNumber}`);
-  };
-
   return (
     <ProtectedRoute requiredRole="customer">
       <View style={[styles.container, { backgroundColor: bg }]}>
@@ -123,7 +117,7 @@ export default function TailorDetails() {
         <View style={[styles.header, { backgroundColor: tint }]}>
           <AppBackButton onPress={() => (router as any).replace(`/customer?tab=${fromTab}`)} variant="tint" />
           <ThemedText style={[styles.headerTitle, { color: '#fff' }]}>Tailor Details</ThemedText>
-          <View style={styles.headerSpacer} />
+          <View style={styles.headerButton} />
         </View>
 
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
@@ -144,17 +138,6 @@ export default function TailorDetails() {
                   <ThemedText style={styles.rating}>Profile verified</ThemedText>
                   <ThemedText style={[styles.reviews, { color: muted }]}>Tailor profile</ThemedText>
                 </View>
-              </View>
-            </View>
-
-            <View style={styles.badgeRow}>
-              <View style={[styles.infoBadge, { backgroundColor: tint + '18' }]}>
-                <Ionicons name="call-outline" size={14} color={tint} />
-                <Text style={[styles.infoBadgeText, { color: tint }]}>{tailorData.phone}</Text>
-              </View>
-              <View style={[styles.infoBadge, { backgroundColor: tint + '18' }]}>
-                <Ionicons name="briefcase-outline" size={14} color={tint} />
-                <Text style={[styles.infoBadgeText, { color: tint }]}>{tailorData.experience || 'Not set'}</Text>
               </View>
             </View>
           </View>
@@ -241,21 +224,14 @@ export default function TailorDetails() {
             </View>
           </View>
 
+          {/* Action Buttons */}
           <View style={styles.buttonSection}>
             <Pressable
               style={[styles.contactBtn, { borderColor: tint }]}
               onPress={handleContactTailor}
             >
-              <Ionicons name="chatbubble-ellipses-outline" size={20} color={tint} />
+              <Ionicons name="call" size={20} color={tint} />
               <Text style={[styles.contactBtnText, { color: tint }]}>Contact Tailor</Text>
-            </Pressable>
-
-            <Pressable
-              style={[styles.callBtn, { backgroundColor: tint }]}
-              onPress={handleCallTailor}
-            >
-              <Ionicons name="call" size={20} color="#fff" />
-              <Text style={styles.callBtnText}>Call Tailor</Text>
             </Pressable>
           </View>
 
@@ -269,7 +245,7 @@ export default function TailorDetails() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, paddingTop: 40 },
-  headerSpacer: { width: 84, height: 44 },
+  headerButton: { width: 84, height: 44, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.18)', alignItems: 'center', justifyContent: 'center' },
   headerTitle: { flex: 1, textAlign: 'center', fontSize: 20, fontWeight: '700' },
   content: { padding: 16 },
   profileCard: { padding: 16, borderRadius: 16, marginBottom: 20 },
@@ -282,34 +258,29 @@ const styles = StyleSheet.create({
   star: { marginRight: 4 },
   rating: { fontWeight: '700', marginRight: 4 },
   reviews: { fontSize: 13 },
-  badgeRow: { flexDirection: 'row', gap: 10, marginTop: 14, flexWrap: 'wrap' },
-  infoBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, gap: 6 },
-  infoBadgeText: { fontSize: 12, fontWeight: '700' },
   section: { marginBottom: 20 },
   sectionTitle: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', marginBottom: 10, letterSpacing: 0.5 },
-  infoCard: { borderRadius: 16, padding: 12, overflow: 'hidden', borderWidth: 1, borderColor: '#f3f4f6' },
+  infoCard: { borderRadius: 12, padding: 12, overflow: 'hidden' },
   infoRow: { flexDirection: 'row', alignItems: 'flex-start', paddingVertical: 8 },
   infoIcon: { marginRight: 12 },
   infoContent: { flex: 1 },
   infoLabel: { fontSize: 11, marginBottom: 2 },
   infoValue: { fontSize: 14, fontWeight: '600' },
   divider: { height: 1, marginVertical: 4, opacity: 0.2 },
-  aboutCard: { padding: 14, borderRadius: 16, borderWidth: 1, borderColor: '#f3f4f6' },
+  aboutCard: { padding: 14, borderRadius: 12 },
   description: { fontSize: 14, lineHeight: 20 },
   chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999 },
+  chip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16 },
   chipText: { fontSize: 12, fontWeight: '600' },
   emptyText: { fontSize: 13, fontWeight: '600' },
   detailsGrid: { flexDirection: 'row', gap: 10 },
-  detailItem: { flex: 1, alignItems: 'center', padding: 14, borderRadius: 16, borderWidth: 1, borderColor: '#f3f4f6' },
+  detailItem: { flex: 1, alignItems: 'center', padding: 14, borderRadius: 12 },
   detailIcon: { marginBottom: 6 },
   detailValue: { fontSize: 16, fontWeight: '700', marginBottom: 2 },
   detailLabel: { fontSize: 11 },
   buttonSection: { gap: 10, marginTop: 10 },
   contactBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', borderWidth: 2, paddingVertical: 14, borderRadius: 12, gap: 8 },
   contactBtnText: { fontSize: 16, fontWeight: '700' },
-  callBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 14, borderRadius: 12, gap: 8 },
-  callBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
   hireBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 14, borderRadius: 12, gap: 8 },
   hireBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
 });

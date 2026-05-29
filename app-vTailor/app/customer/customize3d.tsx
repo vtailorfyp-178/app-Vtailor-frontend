@@ -32,7 +32,6 @@ import {
   resolveDressGlbUrlCached,
 } from '@/services/glb/glbUrlResolve';
 import { prefetchGltfScene } from '@/services/glb/loadGltfFromUrl';
-import { prefetchGlbBuffer } from '@/services/glb/loadGltfFromUrl';
 import { clearParsedSceneCache } from '@/services/glb/glbParsedSceneCache';
 import { safeRouterBack } from '@/utils/safeRouterBack';
 import type { Href } from 'expo-router';

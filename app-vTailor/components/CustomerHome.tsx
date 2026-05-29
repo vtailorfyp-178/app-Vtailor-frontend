@@ -117,7 +117,7 @@ const CustomerHome = () => {
                   <View>
                     <ThemedText style={styles.orderName}>{order.name}</ThemedText>
                       <Pressable onPress={() => openOrderTimeline(order)}>
-                      <ThemedText style={[styles.orderTailor, { color: tint, fontWeight: '600' }]}>{order.tailor}</ThemedText>
+                      <ThemedText style={[styles.orderTailor, { color: '#3b82f6', fontWeight: '600' }]}>{order.tailor}</ThemedText>
                     </Pressable>
                   </View>
                   <View style={styles.statusBadge}>

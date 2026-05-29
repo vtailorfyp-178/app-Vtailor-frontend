@@ -8,7 +8,6 @@ import { dressPreviewFromOrderDescription } from '@/services/orderDressPreview';
 import { getUserCustomizations } from '@/services/userDataService';
 import { type TabId } from '@/services/dressGlbResolver';
 import { useBundledDressGlb } from '@/hooks/useBundledDressGlb';
-import { useThemeColor } from '@/hooks/use-theme-color';
 import {
   fabricColorHexFromId,
   fabricColorNameFromId,
@@ -22,6 +21,7 @@ import {
   FlatList,
   Image,
   Linking,
+  SafeAreaView,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -30,7 +30,6 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
-import { SafeAreaView } from 'react-native-safe-area-context';
 
 const STEPS = [
   "Order Accepted",
@@ -80,12 +79,6 @@ const TIMELINE_ORDERS: TimelineOrder[] = [
     tailorPhone: '+923215560190',
     tailorAvatar: 'AT',
     tailorRating: '⭐ 4.8 (245 reviews)',
-    tailorEmail: 'ahmad@tailors.com',
-    tailorAddress: '123 Fashion Street, Karachi',
-    tailorExperience: '8 Years',
-    specialization: 'Formal Dresses, Wedding Attire, Traditional',
-    tailorDescription: 'Expert tailor with 8 years of experience in custom tailoring and alterations. Known for quality work and customer satisfaction.',
-    tailorDeliveryTime: '7-10 days',
     statusLabel: 'In Progress',
     sampleNeck: 'Round Neck',
     sampleSleeves: 'Bell Sleeves',
@@ -104,12 +97,6 @@ const TIMELINE_ORDERS: TimelineOrder[] = [
     tailorPhone: '+923129018820',
     tailorAvatar: 'MT',
     tailorRating: '⭐ 4.6 (180 reviews)',
-    tailorEmail: 'fatima@mastertailors.com',
-    tailorAddress: '45 Old Street, Lahore',
-    tailorExperience: '6 Years',
-    specialization: 'Traditional, Casual',
-    tailorDescription: 'Specializes in traditional shalwar kameez and custom casual wear.',
-    tailorDeliveryTime: '5-8 days',
     statusLabel: 'Cutting',
     sampleNeck: 'V-Neck',
     sampleSleeves: 'Bell Sleeves',
@@ -126,12 +113,6 @@ const TIMELINE_ORDERS: TimelineOrder[] = [
     tailorPhone: '+923332198744',
     tailorAvatar: 'CS',
     tailorRating: '⭐ 4.7 (132 reviews)',
-    tailorEmail: 'noor@classicstitches.com',
-    tailorAddress: '88 Market Road, Islamabad',
-    tailorExperience: '4 Years',
-    specialization: 'Party Wear, Kurtis',
-    tailorDescription: 'Contemporary designs for party wear and everyday kurtis.',
-    tailorDeliveryTime: '4-6 days',
     statusLabel: 'Delivered',
     sampleNeck: 'Round Neck',
     sampleSleeves: 'Bell Sleeves',
@@ -195,6 +176,7 @@ function safeParseSelections(json: string): Record<string, string | null> {
     return {};
   }
 }
+
 const selectionNameMap: Record<string, Record<string, string>> = {
   neck: {
     round: 'Round Neck',
@@ -266,7 +248,6 @@ export default function CustomerOrderTimelineScreen() {
   const glPreviewW = Math.max(260, Math.floor(screenW - 64));
   const glPreviewH = 220;
   const { userId } = useAuth();
-  const tint = useThemeColor({}, 'tint');
 
   const demoMode = (params.demo as string) === '1';
   const selectedOrderId = typeof params.orderId === 'string' ? params.orderId : '';
@@ -286,11 +267,6 @@ export default function CustomerOrderTimelineScreen() {
   const tailorRatingFromParams = (params.tailorRating as string) || '⭐ 4.8 (245 reviews)';
   const orderPriceFromParams = (params.orderPrice as string) || '';
   const statusLabelFromParams = (params.statusLabel as string) || '';
-  const tailorEmailFromParams = (params.tailorEmail as string) || '';
-  const tailorAddressFromParams = (params.tailorAddress as string) || '';
-  const tailorExperienceFromParams = (params.tailorExperience as string) || '';
-  const tailorDescriptionFromParams = (params.tailorDescription as string) || '';
-  const tailorDeliveryTimeFromParams = (params.tailorDeliveryTime as string) || '';
   const measurementRows = [
     { label: 'Chest / Bust', value: (params.measurementChest as string) || '36 in' },
     { label: 'Waist', value: (params.measurementWaist as string) || '30 in' },
@@ -373,12 +349,6 @@ export default function CustomerOrderTimelineScreen() {
         tailorPhone: order.tailorPhone,
         tailorAvatar: order.tailorAvatar,
         tailorRating: order.tailorRating,
-        tailorEmail: order.tailorEmail,
-        tailorAddress: order.tailorAddress,
-        tailorExperience: order.tailorExperience,
-        specialization: order.specialization,
-        tailorDescription: order.tailorDescription,
-        tailorDeliveryTime: order.tailorDeliveryTime,
         statusLabel: order.statusLabel,
         sampleNeck: order.sampleNeck,
         sampleSleeves: order.sampleSleeves,
@@ -688,30 +658,29 @@ export default function CustomerOrderTimelineScreen() {
                     <Text style={styles.tailorName}>{tailorName}</Text>
                     <Text style={styles.tailorRating}>{tailorRating}</Text>
                   </View>
+                  <View style={styles.statusPill}>
+                    <Text style={styles.statusPillText}>{statusLabelFromParams || STEPS[currentStep]}</Text>
+                  </View>
                 </View>
 
-                <TouchableOpacity
-                  style={[styles.orderModelButton, { borderColor: tint, marginTop: 14, marginBottom: 0 }]}
-                  onPress={() =>
-                    router.push({
-                      pathname: '/customer/tailor-details',
-                      params: {
-                        tailorId: tailorIdFromParams,
-                        tailorName,
-                        tailorPhone: tailorPhoneFromParams,
-                        tailorAvatar: tailorAvatarFromParams,
-                        tailorEmail: tailorEmailFromParams,
-                        tailorAddress: tailorAddressFromParams,
-                        tailorExperience: tailorExperienceFromParams,
-                        specialization: params.specialization,
-                        tailorDescription: tailorDescriptionFromParams,
-                        from: 'orders',
-                      },
-                    })
-                  }
-                >
-                  <Ionicons name="person-circle-outline" size={20} color={tint} />
-                  <Text style={[styles.orderModelButtonText, { color: tint }]}>View Tailor Profile</Text>
+                <View style={styles.tinyRow}>
+                  <Text style={styles.tinyLabel}>Tailor ID</Text>
+                  <Text style={styles.tinyValue}>{tailorIdFromParams}</Text>
+                </View>
+                <View style={styles.tinyRow}>
+                  <Text style={styles.tinyLabel}>Phone</Text>
+                  <Text style={styles.tinyValue}>{tailorPhoneFromParams}</Text>
+                </View>
+              </View>
+
+              <View style={styles.buttonContainer}>
+                <TouchableOpacity style={styles.contactButton} onPress={handleContactTailor}>
+                  <Ionicons name="chatbubble-ellipses-outline" size={20} color="#3b82f6" />
+                  <Text style={styles.contactButtonText}>Contact Tailor</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.callButton} onPress={handleCallTailor}>
+                  <Ionicons name="call" size={20} color="#fff" />
+                  <Text style={styles.callButtonText}>Call Tailor</Text>
                 </TouchableOpacity>
               </View>
             </ScrollView>
@@ -754,6 +723,9 @@ export default function CustomerOrderTimelineScreen() {
                   <Text style={styles.tailorName}>{tailorName}</Text>
                   <Text style={styles.tailorRating}>{tailorRating}</Text>
                 </View>
+                <View style={styles.statusPill}>
+                  <Text style={styles.statusPillText}>{statusLabelFromParams || STEPS[currentStep]}</Text>
+                </View>
               </View>
 
               {/* Order Details */}
@@ -772,25 +744,6 @@ export default function CustomerOrderTimelineScreen() {
                   ) : null}
                 </View>
               </View>
-
-              <TouchableOpacity
-                style={[styles.orderModelButton, { borderColor: tint }]}
-                onPress={() =>
-                  router.push({
-                    pathname: '/customer/view-3d-model',
-                    params: {
-                      modelId: previewModelId || paramModelId || '',
-                      modelName: orderDescription,
-                      selections: JSON.stringify(previewSelectionsFor3d),
-                      viewOnly: '1',
-                    },
-                  })
-                }
-                disabled={!previewModelId && !paramModelId}
-              >
-                <Ionicons name="cube-outline" size={20} color={tint} />
-                <Text style={[styles.orderModelButtonText, { color: tint }]}>View Full Model</Text>
-              </TouchableOpacity>
 
               {previewModelId && (previewDressGlb.url != null || preview2d != null) ? (
                 <View style={styles.previewCard}>
@@ -895,6 +848,23 @@ export default function CustomerOrderTimelineScreen() {
             </View>
           </ScrollView>
 
+          {/* Action Buttons */}
+          <View style={styles.buttonContainer}>
+            <TouchableOpacity 
+              style={styles.contactButton}
+              onPress={handleContactTailor}
+            >
+              <Ionicons name="chatbubble-ellipses-outline" size={20} color="#3b82f6" />
+              <Text style={styles.contactButtonText}>Contact Tailor</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.callButton}
+              onPress={handleCallTailor}
+            >
+              <Ionicons name="call" size={20} color="#fff" />
+              <Text style={styles.callButtonText}>Call Tailor</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </SafeAreaView>
     </ProtectedRoute>
@@ -1272,21 +1242,6 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: "#e5e7eb",
     gap: 10,
-  },
-  orderModelButton: {
-    flexDirection: "row",
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderWidth: 2,
-    borderRadius: 10,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    marginBottom: 14,
-  },
-  orderModelButtonText: {
-    fontSize: 16,
-    fontWeight: "700",
   },
   contactButton: {
     flexDirection: "row",

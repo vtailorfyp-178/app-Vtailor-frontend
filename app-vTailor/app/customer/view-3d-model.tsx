@@ -40,7 +40,6 @@ export default function View3DModelScreen() {
 
   const modelId = (params.modelId as string) || '';
   const modelName = (params.modelName as string) || 'your dress';
-  const viewOnly = (params.viewOnly as string) === '1';
 
   const selections = useMemo(() => {
     try {
@@ -89,7 +88,7 @@ export default function View3DModelScreen() {
 
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         <ThemedText style={[styles.lead, { color: muted }]}>
-          {viewOnly ? 'Simple full-model preview.' : 'Review your dress in 3D. When you are happy, continue to enter measurements.'}
+          Review your dress in 3D. When you are happy, continue to enter measurements.
         </ThemedText>
 
         <View
@@ -124,35 +123,31 @@ export default function View3DModelScreen() {
           )}
         </View>
 
-        {!viewOnly ? (
-          <>
-            <Pressable
-              onPress={goMeasurements}
-              disabled={goingToMeasurements}
-              style={[styles.proceed, { backgroundColor: tint, opacity: goingToMeasurements ? 0.75 : 1 }]}
-            >
-              <ThemedText style={styles.proceedText}>
-                {goingToMeasurements ? 'Saving…' : 'Continue to measurements'}
-              </ThemedText>
-            </Pressable>
+        <Pressable
+          onPress={goMeasurements}
+          disabled={goingToMeasurements}
+          style={[styles.proceed, { backgroundColor: tint, opacity: goingToMeasurements ? 0.75 : 1 }]}
+        >
+          <ThemedText style={styles.proceedText}>
+            {goingToMeasurements ? 'Saving…' : 'Continue to measurements'}
+          </ThemedText>
+        </Pressable>
 
-            <Pressable
-              onPress={() =>
-                router.push({
-                  pathname: '/customer/customize3d',
-                  params: {
-                    modelId,
-                    modelName,
-                    selections: JSON.stringify(selections),
-                  },
-                })
-              }
-              style={[styles.editBtn, { borderColor: inputBorder }]}
-            >
-              <ThemedText style={[styles.editBtnText, { color: tint }]}>Edit variations</ThemedText>
-            </Pressable>
-          </>
-        ) : null}
+        <Pressable
+          onPress={() =>
+            router.push({
+              pathname: '/customer/customize3d',
+              params: {
+                modelId,
+                modelName,
+                selections: JSON.stringify(selections),
+              },
+            })
+          }
+          style={[styles.editBtn, { borderColor: inputBorder }]}
+        >
+          <ThemedText style={[styles.editBtnText, { color: tint }]}>Edit variations</ThemedText>
+        </Pressable>
       </ScrollView>
     </ThemedView>
   );

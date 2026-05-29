@@ -28,6 +28,8 @@ function useThreeJsDressPreview(glbUrl: string): boolean {
  * WebView fallback only for non-HTTP local dev URLs.
  */
 export function DressGlbPreview(props: Props): React.ReactElement {
+  const useThreeJs = useThreeJsDressPreview(props.glbUrl);
+
   if (props.loadError || !props.glbUrl || props.glbUrl === 'about:blank') {
     return (
       <FallbackPanel
@@ -39,7 +41,7 @@ export function DressGlbPreview(props: Props): React.ReactElement {
     );
   }
 
-  if (!useThreeJsDressPreview(props.glbUrl)) {
+  if (!useThreeJs) {
     return (
       <GlbHtmlModelViewer
         glbUrl={props.glbUrl}
