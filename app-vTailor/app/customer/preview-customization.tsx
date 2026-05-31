@@ -39,7 +39,7 @@ export default function PreviewCustomization() {
       : modelId === 'shalwar-kameez' || modelId === 'shalwar-kameez-long'
       ? require('../../2d model/short-shirt-shalwar.png')
       : modelId === 'sharara'
-      ? require('../../2d model/shrara.jpg')
+      ? require('../../2d model/shrara.png')
       : modelId === 'grarah-short-shirt'
       ? require('../../2d model/variations/short-shirt-grarah.png')
       : modelId === 'grarah-peplum'

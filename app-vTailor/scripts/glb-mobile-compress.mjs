@@ -1,5 +1,6 @@
 /**
- * Shared mobile GLB compression (RN-safe: no Draco, no embedded textures).
+ * Shared mobile GLB compression (RN-safe: no Draco, strips textures for flat-tint dresses).
+ * Bridal / saree / textured lehnga: use glb-textured-compress.mjs instead (preserves PBR maps).
  */
 import { mkdir, stat } from 'node:fs/promises';
 import path from 'node:path';

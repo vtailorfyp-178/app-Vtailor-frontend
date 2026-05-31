@@ -6,7 +6,13 @@ const API_PROXY_TARGET = { hostname: '127.0.0.1', port: 8000 };
 const MODELS_PROXY_TARGET = { hostname: '127.0.0.1', port: 3001 };
 
 function shouldProxyToModelsApi(urlPath) {
-  return urlPath === '/models' || urlPath.startsWith('/models/');
+  return (
+    urlPath === '/health' ||
+    urlPath === '/models' ||
+    urlPath.startsWith('/models/') ||
+    urlPath === '/fabric-prints' ||
+    urlPath.startsWith('/fabric-prints/')
+  );
 }
 
 function shouldProxyToBackend(urlPath) {

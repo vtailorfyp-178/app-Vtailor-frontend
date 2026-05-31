@@ -74,8 +74,8 @@ export function buildModelViewerShellHtml(): string {
     auto-rotate="false"
     min-camera-orbit="auto 88deg auto"
     max-camera-orbit="auto 88deg auto"
-    shadow-intensity="1"
-    exposure="1.35"
+    shadow-intensity="1.18"
+    exposure="1.38"
     tone-mapping="aces"
     environment-image="neutral"
     interaction-prompt="none"
@@ -194,9 +194,9 @@ export function buildModelViewerShellHtml(): string {
       clearLoadWatch();
       frameDress();
       requestAnimationFrame(frameDress);
-      [80, 200, 450].forEach(function (ms) { setTimeout(function () {
+      setTimeout(function () {
         if (gen === loadGen) frameDress();
-      }, ms); });
+      }, 120);
       afterModelReady();
       post('loaded');
     }
@@ -245,17 +245,43 @@ export function buildModelViewerShellHtml(): string {
       if (urlIsGrarah(url)) return false;
       return /saree|lehnga|bridal|embroid|long[\\s-]?frock/i.test(String(url || ''));
     }
+    function urlIsTexturedBridalOrLehnga(url) {
+      return /lehnga|bridal/i.test(String(url || ''));
+    }
+    function urlIsCasualFabricDress(url) {
+      return /patiyala|bell-bottom|tulip-trouser|trouser-shirt|trouser shirt/i.test(String(url || ''));
+    }
+    function urlIsFrillSaree(url) {
+      return /frill[\s_-]?saree|sari\\/frill|frill sari|flirred|flired/i.test(String(url || ''));
+    }
+    function fabricRoughnessForUrl(url) {
+      return urlIsFrillSaree(url) ? 0.54 : 0.68;
+    }
     function applyViewerLighting(url) {
       try {
-        if (urlIsGrarah(url) && grarahHasEmbeddedTextures(url)) {
+        mv.setAttribute('environment-image', 'neutral');
+        mv.setAttribute('tone-mapping', 'aces');
+        if (urlIsCasualFabricDress(url)) {
           mv.exposure = '1.35';
-          mv.setAttribute('shadow-intensity', '1');
+          mv.setAttribute('shadow-intensity', '1.15');
+        } else if (urlIsFrillSaree(url)) {
+          mv.exposure = '1.4';
+          mv.setAttribute('shadow-intensity', '1.18');
+        } else if (urlIsTexturedBridalOrLehnga(url)) {
+          mv.exposure = '1.42';
+          mv.setAttribute('shadow-intensity', '1.2');
+        } else if (urlIsGrarah(url) && grarahHasEmbeddedTextures(url)) {
+          mv.exposure = '1.38';
+          mv.setAttribute('shadow-intensity', '1.18');
         } else if (urlIsGrarah(url)) {
-          mv.exposure = '1.02';
-          mv.setAttribute('shadow-intensity', '0.9');
+          mv.exposure = '1.28';
+          mv.setAttribute('shadow-intensity', '1.08');
+        } else if (urlPreservesEmbeddedMaterials(url)) {
+          mv.exposure = '1.36';
+          mv.setAttribute('shadow-intensity', '1.15');
         } else {
-          mv.exposure = '1.35';
-          mv.setAttribute('shadow-intensity', '1');
+          mv.exposure = '1.32';
+          mv.setAttribute('shadow-intensity', '1.12');
         }
       } catch (_) {}
     }
@@ -274,37 +300,87 @@ export function buildModelViewerShellHtml(): string {
           if (pbr.baseColorTexture && pbr.baseColorTexture.setTexture) {
             try { pbr.baseColorTexture.setTexture(null); } catch (_) {}
           }
-          if (pbr.setMetallicFactor) pbr.setMetallicFactor(0.06);
-          if (pbr.setRoughnessFactor) pbr.setRoughnessFactor(0.78);
+          if (pbr.setMetallicFactor) pbr.setMetallicFactor(0);
+          if (pbr.setRoughnessFactor) pbr.setRoughnessFactor(0.68);
           if (pbr.setBaseColorFactor) pbr.setBaseColorFactor(factor);
         });
       } catch (_) {}
     }
-    /** Patiyala runtime tint only. */
-    function applyFabricColor(hex) {
-      if (!hex || !mv.model || !mv.model.materials) return;
-      if (urlPreservesEmbeddedMaterials(currentGlbUrl) || urlIsGrarah(currentGlbUrl)) return;
-      var factor = hexToFactor(hex);
-      if (!factor) return;
+    function applyDressFabricMaterials() {
+      if (!mv.model || !mv.model.materials) return;
+      var rough = fabricRoughnessForUrl(currentGlbUrl);
       try {
         mv.model.materials.forEach(function (mat) {
           if (!isDressFabricMaterial(mat.name)) return;
           var pbr = mat.pbrMetallicRoughness;
           if (!pbr) return;
-          if (pbr.baseColorTexture && pbr.baseColorTexture.setTexture) {
+          if (pbr.setMetallicFactor) pbr.setMetallicFactor(0);
+          if (pbr.setRoughnessFactor) pbr.setRoughnessFactor(rough);
+        });
+      } catch (_) {}
+    }
+    /** All dress models: fabric shade (keeps embroidery maps on textured GLBs). */
+    function applyFabricColor(hex) {
+      if (!hex || !mv.model || !mv.model.materials) return;
+      if (window.__vtailorFabricTexUrl) return;
+      if (urlIsGrarah(currentGlbUrl) && grarahHasEmbeddedTextures(currentGlbUrl)) return;
+      if (urlPreservesEmbeddedMaterials(currentGlbUrl)) return;
+      var factor = hexToFactor(hex);
+      if (!factor) return;
+      var keepMaps = urlIsCasualFabricDress(currentGlbUrl);
+      var rough = fabricRoughnessForUrl(currentGlbUrl);
+      try {
+        mv.model.materials.forEach(function (mat) {
+          if (!isDressFabricMaterial(mat.name)) return;
+          var pbr = mat.pbrMetallicRoughness;
+          if (!pbr) return;
+          if (!keepMaps && pbr.baseColorTexture && pbr.baseColorTexture.setTexture) {
             try { pbr.baseColorTexture.setTexture(null); } catch (_) {}
           }
           if (pbr.setMetallicFactor) pbr.setMetallicFactor(0);
-          if (pbr.setRoughnessFactor) pbr.setRoughnessFactor(0.82);
+          if (pbr.setRoughnessFactor) pbr.setRoughnessFactor(rough);
           if (pbr.setBaseColorFactor) pbr.setBaseColorFactor(factor);
+        });
+      } catch (_) {}
+    }
+    async function applyFabricTexture(texUrl) {
+      if (!texUrl || !mv.model || !mv.model.materials) return;
+      if (!urlIsCasualFabricDress(currentGlbUrl) && !/patiyala|trouser-shirt|bell-bottom|tulip-trouser/i.test(String(currentGlbUrl || ''))) return;
+      try {
+        var meta = window.__vtailorFabricPatternMeta || {};
+        var rpm = meta.repeatsPerMeter || 10;
+        var motifCm = meta.motifSizeCm || (100 / rpm);
+        var scaleU = Math.max(4, Math.min(22, (100 / motifCm) * 0.38));
+        var tileAspect = (meta.tileWidth && meta.tileHeight) ? meta.tileWidth / meta.tileHeight : 1;
+        var scaleV = scaleU / tileAspect;
+        var texture = await mv.createTexture(texUrl);
+        var rough = fabricRoughnessForUrl(currentGlbUrl);
+        mv.model.materials.forEach(function (mat) {
+          if (!isDressFabricMaterial(mat.name)) return;
+          var pbr = mat.pbrMetallicRoughness;
+          if (!pbr || !pbr.baseColorTexture) return;
+          pbr.baseColorTexture.setTexture(texture);
+          if (pbr.baseColorTexture.setTransform) {
+            pbr.baseColorTexture.setTransform({
+              scale: [scaleU, scaleV],
+              offset: [0, 0],
+              rotation: 0
+            });
+          }
+          if (pbr.setMetallicFactor) pbr.setMetallicFactor(0);
+          if (pbr.setRoughnessFactor) pbr.setRoughnessFactor(rough);
+          if (pbr.setBaseColorFactor) pbr.setBaseColorFactor([1, 1, 1, 1]);
         });
       } catch (_) {}
     }
     function afterModelReady() {
       applyViewerLighting(currentGlbUrl);
+      applyDressFabricMaterials();
       applyWeddingDressColor(window.__vtailorWeddingHex);
+      applyFabricTexture(window.__vtailorFabricTexUrl);
       applyFabricColor(window.__vtailorFabricHex);
     }
+    window.__vtailorSetFabricTexture = applyFabricTexture;
     window.__vtailorSetFabricColor = applyFabricColor;
     window.__vtailorSetWeddingColor = applyWeddingDressColor;
     window.__vtailorSetGlb = function (url) {
@@ -344,6 +420,15 @@ export function injectModelViewerGlbScript(glbUrl: string): string {
 export function injectModelViewerFabricColorScript(hex: string | null): string {
   const payload = hex ? JSON.stringify(hex) : 'null';
   return `(function(){try{window.__vtailorFabricHex=${payload};window.__vtailorSetFabricColor&&window.__vtailorSetFabricColor(window.__vtailorFabricHex);}catch(e){}})();true;`;
+}
+
+export function injectModelViewerFabricTextureScript(
+  url: string | null,
+  meta?: Record<string, unknown> | null,
+): string {
+  const payload = url ? JSON.stringify(url) : 'null';
+  const metaPayload = meta ? JSON.stringify(meta) : 'null';
+  return `(function(){try{window.__vtailorFabricTexUrl=${payload};window.__vtailorFabricPatternMeta=${metaPayload};window.__vtailorSetFabricTexture&&window.__vtailorSetFabricTexture(window.__vtailorFabricTexUrl);}catch(e){}})();true;`;
 }
 
 export function injectModelViewerWeddingColorScript(hex: string | null): string {
@@ -389,8 +474,8 @@ export function buildModelViewerHtml(glbUrl: string): string {
     auto-rotate="false"
     min-camera-orbit="auto 88deg auto"
     max-camera-orbit="auto 88deg auto"
-    shadow-intensity="1"
-    exposure="1.35"
+    shadow-intensity="1.18"
+    exposure="1.38"
     tone-mapping="aces"
     environment-image="neutral"
     interaction-prompt="none"

@@ -223,6 +223,43 @@ export function usesPatiyalaRuntimeFabricTint(
   return bottom === 'patiyala' || bottom == null;
 }
 
+/** Trouser shirt bell bottom: same runtime fabric tint as Patiyala (MeshStandardMaterial). */
+export function usesBellBottomRuntimeFabricTint(modelId: string): boolean {
+  return modelId === 'trouser-shirt-bell-bottom';
+}
+
+/** Trouser shirt tulip trouser: same runtime fabric tint as bell bottom. */
+export function usesTulipTrouserRuntimeFabricTint(modelId: string): boolean {
+  return modelId === 'trouser-shirt-tulip-trouser';
+}
+
+/** Patiyala + bell bottom + tulip trouser: full fabric families + shade picker. */
+export function usesCasualFabricColorFamilies(
+  modelId: string,
+  selections: Partial<Record<TabId, string | null>>,
+): boolean {
+  return (
+    usesBellBottomRuntimeFabricTint(modelId) ||
+    usesTulipTrouserRuntimeFabricTint(modelId) ||
+    usesPatiyalaRuntimeFabricTint(modelId, selections)
+  );
+}
+
+/** Runtime tint on 3D preview when a fabric shade is selected. */
+export function usesCasualFabricRuntimeTint(
+  modelId: string,
+  selections: Partial<Record<TabId, string | null>>,
+): boolean {
+  return usesCasualFabricColorFamilies(modelId, selections);
+}
+
+export function usesBellBottomOrPatiyalaFabricTint(
+  modelId: string,
+  selections: Partial<Record<TabId, string | null>>,
+): boolean {
+  return usesCasualFabricRuntimeTint(modelId, selections);
+}
+
 /** @deprecated */
 export function usesCasualPatiyalaFabricTint(
   modelId: string,

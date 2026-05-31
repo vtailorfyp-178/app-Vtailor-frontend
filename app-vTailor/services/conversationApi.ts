@@ -3,50 +3,18 @@
 // Complete React Native API client for the Tailor-Customer conversation system
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { Platform } from "react-native";
-import Constants from "expo-constants";
 import * as FileSystem from "expo-file-system/legacy";
+import { getCandidateBaseUrls, REQUEST_TIMEOUT_MS } from "@/services/apiBase";
 
-// ── Config ────────────────────────────────────────────────────────────────────
-const EXPO_API_BASE = (process.env.EXPO_PUBLIC_API_BASE_URL || "").trim();
-const expoHostCandidates = [
-  Constants.expoConfig?.hostUri,
-  (Constants as any).expoGoConfig?.hostUri,
-  (Constants as any).expoConfig?.debuggerHost,
-  (Constants as any).expoGoConfig?.debuggerHost,
-]
-  .filter(Boolean)
-  .map((value) => String(value).replace(/^.*?:\/\//, "").replace(/:\d+$/, "").trim())
-  .filter(Boolean);
-const EMULATOR_ANDROID_HOST = "10.0.2.2";
 let authToken: string | null = null;
 
-function normalizeApiRoot(value: string): string {
-  return value
-    .trim()
-    .replace(/\/$/, "")
-    .replace(/\/app\/api\/v1$/i, "");
-}
-
-function getCandidateApiBases(): string[] {
-  const urls: string[] = [];
-  if (EXPO_API_BASE) urls.push(normalizeApiRoot(EXPO_API_BASE));
-
-  if (Platform.OS === "web") {
-    const webHost = (typeof window !== "undefined" && window.location && window.location.hostname) || "localhost";
-    urls.push(
-      `http://${webHost}:8000`,
-      "http://127.0.0.1:8000",
-      "http://localhost:8000",
-    );
-    return Array.from(new Set(urls));
+/** `/app/api/v1/foo` → `/foo` when base already includes API_PREFIX. */
+function relativeApiPath(endpoint: string): string {
+  const path = endpoint.trim();
+  if (path.startsWith("/app/api/v1")) {
+    return path.slice("/app/api/v1".length) || "/";
   }
-
-  if (Platform.OS === "android") urls.push(`http://${EMULATOR_ANDROID_HOST}:8000`);
-  urls.push(...expoHostCandidates.map((h) => `http://${h}:8000`));
-  urls.push("http://127.0.0.1:8000");
-  urls.push("http://localhost:8000");
-  return Array.from(new Set(urls));
+  return path.startsWith("/") ? path : `/${path}`;
 }
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -165,20 +133,33 @@ async function request<T>(
     headers["Authorization"] = `Bearer ${authToken}`;
   }
 
-  const candidates = getCandidateApiBases();
+  const candidates = await getCandidateBaseUrls();
+  const path = relativeApiPath(endpoint);
 
   let res: Response | null = null;
   let lastErr: unknown = null;
-  for (const base of Array.from(new Set(candidates))) {
+  for (const base of candidates) {
     try {
-      res = await fetch(`${base}${endpoint}`, {
-        method,
-        headers,
-        body: body ? JSON.stringify(body) : undefined,
-      });
-      break;
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+      try {
+        res = await fetch(`${base}${path}`, {
+          method,
+          headers,
+          body: body ? JSON.stringify(body) : undefined,
+          signal: controller.signal,
+        });
+        if (res.status === 404 || res.status === 502 || res.status === 503) {
+          res = null;
+          continue;
+        }
+        break;
+      } finally {
+        clearTimeout(timeoutId);
+      }
     } catch (err) {
       lastErr = err;
+      res = null;
     }
   }
 

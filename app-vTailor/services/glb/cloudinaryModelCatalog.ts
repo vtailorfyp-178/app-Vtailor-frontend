@@ -8,6 +8,8 @@ import {
 } from '@/services/glb/catalogPathAliases';
 import { pathForCloudinaryLookup } from '@/services/glb/catalogDisplayPath';
 import embeddedCatalog from '@/data/cloudinaryCatalog.json';
+import bellBottomCatalog from '@/data/bellBottomCloudinaryCatalog.json';
+import tulipTrouserCatalog from '@/data/tulipTrouserCloudinaryCatalog.json';
 
 export type CloudinaryCatalogEntry = {
   name?: string;
@@ -57,6 +59,9 @@ function dressCategoryKey(relativePath: string): string {
   if (p.includes('long frock') || p.includes('long-frock')) return 'long-frock';
   if (p.includes('saree')) return 'saree';
   if (p.includes('shalwar') || p.includes('patiyala')) return 'shalwar';
+  if (p.includes('trouser shirt') || p.includes('trouser-shirt') || p.includes('bell-bottom') || p.includes('tulip-trouser')) {
+    return 'trouser-shirt';
+  }
   if (p.includes('lehnga')) return 'lehnga';
   if (p.includes('grarah')) return 'grarah';
   return 'other';
@@ -97,6 +102,8 @@ function applyCatalogRows(rows: Array<{ relativePath?: string; url?: string; ali
 function ensureEmbeddedCatalog(): void {
   if (embeddedApplied) return;
   applyCatalogRows(embeddedCatalog as EmbeddedRow[]);
+  applyCatalogRows(bellBottomCatalog as EmbeddedRow[]);
+  applyCatalogRows(tulipTrouserCatalog as EmbeddedRow[]);
   embeddedApplied = true;
   if (pathToUrl.size > 0) {
     catalogLoadedAt = Date.now();

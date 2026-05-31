@@ -111,8 +111,7 @@ export default function ConversationListScreen() {
       } else {
         setConversations(buildSampleConversations(userId, userRole as UserRole));
       }
-    } catch (err) {
-      console.error("Error loading conversations:", err);
+    } catch {
       setConversations(buildSampleConversations(userId, userRole as UserRole));
     } finally {
       setLoading(false);

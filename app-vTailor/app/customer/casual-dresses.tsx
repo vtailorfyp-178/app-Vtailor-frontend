@@ -1,18 +1,24 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, ScrollView, Pressable, StyleSheet, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import AppBackButton from '@/components/AppBackButton';
+import { prefetchDressModelCatalog } from '@/services/glb/glbUrlResolve';
 
 const shalwarKameezImage = require('../../2d model/short-shirt-shalwar.png');
+const trouserShirtImage = require('../../2d model/trouser-shirt.png');
 
 export default function CasualDresses() {
   const router = useRouter();
   const tint = useThemeColor({}, 'tint');
   const card = useThemeColor({}, 'card');
   const inputBorder = useThemeColor({}, 'inputBorder');
+
+  useEffect(() => {
+    prefetchDressModelCatalog();
+  }, []);
 
   return (
     <ThemedView style={styles.container}>
@@ -34,6 +40,18 @@ export default function CasualDresses() {
         >
           <Image source={shalwarKameezImage} style={styles.thumb} resizeMode="contain" />
           <ThemedText style={styles.dressName}>Shalwar kameez</ThemedText>
+        </Pressable>
+        <Pressable
+          onPress={() =>
+            (router as any).push({
+              pathname: '/customer/trouser-shirt-style',
+              params: { dressLine: 'casual' },
+            })
+          }
+          style={[styles.card, { backgroundColor: card, borderColor: inputBorder }]}
+        >
+          <Image source={trouserShirtImage} style={styles.thumb} resizeMode="contain" />
+          <ThemedText style={styles.dressName}>Trouser shirt</ThemedText>
         </Pressable>
       </ScrollView>
     </ThemedView>

@@ -40,7 +40,7 @@ function modelFallback(modelId: string, selections: DressSelections): ImageSourc
     if (selections['saree-style'] === 'plain') return imgPlainSaree;
     return imgSaree;
   }
-  if (modelId === 'sharara') return require('../2d model/shrara.jpg');
+  if (modelId === 'sharara') return require('../2d model/shrara.png');
   if (modelId === 'grarah-short-shirt') {
     return require('../2d model/variations/short-shirt-grarah.png');
   }

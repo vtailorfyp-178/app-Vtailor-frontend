@@ -1,5 +1,14 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { View, ScrollView, Pressable, StyleSheet, Image, Platform, useWindowDimensions } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  View,
+  ScrollView,
+  Pressable,
+  StyleSheet,
+  Platform,
+  useWindowDimensions,
+  type ImageSourcePropType,
+} from 'react-native';
+import { Image as ExpoImage } from 'expo-image';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -7,6 +16,8 @@ import { useThemeColor } from '@/hooks/use-theme-color';
 import { Ionicons } from '@expo/vector-icons';
 import AppBackButton from '@/components/AppBackButton';
 import { DressGlbPreview } from '@/components/DressGlbPreview';
+import { FabricPrintUploadPanel } from '@/components/FabricPrintUploadPanel';
+import { useAuth } from '@/contexts/AuthContext';
 import { type TabId } from '@/services/dressGlbResolver';
 import {
   CASUAL_FABRIC_COLOR_FAMILIES,
@@ -17,7 +28,8 @@ import {
   isDarkFabricHex,
   isValidFabricShadeId,
   usesCasualShortShirtFabricTint,
-  usesPatiyalaRuntimeFabricTint,
+  usesCasualFabricColorFamilies,
+  usesCasualFabricRuntimeTint,
 } from '@/services/dressFabricColors';
 import { useBundledDressGlb } from '@/hooks/useBundledDressGlb';
 import {
@@ -26,13 +38,10 @@ import {
   with3dPreviewDefaults,
 } from '@/services/glb/threePreviewReadiness';
 import {
-  clearDressGlbUrlCache,
   prefetchDressGlbUrl,
   prefetchDressModelCatalog,
-  resolveDressGlbUrlCached,
 } from '@/services/glb/glbUrlResolve';
-import { prefetchGltfScene } from '@/services/glb/loadGltfFromUrl';
-import { clearParsedSceneCache } from '@/services/glb/glbParsedSceneCache';
+import { supportsCustomFabricPrint } from '@/services/glb/casualFabricDress';
 import { safeRouterBack } from '@/utils/safeRouterBack';
 import type { Href } from 'expo-router';
 import { resolveCustomizePreviewImage } from '@/services/dressCustomizePreview';
@@ -44,6 +53,8 @@ type TabConfig = { id: TabId; label: string };
 const MODELS_WITH_GLB_CATALOG = new Set([
   'shalwar-kameez-short',
   'short-frock-shalwar',
+  'trouser-shirt-bell-bottom',
+  'trouser-shirt-tulip-trouser',
   'long-frock',
   'saree',
   'grarah-short-shirt',
@@ -69,6 +80,30 @@ const casualShortShirtSleeveOptions: CustomizationOption[] = [
   { id: 'bell', name: 'Bell sleeves' },
   { id: 'balloon', name: 'Balloon / puff sleeves' },
   { id: 'layered', name: 'Layered sleeves' },
+];
+
+const bellBottomNeckOptions: CustomizationOption[] = [
+  { id: 'round', name: 'Round neck' },
+  { id: 'collar', name: 'Collar neck' },
+  { id: 'keyhole', name: 'Round keyhole neck' },
+];
+
+const tulipTrouserNeckOptions: CustomizationOption[] = [
+  { id: 'round', name: 'Round neck' },
+  { id: 'collar', name: 'Collar neck' },
+  { id: 'keyhole', name: 'Collar keyhole neck' },
+];
+
+const bellBottomSleeveOptions: CustomizationOption[] = [
+  { id: 'straight', name: 'Pleated straight sleeves' },
+  { id: 'puff', name: 'Puff/balloon sleeves' },
+  { id: 'flared-bell', name: 'Pleated flared bell sleeves' },
+];
+
+const tulipTrouserSleeveOptions: CustomizationOption[] = [
+  { id: 'full', name: 'Pleated full sleeves' },
+  { id: 'bell', name: 'Pleated bell sleeves' },
+  { id: 'puff', name: 'Puff/balloon sleeves' },
 ];
 
 const shalwarKameezNeckOptions: CustomizationOption[] = [
@@ -154,6 +189,13 @@ const imgFrillSaree = require('../../2d model/variations/frill saree.png');
 const imgSaree = require('../../2d model/variations/saree.png');
 const imgShortShirtShalwar = require('../../2d model/short-shirt-shalwar.png');
 const imgCasualDress = require('../../2d model/casual dresses.jpg');
+const imgTrouserShirtCollarNeck = require('../../2d model/variations/collar neck.png');
+const imgRoundKeyholeNeck = require('../../2d model/variations/round keyhole neck.png');
+const imgCollarKeyholeNeck = require('../../2d model/variations/Collar Keyhole neck.png');
+const imgPleatedFlarredBellSleeves = require('../../2d model/variations/pleated-flarred-bell sleeves.png');
+const imgPleatedBellSleeves = require('../../2d model/variations/pleated bell sleeves.png');
+const imgPleatedBalloonSleeves = require('../../2d model/variations/pleated balloon sleeves.png');
+const imgPleatesFullSleeves = require('../../2d model/variations/pleates full sleeves.png');
 
 const optionImages: Record<string, any> = {
   round: require('../../2d model/variations/round-neck.png'),
@@ -167,8 +209,11 @@ const optionImages: Record<string, any> = {
   short: require('../../2d model/variations/short-sleeves.png'),
   bell: require('../../2d model/variations/bell-sleeves.png'),
   'flared-bell': require('../../2d model/variations/flarred-bell-sleeves.png'),
-  straight: require('../../2d model/variations/straight-style.png'),
-  tulip: require('../../2d model/variations/tulip-style.png'),
+  collar: require('../../2d model/variations/round-neck.png'),
+  keyhole: require('../../2d model/variations/v-neck.png'),
+  puff: require('../../2d model/variations/balloon-sleeves.png'),
+  straight: require('../../2d model/short-shirt-shalwar.png'),
+  tulip: require('../../2d model/tulip-trouser.png'),
   patiyala: require('../../2d model/variations/patiyala-shalwar.png'),
   flared: require('../../2d model/variations/flared-bottom.png'),
   'flared-bottom': require('../../2d model/variations/flared-bottom.png'),
@@ -177,6 +222,90 @@ const optionImages: Record<string, any> = {
   frill: imgFrillSaree,
   saree: imgSaree,
 };
+
+function resolveTrouserShirtOptionImage(
+  tab: TabId,
+  optId: string,
+  isBellBottom: boolean,
+  isTulipTrouser: boolean,
+): number | null {
+  if (!isBellBottom && !isTulipTrouser) return null;
+  if (tab === 'neck') {
+    if (optId === 'collar') return imgTrouserShirtCollarNeck;
+    if (optId === 'keyhole') {
+      return isTulipTrouser ? imgCollarKeyholeNeck : imgRoundKeyholeNeck;
+    }
+    return optionImages.round;
+  }
+  if (tab === 'sleeves') {
+    if (optId === 'puff') return imgPleatedBalloonSleeves;
+    if (optId === 'flared-bell') return imgPleatedFlarredBellSleeves;
+    if (isTulipTrouser && optId === 'bell') return imgPleatedBellSleeves;
+    if (optId === 'straight' || optId === 'full') return imgPleatesFullSleeves;
+  }
+  return null;
+}
+
+type OptionImageCtx = {
+  modelId: string;
+  isBellBottom: boolean;
+  isTulipTrouser: boolean;
+  isGrarah: boolean;
+  isLehngaCircular: boolean;
+  frockStyle: string | null;
+  fallbackSource: ImageSourcePropType | null;
+};
+
+function resolveOptionImageSource(
+  tab: TabId,
+  optId: string,
+  ctx: OptionImageCtx,
+): ImageSourcePropType {
+  const trouserImg = resolveTrouserShirtOptionImage(tab, optId, ctx.isBellBottom, ctx.isTulipTrouser);
+  if (trouserImg != null) return trouserImg;
+  if (
+    tab === 'sleeves' &&
+    optId === 'bell' &&
+    ((ctx.modelId === 'long-frock' && ctx.frockStyle === 'front-slit') ||
+      ctx.isGrarah ||
+      ctx.isLehngaCircular)
+  ) {
+    return optionImages['flared-bell'];
+  }
+  return optionImages[optId] || ctx.fallbackSource || require('../../assets/images/vTailorlogo.jpeg');
+}
+
+function OptionThumb({
+  source,
+  style,
+  contentFit = 'cover',
+  recyclingKey,
+}: {
+  source: ImageSourcePropType;
+  style: object;
+  contentFit?: 'cover' | 'contain';
+  recyclingKey?: string;
+}) {
+  return (
+    <ExpoImage
+      source={source}
+      style={style}
+      contentFit={contentFit}
+      cachePolicy="memory-disk"
+      transition={0}
+      recyclingKey={recyclingKey}
+    />
+  );
+}
+
+function isTrouserKeyholeNeckOption(
+  tab: TabId,
+  optId: string,
+  isBellBottom: boolean,
+  isTulipTrouser: boolean,
+): boolean {
+  return tab === 'neck' && optId === 'keyhole' && (isBellBottom || isTulipTrouser);
+}
 
 function stripLongFrockDisallowedColors(
   mid: string,
@@ -203,6 +332,18 @@ function isCasualShortShirtModel(modelId: string): boolean {
   return modelId === 'shalwar-kameez-short';
 }
 
+function isTrouserShirtBellBottomModel(modelId: string): boolean {
+  return modelId === 'trouser-shirt-bell-bottom';
+}
+
+function isTrouserShirtTulipTrouserModel(modelId: string): boolean {
+  return modelId === 'trouser-shirt-tulip-trouser';
+}
+
+function isTrouserShirtVariationModel(modelId: string): boolean {
+  return isTrouserShirtBellBottomModel(modelId) || isTrouserShirtTulipTrouserModel(modelId);
+}
+
 function isCasualShortShirtWithFabricTint(
   modelId: string,
   bottom: string | null | undefined,
@@ -227,6 +368,7 @@ function initialActiveTab(modelId: string, styleLocked: boolean): TabId {
   if (modelId === 'long-frock' && styleLocked) return 'neck';
   if (modelId === 'long-frock') return 'frock-style';
   if (isCasualShortShirtModel(modelId) && styleLocked) return 'neck';
+  if (isTrouserShirtVariationModel(modelId) && styleLocked) return 'neck';
   return 'neck';
 }
 
@@ -243,6 +385,7 @@ function customize3dBackFallback(dressLine: string, modelId: string): Href {
   if (modelId === 'long-frock') return '/customer/long-frock-style';
   if (modelId === 'saree') return '/customer/saree-style';
   if (isCasualShortShirtModel(modelId)) return '/customer/shalwar-kameez-bottom-style';
+  if (isTrouserShirtVariationModel(modelId)) return '/customer/trouser-shirt-style';
   return '/customer';
 }
 
@@ -276,8 +419,13 @@ export default function Customize3D() {
   const isLehngaCircular = modelId === 'lehnga-circular';
   const isLehngaStyle = isLehngaBridal || isLehngaCircular;
   const isCasualShortShirt = isCasualShortShirtModel(modelId);
+  const isBellBottom = isTrouserShirtBellBottomModel(modelId);
+  const isTulipTrouser = isTrouserShirtTulipTrouserModel(modelId);
+  const isTrouserShirtVariation = isTrouserShirtVariationModel(modelId);
   const usesFrockStyleTab = ['long-frock', 'short-frock', 'gown'].includes(modelId);
   const isSharara = modelId === 'sharara';
+  const presetVariation = (params.presetVariation as string) || '';
+  const variationName = (params.variationName as string) || '';
 
   const frockStyleLocked = useMemo(() => {
     if (modelId !== 'long-frock') return false;
@@ -315,7 +463,23 @@ export default function Customize3D() {
     }
   }, [isCasualShortShirt, presetBottom, params.selections]);
 
-  const availableTabs = useMemo((): TabConfig[] => {
+  const trouserVariationLocked = useMemo(() => {
+    if (!isTrouserShirtVariation) return false;
+    return (
+      presetVariation === 'bell-bottom' ||
+      presetVariation === 'tulip-trouser' ||
+      Boolean(variationName)
+    );
+  }, [isTrouserShirtVariation, presetVariation, variationName]);
+
+  const availableTabsBase = useMemo((): TabConfig[] => {
+    if (isTrouserShirtVariation && trouserVariationLocked) {
+      return [
+        { id: 'neck', label: 'Neck' },
+        { id: 'sleeves', label: 'Sleeves' },
+        { id: 'colors', label: 'Colors' },
+      ];
+    }
     if (isCasualShortShirt && shalwarBottomLocked) {
       return [
         { id: 'neck', label: 'Neck' },
@@ -375,6 +539,8 @@ export default function Customize3D() {
       { id: 'colors', label: 'Colors' },
     ];
   }, [
+    isTrouserShirtVariation,
+    trouserVariationLocked,
     isCasualShortShirt,
     shalwarBottomLocked,
     isGrarah,
@@ -386,7 +552,7 @@ export default function Customize3D() {
     sareeStyleLocked,
   ]);
 
-  const styleLocked = frockStyleLocked || sareeStyleLocked || shalwarBottomLocked;
+  const styleLocked = frockStyleLocked || sareeStyleLocked || shalwarBottomLocked || trouserVariationLocked;
 
   const [activeTab, setActiveTab] = useState<TabId>(() => initialActiveTab(modelId, styleLocked));
 
@@ -401,6 +567,7 @@ export default function Customize3D() {
     'frock-style': null,
     colors: null,
     'saree-style': null,
+    'fabric-print': null,
   };
 
   const initialSelections: Record<TabId, string | null> = (() => {
@@ -428,6 +595,22 @@ export default function Customize3D() {
 
   const [selections, setSelections] = useState<Record<TabId, string | null>>(initialSelections);
 
+  const { userId } = useAuth();
+
+  const supportsFabricPrint = supportsCustomFabricPrint(modelId, selections);
+
+  const availableTabs = useMemo((): TabConfig[] => {
+    if (!supportsFabricPrint) return availableTabsBase;
+    return [...availableTabsBase, { id: 'fabric-print', label: 'Upload Print' }];
+  }, [availableTabsBase, supportsFabricPrint]);
+
+  const requiredTabs = useMemo(
+    () => availableTabs.filter((t) => t.id !== 'fabric-print'),
+    [availableTabs],
+  );
+
+  const fabricTextureUrl = selections['fabric-print'];
+
   const [activeColorFamily, setActiveColorFamily] = useState<string>(() => {
     const fromShade = getFamilyIdForShade(initialSelections.colors);
     return fromShade ?? 'white';
@@ -440,19 +623,28 @@ export default function Customize3D() {
     (selections.bottom === 'patiyala'
       ? 'Patiyala shalwar'
       : '');
+  const lockedTrouserVariationLabel =
+    variationName ||
+    (presetVariation === 'bell-bottom'
+      ? 'Bell bottom'
+      : presetVariation === 'tulip-trouser'
+        ? 'Tulip trouser'
+        : '');
 
   const selectionsFor3d = useMemo(
     () => with3dPreviewDefaults(modelId, selections),
     [modelId, selections],
   );
 
-  const usesFabricTint = usesCasualShortShirtFabricTint(modelId, selectionsFor3d);
-  const usesPatiyalaTint = usesPatiyalaRuntimeFabricTint(modelId, selectionsFor3d);
-  /** White patiyala GLB until customer taps a shade — no default red tint. */
+  const usesFabricTint = usesCasualFabricColorFamilies(modelId, selectionsFor3d);
+  const usesCasualTint = usesCasualFabricRuntimeTint(modelId, selectionsFor3d);
+  /** Base / textured GLB until customer picks a fabric shade. */
   const fabricColorHex =
-    usesPatiyalaTint && selections.colors
-      ? fabricColorHexFromId(selections.colors)
-      : null;
+    fabricTextureUrl
+      ? null
+      : usesCasualTint && selections.colors
+        ? fabricColorHexFromId(selections.colors)
+        : null;
   const activeFabricShades = useMemo(
     () => getShadesForFamily(activeColorFamily),
     [activeColorFamily],
@@ -465,64 +657,41 @@ export default function Customize3D() {
     return colorOptions;
   }, [isGrarah, isLehngaBridal, isLehngaCircular, modelId]);
 
-  const prefetch3dForSelections = useCallback(
-    (next: Record<TabId, string | null>) => {
-      if (!MODELS_WITH_GLB_CATALOG.has(modelId)) return;
-      prefetchDressGlbUrl(with3dPreviewDefaults(modelId, next), modelId);
-    },
-    [modelId],
-  );
+  const handleSelect = useCallback((tab: TabId, id: string) => {
+    setSelections((p) => ({ ...p, [tab]: id }));
+  }, []);
 
-  const handleSelect = useCallback(
-    (tab: TabId, id: string) => {
-      setSelections((p) => {
-        const next = { ...p, [tab]: id };
-        prefetch3dForSelections(next);
-        return next;
-      });
-    },
-    [prefetch3dForSelections],
-  );
+  const handleSelectColorFamily = useCallback((familyId: string) => {
+    setActiveColorFamily(familyId);
+    const defaultShade = getDefaultShadeForFamily(familyId);
+    if (!defaultShade) return;
+    setSelections((p) => {
+      const currentFamily = getFamilyIdForShade(p.colors);
+      if (currentFamily === familyId && p.colors) return p;
+      return { ...p, colors: defaultShade.id };
+    });
+  }, []);
 
-  const handleSelectColorFamily = useCallback(
-    (familyId: string) => {
-      setActiveColorFamily(familyId);
-      const defaultShade = getDefaultShadeForFamily(familyId);
-      if (!defaultShade) return;
-      setSelections((p) => {
-        const currentFamily = getFamilyIdForShade(p.colors);
-        if (currentFamily === familyId && p.colors) return p;
-        const next = { ...p, colors: defaultShade.id };
-        prefetch3dForSelections(next);
-        return next;
-      });
-    },
-    [prefetch3dForSelections],
-  );
-
-  const handleSelectFabricShade = useCallback(
-    (shadeId: string) => {
-      const familyId = getFamilyIdForShade(shadeId);
-      if (familyId) setActiveColorFamily(familyId);
-      setSelections((p) => {
-        const next = { ...p, colors: shadeId };
-        prefetch3dForSelections(next);
-        return next;
-      });
-    },
-    [prefetch3dForSelections],
-  );
+  const handleSelectFabricShade = useCallback((shadeId: string) => {
+    const familyId = getFamilyIdForShade(shadeId);
+    if (familyId) setActiveColorFamily(familyId);
+    setSelections((p) => ({ ...p, colors: shadeId }));
+  }, []);
 
   const getNeckOptions = useCallback((): CustomizationOption[] => {
+    if (isTulipTrouser) return tulipTrouserNeckOptions;
+    if (isBellBottom) return bellBottomNeckOptions;
     if (isLehngaBridal) return bridalNeckOptions;
     if (isCasualShortShirt && isCasualShortShirtWithFabricTint(modelId, selections.bottom)) {
       return casualShortShirtNeckOptions;
     }
     if (isShalwarKameezModel(modelId)) return shalwarKameezNeckOptions;
     return neckOptions;
-  }, [isLehngaBridal, modelId, isCasualShortShirt, selections.bottom]);
+  }, [isBellBottom, isTulipTrouser, isLehngaBridal, modelId, isCasualShortShirt, selections.bottom]);
 
   const getSleeveOptions = useCallback((): CustomizationOption[] => {
+    if (isTulipTrouser) return tulipTrouserSleeveOptions;
+    if (isBellBottom) return bellBottomSleeveOptions;
     if (isLehngaBridal) return bridalSleeveOptions;
     if (isCasualShortShirt && isCasualShortShirtWithFabricTint(modelId, selections.bottom)) {
       return casualShortShirtSleeveOptions;
@@ -537,7 +706,7 @@ export default function Customize3D() {
       ];
     }
     return sleeveOptionsFull;
-  }, [isGrarah, isLehngaBridal, isLehngaCircular, modelId, selections, isCasualShortShirt]);
+  }, [isBellBottom, isTulipTrouser, isGrarah, isLehngaBridal, isLehngaCircular, modelId, selections, isCasualShortShirt]);
 
   const getOptions = (tab: TabId): CustomizationOption[] => {
     if (tab === 'bottom' && isSharara) return shararaBottomOptions;
@@ -549,21 +718,22 @@ export default function Customize3D() {
     return bottomOptions;
   };
 
-  const completed = availableTabs.filter((tab) => {
+  const completed = requiredTabs.filter((tab) => {
     if (tab.id === 'colors' && usesFabricTint) return isValidFabricShadeId(selections.colors ?? '');
     return Boolean(selections[tab.id]);
   }).length;
-  const isComplete = completed === availableTabs.length;
+  const isComplete = completed === requiredTabs.length;
   const selectionKeyFor3d = JSON.stringify(selectionsFor3d);
   const canShowGlb = canShowGlbPreview(modelId, selectionsFor3d);
   const readyFor3d = isReadyFor3dPreview(modelId, selections);
   const dressGlb = useBundledDressGlb(selectionsFor3d, modelId, canShowGlb);
   const glbMatchesSelection =
     dressGlb.resolvedKey === selectionKeyFor3d && !dressGlb.loading;
-  const isGlbUpdating =
-    Boolean(dressGlb.url) && (dressGlb.loading || !glbMatchesSelection);
-  const showGlb3d =
-    canShowGlb && (dressGlb.error != null || dressGlb.url != null);
+  const displayGlbUrl = dressGlb.url;
+  const hasDisplayGlbUrl = displayGlbUrl != null;
+  const isGlbUpdating = hasDisplayGlbUrl && (dressGlb.loading || !glbMatchesSelection);
+  const showGlb3d = canShowGlb && (hasDisplayGlbUrl || dressGlb.error != null);
+  const showGlbLoadError = canShowGlb && dressGlb.error != null && !hasDisplayGlbUrl;
   const catalogHas3d = MODELS_WITH_GLB_CATALOG.has(modelId);
 
   const imageSource = useMemo(() => {
@@ -573,32 +743,97 @@ export default function Customize3D() {
     if (modelId === 'short-frock' || modelId === 'short-frock-shalwar' || modelId === 'shalwar-kameez-short' || modelId === 'shalwar-kameez') {
       return imgShortShirtShalwar;
     }
-    if (modelId === 'sharara') return require('../../2d model/shrara.jpg');
+    if (modelId === 'sharara') return require('../../2d model/shrara.png');
     return null;
   }, [modelId, selections]);
 
-  useEffect(() => {
-    clearDressGlbUrlCache();
-    clearParsedSceneCache();
-  }, [modelId]);
+  const optionImageCtx = useMemo(
+    (): OptionImageCtx => ({
+      modelId,
+      isBellBottom,
+      isTulipTrouser,
+      isGrarah,
+      isLehngaCircular,
+      frockStyle: selections['frock-style'],
+      fallbackSource: imageSource,
+    }),
+    [modelId, isBellBottom, isTulipTrouser, isGrarah, isLehngaCircular, selections, imageSource],
+  );
+
+  const selectedPicks = useMemo(() => {
+    return availableTabs
+      .filter((t) => {
+        if (t.id === 'fabric-print') return Boolean(selections['fabric-print']);
+        if (t.id === 'colors' && usesFabricTint) return isValidFabricShadeId(selections.colors ?? '');
+        return Boolean(selections[t.id]);
+      })
+      .map((t) => {
+        const optId = selections[t.id]!;
+        if (t.id === 'fabric-print') {
+          return {
+            key: t.id,
+            tabLabel: t.label,
+            name: 'Custom print',
+            hex: null as string | null,
+            source: { uri: optId } as ImageSourcePropType,
+          };
+        }
+        if (t.id === 'colors') {
+          if (usesFabricTint) {
+            const shade =
+              activeFabricShades.find((s) => s.id === optId) ??
+              CASUAL_FABRIC_COLOR_FAMILIES.flatMap((f) => getShadesForFamily(f.id)).find(
+                (s) => s.id === optId,
+              );
+            return {
+              key: t.id,
+              tabLabel: t.label,
+              name: shade?.name ?? optId,
+              hex: shade?.hex ?? null,
+              source: null as ImageSourcePropType | null,
+            };
+          }
+          const colorOpt = customizationColors.find((c) => c.id === optId) as CustomizationOption | undefined;
+          return {
+            key: t.id,
+            tabLabel: t.label,
+            name: colorOpt?.name ?? optId,
+            hex: colorOpt?.hex ?? null,
+            source: null as ImageSourcePropType | null,
+          };
+        }
+        const opt = getOptions(t.id).find((o) => o.id === optId);
+        return {
+          key: t.id,
+          tabLabel: t.label,
+          name: opt?.name ?? optId,
+          hex: null as string | null,
+          source: resolveOptionImageSource(t.id, optId, optionImageCtx),
+        };
+      });
+  }, [
+    availableTabs,
+    selections,
+    usesFabricTint,
+    activeFabricShades,
+    customizationColors,
+    optionImageCtx,
+    isSharara,
+    modelId,
+    getNeckOptions,
+    getSleeveOptions,
+  ]);
 
   useEffect(() => {
     if (!catalogHas3d || !modelId) return;
     prefetchDressModelCatalog();
   }, [catalogHas3d, modelId]);
 
-  /** Warm URL + GLB for current picks (debounced — avoids network storms when switching tabs fast). */
+  /** Warm URL resolution as soon as selections change (native skips heavy buffer prefetch). */
   useEffect(() => {
-    if (!catalogHas3d || !modelId) return;
-    const timer = setTimeout(() => {
-      void resolveDressGlbUrlCached(selectionsFor3d, modelId)
-        .then((hit) => {
-          if (hit?.url) prefetchGltfScene(hit.url);
-        })
-        .catch(() => {});
-    }, 280);
-    return () => clearTimeout(timer);
-  }, [catalogHas3d, modelId, selectionKeyFor3d]);
+    if (!catalogHas3d || !modelId || !canShowGlb) return;
+    prefetchDressGlbUrl(selectionsFor3d, modelId);
+  }, [catalogHas3d, modelId, selectionKeyFor3d, canShowGlb]);
 
   return (
     <ThemedView style={styles.container}>
@@ -654,6 +889,13 @@ export default function Customize3D() {
           </View>
         ) : null}
 
+        {trouserVariationLocked && lockedTrouserVariationLabel ? (
+          <View style={[styles.stylePill, { borderColor: inputBorder, backgroundColor: card }]}>
+            <ThemedText style={styles.stylePillLabel}>Style</ThemedText>
+            <ThemedText style={styles.stylePillValue}>{lockedTrouserVariationLabel}</ThemedText>
+          </View>
+        ) : null}
+
         <View
           style={[
             styles.preview,
@@ -666,32 +908,45 @@ export default function Customize3D() {
             },
           ]}
         >
-          {showGlb3d && dressGlb.error ? (
+          {showGlbLoadError ? (
             <DressGlbPreview
-              glbUrl={dressGlb.url ?? 'about:blank'}
+              glbUrl="about:blank"
               width={glViewportW}
               height={glViewportH}
               fallbackImage={imageSource}
               loadError={dressGlb.error}
             />
-          ) : showGlb3d && dressGlb.url != null ? (
+          ) : showGlb3d && hasDisplayGlbUrl ? (
             <DressGlbPreview
-              glbUrl={dressGlb.url}
+              glbUrl={displayGlbUrl}
               width={glViewportW}
               height={glViewportH}
               fabricColorHex={fabricColorHex}
+              fabricTextureUrl={fabricTextureUrl}
               fallbackImage={imageSource}
               isUpdating={isGlbUpdating}
             />
-          ) : canShowGlb && dressGlb.url == null && (dressGlb.loading || !glbMatchesSelection) ? (
+          ) : canShowGlb && !hasDisplayGlbUrl && dressGlb.loading ? (
             <View style={styles.previewLoadingWrap}>
               {imageSource ? (
-                <Image source={imageSource} style={styles.previewImage} resizeMode="contain" />
+                <ExpoImage
+                  source={imageSource}
+                  style={styles.previewImage}
+                  contentFit="contain"
+                  cachePolicy="memory-disk"
+                  transition={0}
+                />
               ) : null}
               <ThemedText style={styles.previewHint}>Loading 3D model…</ThemedText>
             </View>
           ) : imageSource ? (
-            <Image source={imageSource} style={styles.previewImage} resizeMode="contain" />
+            <ExpoImage
+              source={imageSource}
+              style={styles.previewImage}
+              contentFit="contain"
+              cachePolicy="memory-disk"
+              transition={0}
+            />
           ) : (
             <ThemedText>3D Avatar Preview</ThemedText>
           )}
@@ -713,12 +968,53 @@ export default function Customize3D() {
               : 'Pick remaining options to finish your design.'}
           </ThemedText>
         ) : null}
-        {dressGlb.error ? (
+        {showGlbLoadError ? (
           <ThemedText style={styles.previewHint}>{dressGlb.error}</ThemedText>
         ) : null}
 
         <View style={styles.optionsSection}>
           <View style={styles.optionsWrap}>
+          {selectedPicks.length > 0 ? (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.selectedPicksRow}
+            >
+              {selectedPicks.map((pick) => (
+                <Pressable
+                  key={pick.key}
+                  onPress={() => setActiveTab(pick.key as TabId)}
+                  style={[
+                    styles.selectedPickChip,
+                    { borderColor: inputBorder },
+                    activeTab === pick.key && { borderColor: tint, borderWidth: 2 },
+                  ]}
+                >
+                  {pick.hex ? (
+                    <View
+                      style={[
+                        styles.selectedPickSwatch,
+                        { backgroundColor: pick.hex },
+                        pick.hex.toLowerCase() === '#ffffff' && styles.colorFabricSwatchWhite,
+                      ]}
+                    />
+                  ) : pick.source ? (
+                    <OptionThumb
+                      source={pick.source}
+                      style={styles.selectedPickThumb}
+                      recyclingKey={`pick-${pick.key}`}
+                    />
+                  ) : null}
+                  <ThemedText style={styles.selectedPickLabel} numberOfLines={1}>
+                    {pick.tabLabel}
+                  </ThemedText>
+                  <ThemedText style={styles.selectedPickName} numberOfLines={1}>
+                    {pick.name}
+                  </ThemedText>
+                </Pressable>
+              ))}
+            </ScrollView>
+          ) : null}
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             {availableTabs.map((t) => (
               <Pressable
@@ -731,7 +1027,15 @@ export default function Customize3D() {
             ))}
           </ScrollView>
 
-          {activeTab === 'colors' && usesFabricTint ? (
+          {activeTab === 'fabric-print' ? (
+            <FabricPrintUploadPanel
+              userId={userId || 'guest'}
+              printUrl={fabricTextureUrl}
+              onPrintUrlChange={(url) =>
+                setSelections((p) => ({ ...p, 'fabric-print': url }))
+              }
+            />
+          ) : activeTab === 'colors' && usesFabricTint ? (
             <>
               <ThemedText style={styles.colorSectionLabel}>Main color</ThemedText>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 8 }}>
@@ -815,19 +1119,23 @@ export default function Customize3D() {
                         <ThemedText style={styles.colorEmoji}>{opt.emoji || '🎨'}</ThemedText>
                       )}
                     </View>
+                  ) : isTrouserKeyholeNeckOption(activeTab, opt.id, isBellBottom, isTulipTrouser) ? (
+                    <View style={styles.optImageKeyholeFrame}>
+                      <OptionThumb
+                        source={
+                          resolveTrouserShirtOptionImage(activeTab, opt.id, isBellBottom, isTulipTrouser) ??
+                          optionImages.keyhole
+                        }
+                        style={styles.optImageKeyhole}
+                        contentFit="contain"
+                        recyclingKey={`${activeTab}-${opt.id}-keyhole`}
+                      />
+                    </View>
                   ) : (
-                    <Image
-                      source={
-                        activeTab === 'sleeves' &&
-                        opt.id === 'bell' &&
-                        ((modelId === 'long-frock' && selections['frock-style'] === 'front-slit') ||
-                          isGrarah ||
-                          isLehngaCircular)
-                          ? optionImages['flared-bell']
-                          : optionImages[opt.id] || imageSource || require('../../assets/images/vTailorlogo.jpeg')
-                      }
+                    <OptionThumb
+                      source={resolveOptionImageSource(activeTab, opt.id, optionImageCtx)}
                       style={styles.optImage}
-                      resizeMode="cover"
+                      recyclingKey={`${activeTab}-${opt.id}`}
                     />
                   )}
                   <ThemedText style={{ fontSize: 12, textAlign: 'center', marginTop: 8 }}>{opt.name}</ThemedText>
@@ -862,6 +1170,7 @@ export default function Customize3D() {
                 modelName: (params.modelName as string) || '',
                 dressLine: dressLine || '',
                 selections: JSON.stringify(selections),
+                flow: 'finalize',
               },
             });
           }}
@@ -869,7 +1178,9 @@ export default function Customize3D() {
           style={[styles.proceed, { backgroundColor: isComplete ? tint : '#f3f4f6' }]}
         >
           <ThemedText style={{ color: isComplete ? '#fff' : '#999' }}>
-            {isComplete ? 'View 3D model' : `Complete selections (${completed}/${availableTabs.length})`}
+            {isComplete
+              ? 'View 3D model'
+              : `Complete selections (${completed}/${requiredTabs.length})`}
           </ThemedText>
         </Pressable>
       </View>
@@ -919,6 +1230,26 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   optionsWrap: { flex: 1, minWidth: 0, paddingTop: 4 },
+  selectedPicksRow: { marginBottom: 10 },
+  selectedPickChip: {
+    width: 72,
+    padding: 6,
+    borderRadius: 10,
+    marginRight: 8,
+    borderWidth: 1,
+    alignItems: 'center',
+    backgroundColor: '#f8fafc',
+  },
+  selectedPickThumb: { width: '100%', height: 44, borderRadius: 8, backgroundColor: '#f3f4f6' },
+  selectedPickSwatch: {
+    width: '100%',
+    height: 44,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.08)',
+  },
+  selectedPickLabel: { fontSize: 10, color: '#64748b', marginTop: 4, fontWeight: '600' },
+  selectedPickName: { fontSize: 10, color: '#0f172a', fontWeight: '700', textAlign: 'center' },
   aiFab: {
     width: 48,
     height: 48,
@@ -941,6 +1272,19 @@ const styles = StyleSheet.create({
   tabBtn: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, marginRight: 8, alignItems: 'center', borderWidth: 1, borderColor: 'transparent' },
   optCard: { width: 92, padding: 6, borderRadius: 12, marginRight: 8, borderWidth: 1, alignItems: 'center' },
   optImage: { width: '100%', height: 56, borderRadius: 10, backgroundColor: '#f3f4f6' },
+  /** Round / collar keyhole neck — slightly smaller so full collar + neck stays visible. */
+  optImageKeyholeFrame: {
+    width: '100%',
+    height: 58,
+    borderRadius: 10,
+    backgroundColor: '#f3f4f6',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  optImageKeyhole: {
+    width: '83%',
+    height: 53,
+  },
   colorEmojiWrap: { width: '100%', height: 56, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: '#f8fafc' },
   colorEmoji: { fontSize: 24 },
   colorBeigeCircle: {

@@ -68,6 +68,18 @@ export async function resolveGlbModelUrl(relativePath: GlbModelPath): Promise<st
     } catch (err) {
       console.warn('[glbModelUrl] Cloudinary catalog miss, using local API', err);
     }
+
+    const norm = relativePath.replace(/\\/g, '/').toLowerCase();
+    if (norm.includes('trouser shirt/bell-bottom') || norm.includes('bell-bottom/optimized')) {
+      throw new Error(
+        'Bell bottom 3D model is not on Cloudinary yet. Run compress:bell-bottom and upload:bell-bottom, then sync the catalog.',
+      );
+    }
+    if (norm.includes('trouser shirt/tulip-trouser') || norm.includes('tulip-trouser/optimized')) {
+      throw new Error(
+        'Tulip trouser 3D model is not on Cloudinary yet. Run compress:tulip-trouser and upload:tulip-trouser, then sync the catalog.',
+      );
+    }
   }
 
   const origin = await resolveGlbModelsOrigin();

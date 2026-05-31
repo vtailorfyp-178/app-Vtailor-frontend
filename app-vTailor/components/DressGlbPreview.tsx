@@ -1,5 +1,9 @@
 import React, { Component, type ErrorInfo, type ReactNode } from 'react';
 import { Image, Platform, StyleSheet, Text, View, type ImageSourcePropType } from 'react-native';
+import {
+  fabricPrintPatternMeta,
+  fabricPrintTileUrl,
+} from '@/services/glb/fabricPrintSelection';
 import { TraditionalDressGlbViewer } from '@/components/TraditionalDressGlbViewer';
 import { GlbHtmlModelViewer } from '@/components/GlbHtmlModelViewer';
 
@@ -8,6 +12,7 @@ type Props = {
   width: number;
   height: number;
   fabricColorHex?: string | null;
+  fabricTextureUrl?: string | null;
   /** @deprecated Grarah uses per-variant GLB files — no runtime wedding tint. */
   weddingColorHex?: string | null;
   backgroundImage?: ImageSourcePropType | null;
@@ -16,11 +21,10 @@ type Props = {
   isUpdating?: boolean;
 };
 
-/** Web only — native uses WebView (model-viewer) because Draco/DRACOLoader breaks on RN. */
-function useThreeJsDressPreview(glbUrl: string): boolean {
+/** Three.js when fabric print active (accurate UV tiling); else WebView on native. */
+function useThreeJsDressPreview(fabricTextureUrl?: string | null): boolean {
   if (Platform.OS === 'web') return true;
-  void glbUrl;
-  return false;
+  return Boolean(fabricPrintTileUrl(fabricTextureUrl));
 }
 
 /**
@@ -28,7 +32,9 @@ function useThreeJsDressPreview(glbUrl: string): boolean {
  * WebView fallback only for non-HTTP local dev URLs.
  */
 export function DressGlbPreview(props: Props): React.ReactElement {
-  const useThreeJs = useThreeJsDressPreview(props.glbUrl);
+  const useThreeJs = useThreeJsDressPreview(props.fabricTextureUrl);
+  const modelViewerFabricUrl = fabricPrintTileUrl(props.fabricTextureUrl) ?? props.fabricTextureUrl;
+  const modelViewerFabricMeta = fabricPrintPatternMeta(props.fabricTextureUrl);
 
   if (props.loadError || !props.glbUrl || props.glbUrl === 'about:blank') {
     return (
@@ -49,6 +55,8 @@ export function DressGlbPreview(props: Props): React.ReactElement {
         height={props.height}
         fabricColorHex={props.fabricColorHex}
         weddingColorHex={props.weddingColorHex}
+        fabricTextureUrl={modelViewerFabricUrl}
+        fabricPatternMeta={modelViewerFabricMeta}
         fallbackImage={props.fallbackImage ?? props.backgroundImage}
         isUpdating={props.isUpdating}
       />
@@ -64,6 +72,7 @@ export function DressGlbPreview(props: Props): React.ReactElement {
         fabricColorHex={props.fabricColorHex}
         weddingColorHex={props.weddingColorHex}
         backgroundImage={props.backgroundImage}
+        fabricTextureUrl={props.fabricTextureUrl}
         isUpdating={props.isUpdating}
       />
     </ThreePreviewCrashBoundary>
@@ -93,6 +102,8 @@ class ThreePreviewCrashBoundary extends Component<Props & { children: ReactNode 
             height={this.props.height}
             fabricColorHex={this.props.fabricColorHex}
             weddingColorHex={this.props.weddingColorHex}
+            fabricTextureUrl={fabricPrintTileUrl(this.props.fabricTextureUrl) ?? this.props.fabricTextureUrl}
+            fabricPatternMeta={fabricPrintPatternMeta(this.props.fabricTextureUrl)}
             fallbackImage={this.props.fallbackImage ?? this.props.backgroundImage}
             isUpdating={this.props.isUpdating}
           />

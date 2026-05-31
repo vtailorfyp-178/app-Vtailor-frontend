@@ -7,77 +7,23 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useMemo, useState } from 'react';
 import { Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { dressPreviewFromOrderDescription } from '@/services/orderDressPreview';
+import { DEMO_CUSTOMER_ORDERS, dressPreviewFromOrderDescription } from '@/services/orderDressPreview';
 
 type OrderStatusFilter = 'All' | 'Active' | 'Delivered' | 'Canceled';
 
-const orders = [
-  {
-    id: 1,
-    name: 'Long Frock',
-    tailorId: 'sample-tailor-aliya-formal',
-    tailor: 'Aliya Formal Dresses',
-    tailorPhone: '+923215560190',
-    tailorAvatar: 'AF',
-    rating: '⭐ 4.8 (245 reviews)',
-    status: 'In Progress',
-    date: '2026-12-25',
-    price: 8500,
-    sample: { neck: 'Round Neck', sleeves: 'Bell Sleeves', style: 'Flared Bottom', color: 'Beige' },
-  },
-  {
-    id: 2,
-    name: 'Shalwar Kameez',
-    tailorId: 'sample-tailor-fatima-traditional',
-    tailor: 'Fatima Traditional Wear',
-    tailorPhone: '+923129018820',
-    tailorAvatar: 'FT',
-    rating: '⭐ 4.6 (180 reviews)',
-    status: 'Cutting',
-    date: '2026-12-20',
-    price: 25000,
-    sample: { neck: 'V-Neck', sleeves: 'Bell Sleeves', style: 'Straight Style', color: 'Beige' },
-  },
-  {
-    id: 3,
-    name: 'Kurti',
-    tailorId: 'sample-tailor-noor-party',
-    tailor: 'Noor Party Wear Studio',
-    tailorPhone: '+923332198744',
-    tailorAvatar: 'NP',
-    rating: '⭐ 4.7 (132 reviews)',
-    status: 'Delivered',
-    date: '2026-12-15',
-    price: 3500,
-    sample: { neck: 'Round Neck', sleeves: 'Bell Sleeves', style: 'Straight Style', color: 'Beige' },
-  },
-  {
-    id: 4,
-    name: 'Lehenga',
-    tailorId: 'sample-tailor-zainab-bridal',
-    tailor: 'Zainab Bridal Couture',
-    tailorPhone: '+923004102231',
-    tailorAvatar: 'ZB',
-    rating: '⭐ 4.8 (245 reviews)',
-    status: 'Delivered',
-    date: '2026-12-10',
-    price: 6000,
-    sample: { neck: 'Round Neck', sleeves: 'Bell Sleeves', style: 'Flared Style', color: 'Beige' },
-  },
-  {
-    id: 5,
-    name: 'Party Maxi',
-    tailor: 'Hira Party Couture',
-    tailorId: 'sample-tailor-hira-party',
-    tailorPhone: '+923457740091',
-    tailorAvatar: 'HP',
-    rating: '⭐ 4.4 (98 reviews)',
-    status: 'Canceled',
-    date: '2026-12-05',
-    price: 12000,
-    sample: { neck: 'V-Neck', sleeves: 'Bell Sleeves', style: 'Flared Bottom', color: 'Beige' },
-  },
-];
+const orders = DEMO_CUSTOMER_ORDERS.map((o) => ({
+  id: o.id,
+  name: o.name,
+  tailorId: o.tailorId,
+  tailor: o.tailor,
+  tailorPhone: o.tailorPhone,
+  tailorAvatar: o.tailorAvatar,
+  rating: o.rating,
+  status: o.status,
+  date: o.date,
+  price: o.price,
+  sample: o.sample,
+}));
 
 const FILTERS: OrderStatusFilter[] = ['All', 'Active', 'Delivered', 'Canceled'];
 
@@ -99,6 +45,7 @@ const getStatusColors = (status: string) => {
 export default function CustomerOrders() {
   const bg = useThemeColor({}, 'background');
   const card = useThemeColor({}, 'card');
+  const tint = useThemeColor({}, 'tint');
   const router = useRouter();
   const [selectedFilter, setSelectedFilter] = useState<OrderStatusFilter>('All');
 
@@ -218,7 +165,7 @@ export default function CustomerOrders() {
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.orderName}>{order.name}</Text>
-                    <Text style={styles.tailorName}>{order.tailor}</Text>
+                    <Text style={[styles.tailorName, { color: tint }]}>{order.tailor}</Text>
                   </View>
                   <View style={styles.priceWrap}>
                     <Text style={styles.priceLabel}>Total</Text>
@@ -289,7 +236,7 @@ const styles = StyleSheet.create({
   avatar: { width: 46, height: 46, borderRadius: 16, backgroundColor: '#fdf2f8', alignItems: 'center', justifyContent: 'center' },
   avatarText: { color: '#be185d', fontWeight: '900', fontSize: 13 },
   orderName: { fontSize: 19, fontWeight: '900', color: TEXT_DARK },
-  tailorName: { fontSize: 12, color: '#6b7280', marginTop: 3, fontWeight: '600' },
+  tailorName: { fontSize: 12, marginTop: 3, fontWeight: '700' },
   priceWrap: { alignItems: 'flex-end' },
   priceLabel: { color: '#9ca3af', fontSize: 10, fontWeight: '800', marginBottom: 2 },
   priceText: { fontWeight: '900', fontSize: 15, color: '#111827' },

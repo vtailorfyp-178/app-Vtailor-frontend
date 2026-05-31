@@ -1,7 +1,7 @@
 import { Platform } from 'react-native';
 import type * as THREE from 'three';
 
-const MAX_PARSED_ENTRIES = Platform.OS === 'web' ? 10 : 8;
+const MAX_PARSED_ENTRIES = Platform.OS === 'web' ? 12 : 10;
 
 const parsedCache = new Map<string, THREE.Object3D>();
 

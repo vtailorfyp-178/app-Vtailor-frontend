@@ -91,6 +91,7 @@ function openSavedCustomization(router: ReturnType<typeof useRouter>, item: Item
       modelId: item.modelId,
       modelName: item.modelName,
       selections: JSON.stringify(item.selections || {}),
+      flow: 'saved',
     },
   });
 }

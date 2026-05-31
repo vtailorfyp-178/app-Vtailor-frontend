@@ -10,8 +10,13 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '..');
 const serviceData = path.resolve(root, '../../app-Vtailor/models-service/data');
 const out = path.join(root, 'data', 'cloudinaryCatalog.json');
+const bellOut = path.join(root, 'data', 'bellBottomCloudinaryCatalog.json');
+const tulipOut = path.join(root, 'data', 'tulipTrouserCloudinaryCatalog.json');
 
 const sources = [
+  path.join(serviceData, 'uploadBridalMahroonShort.json'),
+  path.join(serviceData, 'uploadBellBottomResults.json'),
+  path.join(serviceData, 'uploadTulipTrouserResults.json'),
   path.join(serviceData, 'uploadGrarahOptimizedResults.json'),
   path.join(serviceData, 'uploadResults.json'),
 ].filter((p) => fs.existsSync(p));
@@ -75,3 +80,21 @@ const items = [...byPath.values()];
 fs.mkdirSync(path.dirname(out), { recursive: true });
 fs.writeFileSync(out, JSON.stringify(items));
 console.log('Merged', items.length, 'catalog entries →', out);
+
+const bellSrc = path.join(serviceData, 'uploadBellBottomResults.json');
+if (fs.existsSync(bellSrc)) {
+  const bellRows = JSON.parse(fs.readFileSync(bellSrc, 'utf8'))
+    .filter((r) => r.url)
+    .map((r) => ({ relativePath: r.relativePath, url: r.url, aliasOf: null }));
+  fs.writeFileSync(bellOut, JSON.stringify(bellRows, null, 2));
+  console.log('Wrote', bellRows.length, 'bell-bottom entries →', bellOut);
+}
+
+const tulipSrc = path.join(serviceData, 'uploadTulipTrouserResults.json');
+if (fs.existsSync(tulipSrc)) {
+  const tulipRows = JSON.parse(fs.readFileSync(tulipSrc, 'utf8'))
+    .filter((r) => r.url)
+    .map((r) => ({ relativePath: r.relativePath, url: r.url, aliasOf: null }));
+  fs.writeFileSync(tulipOut, JSON.stringify(tulipRows, null, 2));
+  console.log('Wrote', tulipRows.length, 'tulip-trouser entries →', tulipOut);
+}

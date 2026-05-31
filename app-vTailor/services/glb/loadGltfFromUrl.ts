@@ -18,6 +18,7 @@ import { isGlbArrayBuffer } from './glbBufferUtils';
 import { injectGlbEmbeddedImageDataUris } from './injectGlbEmbeddedImageDataUris';
 import { stripGlbTexturesForNative } from './stripGlbTextures';
 import { prepareGltfSceneForDisplay } from './gltfSceneDisplay';
+import { isCasualFabricDressGlbUrl, isFrillSareeGlbUrl } from './casualFabricDress';
 import { glbNeedsEmbeddedTextures } from './glbMaterialPolicy';
 import { diagnoseGlbBuffer, logGlbMaterialDiagnostics } from './glbDiagnostics';
 import { runExclusiveGlbTask } from './glbLoadMutex';
@@ -130,8 +131,9 @@ export async function fetchGlbBuffer(url: string): Promise<ArrayBuffer> {
   return buf;
 }
 
-/** Warm GLB download (Cloudinary HTTPS works on native via XHR). */
+/** Warm GLB download for web Three.js — native WebView loads the URL itself. */
 export function prefetchGlbBuffer(url: string): void {
+  if (Platform.OS !== 'web') return;
   if (!url || getCachedGlbBuffer(url)) return;
   if (!/^https?:\/\//i.test(url)) return;
   void fetchGlbBuffer(url).catch(() => {});
@@ -214,7 +216,7 @@ function isGlbNetworkError(err: unknown): boolean {
 
 async function parseBuffer(
   buf: ArrayBuffer,
-  fabricColorHex?: string | null,
+  _fabricColorHex?: string | null,
   modelUrl?: string,
 ): Promise<THREE.Object3D> {
   if (!isGlbArrayBuffer(buf)) {
@@ -226,8 +228,9 @@ async function parseBuffer(
     if (diag) logGlbMaterialDiagnostics(diag);
   }
 
-  const patiyalaTint = /patiyala/i.test(decodeURIComponent(modelUrl ?? ''));
   const preserveTextures = glbNeedsEmbeddedTextures(modelUrl);
+  const patiyalaTint = isCasualFabricDressGlbUrl(modelUrl) && !preserveTextures;
+  const chiffon = isFrillSareeGlbUrl(modelUrl);
   const loader = createGltfLoader();
 
   if (Platform.OS !== 'web') {
@@ -242,9 +245,10 @@ async function parseBuffer(
       if (bindings.length) {
         await applyNativeGlbTextures(gltf, bindings, imageBytes);
       }
-      return prepareGltfSceneForDisplay(gltf.scene, fabricColorHex, {
+      return prepareGltfSceneForDisplay(gltf.scene, null, {
         patiyalaTint,
         preserveTextures,
+        chiffon,
       });
     } catch (nativeErr) {
       const msg = nativeErr instanceof Error ? nativeErr.message : String(nativeErr);
@@ -257,9 +261,10 @@ async function parseBuffer(
   for (const attempt of attempts) {
     try {
       const gltf = await loader.parseAsync(attempt, '');
-      return prepareGltfSceneForDisplay(gltf.scene, fabricColorHex, {
+      return prepareGltfSceneForDisplay(gltf.scene, null, {
         patiyalaTint,
         preserveTextures,
+        chiffon,
       });
     } catch (err) {
       lastError = err;
