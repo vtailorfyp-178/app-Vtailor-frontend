@@ -14,12 +14,14 @@ export type ChatReply = {
 };
 
 export const FASHION_QUICK_PROMPTS: string[] = [
+  'Garmi ke liye best fabric konsa hai?',
+  'Shadi ke liye outfit suggest karo',
   'Which fabric is best for summer dresses?',
+  'Meri skin tone ke liye konsa rang achha lagega?',
   'Suggest winter dress fabrics and colors',
+  'Eid ke liye dress suggest karo',
   'Best colors for a formal dress',
-  'Which fabric is best for party wear?',
-  'Season-wise dress color suggestions',
-  'Best fabric for traditional dresses',
+  'Shalwar kameez ke liye neckline konsi best hai?',
 ];
 
 const expoHostCandidates = [

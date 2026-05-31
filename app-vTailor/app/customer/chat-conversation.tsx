@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+﻿import React, { useEffect, useState, useRef } from 'react';
 import {
   View,
   StyleSheet,
@@ -12,6 +12,7 @@ import {
   Image,
   Linking,
   Modal,
+  Keyboard,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -21,138 +22,147 @@ import { useThemeColor } from '@/hooks/use-theme-color';
 import { useAuth } from '@/contexts/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import * as FileSystem from 'expo-file-system/legacy';
-import { VideoView, useVideoPlayer } from 'expo-video';
-import {
-  Conversations,
-  Messages,
-  Media,
-  ConversationSocket,
-  setAuthToken,
-  formatMessageTime,
-  type ChatMessage,
-} from '@/services/conversationApi';
 import AppBackButton from '@/components/AppBackButton';
+import {
+  getStreamClient,
+  getOrCreateChannel,
+  fetchOrCreateStreamChannel,
+} from '@/services/streamChatService';
+import { setCurrentOpenChannel } from '@/services/notificationService';
+import type { Channel, MessageResponse, Event } from 'stream-chat';
 
-function ChatVideoPreview({ uri, style }: { uri: string; style: any }) {
-  const player = useVideoPlayer(uri, (videoPlayer) => {
-    videoPlayer.play();
-  });
+// â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-  return <VideoView player={player} style={style} nativeControls contentFit="contain" />;
-}
+type ChatMessage = {
+  id: string;
+  text: string;
+  userId: string;
+  userName: string;
+  createdAt: Date;
+  status?: string;
+  imageUrl?: string;
+  videoUrl?: string;
+};
 
-function buildDemoMessages(currentUserId: string, tailorName = 'Aliya Formal Dresses'): ChatMessage[] {
+// â”€â”€ Demo seed messages  (only used when the route explicitly requests demo) â”€â”€
+
+function buildDemoMessages(
+  myUserId: string,
+  myRole: string | null,
+  otherName: string,
+  channelId: string
+): ChatMessage[] {
   const now = Date.now();
-  const tailorId = tailorName.toLowerCase().includes('zainab')
-    ? 'sample-tailor-zainab-bridal'
-    : tailorName.toLowerCase().includes('noor')
-      ? 'sample-tailor-noor-party'
-      : 'sample-tailor-aliya-formal';
-  const tailorOpening = tailorName.toLowerCase().includes('zainab')
-    ? 'Your bridal formal dress measurements are noted. Please confirm the dupatta border.'
-    : tailorName.toLowerCase().includes('noor')
-      ? 'We can stitch your party maxi in pink organza with light embellishment.'
-      : 'Your formal long frock sample is ready for review.';
+  const isCustomer = myRole !== 'tailor';
+  const otherId = `demo-other-${channelId}`;
 
-  return [
-    {
-      message_id: 'demo-1',
-      conversation_id: 'demo-conversation',
-      sender_id: tailorId,
-      sender_role: 'tailor',
-      content: `Assalam o Alaikum, this is ${tailorName}. ${tailorOpening}`,
-      message_type: 'text',
-      status: 'read',
-      media_url: null,
-      media_mime: null,
-      media_size: null,
-      media_duration: null,
-      thumbnail_url: null,
-      reply_to_id: null,
-      reply_to_preview: null,
-      is_deleted: false,
-      created_at: new Date(now - 1000 * 60 * 20).toISOString(),
-      updated_at: new Date(now - 1000 * 60 * 20).toISOString(),
-    },
-    {
-      message_id: 'demo-2',
-      conversation_id: 'demo-conversation',
-      sender_id: currentUserId,
-      sender_role: 'customer',
-      content: 'Wa Alaikum Salam, please keep the fitting elegant and comfortable.',
-      message_type: 'text',
-      status: 'read',
-      media_url: null,
-      media_mime: null,
-      media_size: null,
-      media_duration: null,
-      thumbnail_url: null,
-      reply_to_id: null,
-      reply_to_preview: null,
-      is_deleted: false,
-      created_at: new Date(now - 1000 * 60 * 18).toISOString(),
-      updated_at: new Date(now - 1000 * 60 * 18).toISOString(),
-    },
-    {
-      message_id: 'demo-3',
-      conversation_id: 'demo-conversation',
-      sender_id: tailorId,
-      sender_role: 'tailor',
-      content: 'Sure, I will share the final stitching update before delivery.',
-      message_type: 'text',
-      status: 'read',
-      media_url: null,
-      media_mime: null,
-      media_size: null,
-      media_duration: null,
-      thumbnail_url: null,
-      reply_to_id: null,
-      reply_to_preview: null,
-      is_deleted: false,
-      created_at: new Date(now - 1000 * 60 * 12).toISOString(),
-      updated_at: new Date(now - 1000 * 60 * 12).toISOString(),
-    },
+  const tailorLines = [
+    `Assalam o Alaikum! I'm ${otherName}. How can I help you today?`,
+    'We specialise in formal and bridal wear with fine hand embroidery.',
+    'Your measurements are noted. I will prepare a sample within 5 days.',
   ];
+  const customerLines = [
+    'Wa Alaikum Salam! I need a formal long frock for a wedding.',
+    'I prefer pastel shades â€” blush pink or powder blue.',
+    'Great! Please keep the fitting elegant and comfortable.',
+  ];
+
+  const lines = isCustomer
+    ? [
+        { sender: otherId, text: tailorLines[0], offset: 25 },
+        { sender: myUserId, text: customerLines[0], offset: 22 },
+        { sender: otherId, text: tailorLines[1], offset: 18 },
+        { sender: myUserId, text: customerLines[1], offset: 14 },
+        { sender: otherId, text: tailorLines[2], offset: 10 },
+        { sender: myUserId, text: customerLines[2], offset: 5 },
+      ]
+    : [
+        { sender: myUserId, text: tailorLines[0], offset: 25 },
+        { sender: otherId, text: customerLines[0], offset: 22 },
+        { sender: myUserId, text: tailorLines[1], offset: 18 },
+        { sender: otherId, text: customerLines[1], offset: 14 },
+        { sender: myUserId, text: tailorLines[2], offset: 10 },
+        { sender: otherId, text: customerLines[2], offset: 5 },
+      ];
+
+  return lines.map((l, i) => ({
+    id: `demo-seed-${channelId}-${i}`,
+    text: l.text,
+    userId: l.sender,
+    userName: l.sender === myUserId ? 'You' : otherName,
+    createdAt: new Date(now - 1000 * 60 * l.offset),
+    status: l.sender === myUserId ? 'read' : undefined,
+  }));
 }
 
-function initials(name: string) {
-  return name
-    .split(' ')
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase() || '')
-    .join('') || 'T';
+// â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+function mapStreamMessage(msg: MessageResponse, myUserId: string): ChatMessage {
+  const readByOthers = msg.readBy
+    ? Object.keys(msg.readBy).some((uid) => uid !== myUserId)
+    : false;
+
+  const imageAttachment = msg.attachments?.find((a: any) => a.type === 'image');
+  const videoAttachment = msg.attachments?.find((a: any) => a.type === 'video');
+
+  return {
+    id: msg.id,
+    text: msg.text ?? '',
+    userId: msg.user?.id ?? '',
+    userName: (msg.user?.name as string) ?? 'User',
+    createdAt: new Date(msg.created_at ?? Date.now()),
+    status: msg.user?.id === myUserId
+      ? (readByOthers ? 'read' : (msg.status ?? 'sent'))
+      : undefined,
+    imageUrl: (imageAttachment?.image_url ?? imageAttachment?.asset_url) as string | undefined,
+    videoUrl: (videoAttachment?.asset_url ?? videoAttachment?.file) as string | undefined,
+  };
 }
 
-async function buildFallbackMediaUrl(asset: ImagePicker.ImagePickerAsset, kind: 'image' | 'video', mime: string) {
-  if (kind === 'image' && (!asset.fileSize || asset.fileSize <= 4_500_000)) {
-    try {
-      const base64 = await FileSystem.readAsStringAsync(asset.uri, {
-        encoding: FileSystem.EncodingType.Base64,
-      });
-      return `data:${mime};base64,${base64}`;
-    } catch {
-      return asset.uri;
-    }
-  }
-
-  return asset.uri;
+function formatMessageTime(date: Date): string {
+  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
+
+function initials(name: string): string {
+  return (
+    name
+      .split(' ')
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((p) => p[0]?.toUpperCase() || '')
+      .join('') || 'T'
+  );
+}
+
+// â”€â”€ Component â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export default function ChatConversation() {
   const router = useRouter();
   const params = useLocalSearchParams();
-  const conversationId = (params.conversation_id as string) || (params.id as string);
-  const tailorId = params.tailorId ? String(params.tailorId) : null;
-  const tailorNameFromParams =
-    (params.tailorName as string) ||
-    (params.otherUserName as string) ||
-    '';
-  const [otherUserName, setOtherUserName] = useState(tailorNameFromParams || 'Tailor');
-  const otherUserAvatar = (params.otherUserAvatar as string) || '👥';
+  const insets = useSafeAreaInsets();
+
+  const streamChannelId = params.stream_channel_id as string | undefined;
+  const demoChannelId = params.demo_channel_id as string | undefined;
+  // Only treat as demo if the route explicitly says so (demo=1 or demo_channel_id)
+  // Real-user chats NEVER pass demo=1 â€” they will try Stream and show an error if unavailable
+  const isExplicitDemo = params.demo === '1' || !!demoChannelId;
+  const tailorId = params.tailorId ? String(params.tailorId) : undefined;
   const otherUserPhone = ((params.otherUserPhone as string) || (params.phone as string) || '').trim();
-  const demoModeParam = (params.demo as string) === '1';
+  const otherUserEmail = ((params.otherUserEmail as string) || '').trim();
+  const [otherUserName, setOtherUserName] = useState(
+    (params.otherUserName as string) || (params.tailorName as string) || 'Tailor'
+  );
+
+  // If Stream stored an email as the user's name, extract the human-readable part
+  const cleanName = (raw: string) => {
+    if (raw.includes('@')) {
+      const local = raw.split('@')[0];
+      // Convert dots/underscores/hyphens to spaces, then title-case
+      return local.replace(/[._-]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()).trim();
+    }
+    return raw;
+  };
+  const otherUserFirstName = cleanName(otherUserName).split(' ')[0] || cleanName(otherUserName);
 
   const { userId, userRole, token } = useAuth();
   const tint = useThemeColor({}, 'tint');
@@ -160,173 +170,251 @@ export default function ChatConversation() {
   const text = useThemeColor({}, 'text');
   const muted = useThemeColor({}, 'muted');
 
+
+
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputText, setInputText] = useState('');
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
-  const [showMediaOptions, setShowMediaOptions] = useState(false);
-  const [demoMode, setDemoMode] = useState(demoModeParam);
-  const [activeConversationId, setActiveConversationId] = useState<string | null>(
-    demoModeParam ? 'demo-conversation' : conversationId || null
-  );
-  const flatListRef = useRef<FlatList>(null);
-  const socketRef = useRef<ConversationSocket | null>(null);
-  const insets = useSafeAreaInsets();
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
   const [imageViewerUri, setImageViewerUri] = useState<string | null>(null);
+  const [showAttachMenu, setShowAttachMenu] = useState(false);
+  // demoMode = true ONLY for explicit demo sessions
+  const [demoMode, setDemoMode] = useState(isExplicitDemo);
+  // streamError = message shown when Stream is not configured for a real chat
+  const [streamError, setStreamError] = useState<string | null>(null);
+  const flatListRef = useRef<FlatList>(null);
+  const channelRef = useRef<Channel | null>(null);
+  const listenersRef = useRef<Array<() => void>>([]);
+  const activeChannelId = streamChannelId || (isExplicitDemo ? demoChannelId : null);
 
-  // Initialize WebSocket and load messages
+  // â”€â”€ Track which channel is open (for notification suppression) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
   useEffect(() => {
-    if (!userId) {
-      router.back();
+    if (activeChannelId) setCurrentOpenChannel(activeChannelId);
+    return () => setCurrentOpenChannel(null);
+  }, [activeChannelId]);
+
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const showSub = Keyboard.addListener(showEvent, () => {
+      setKeyboardVisible(true);
+      setShowAttachMenu(false);
+      setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 150);
+    });
+    const hideSub = Keyboard.addListener(hideEvent, () => setKeyboardVisible(false));
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
+
+  // â”€â”€ Initialise â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+  useEffect(() => {
+    if (!userId) return;
+
+    const init = async () => {
+      setLoading(true);
+      setStreamError(null);
+      try {
+        // â”€â”€ Explicit demo path (demo=1 or demo_channel_id) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        if (isExplicitDemo) {
+          const channelKey = demoChannelId || 'demo-channel';
+          setDemoMode(true);
+          setMessages(buildDemoMessages(userId, userRole, otherUserName, channelKey));
+          setLoading(false);
+          return;
+        }
+
+        // â”€â”€ Real Stream path â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        let channel: Channel | null = null;
+
+        if (streamChannelId) {
+          const client = getStreamClient();
+          if (client) {
+            channel = client.channel('messaging', streamChannelId);
+            await channel.watch();
+          } else {
+            setStreamError(
+              'Stream Chat is not connected. Please add your STREAM_API_KEY and STREAM_API_SECRET to the backend .env file, then restart the backend and app.'
+            );
+            setLoading(false);
+            return;
+          }
+        } else if (tailorId && token) {
+          channel = await getOrCreateChannel(token, tailorId, userId);
+          if (!channel) {
+            setStreamError(
+              'Could not create Stream channel. Make sure STREAM_API_KEY and STREAM_API_SECRET are set in the backend .env file.'
+            );
+            setLoading(false);
+            return;
+          }
+          const members = Object.values(channel.state.members);
+          const other = members.find((m: any) => m.user?.id !== userId);
+          if (other && (other as any).user?.name) {
+            setOtherUserName((other as any).user.name);
+          }
+        } else {
+          setStreamError('No channel identifier provided. Please navigate here from a conversation or tailor profile.');
+          setLoading(false);
+          return;
+        }
+
+        if (!channel) {
+          setStreamError('Stream Chat not configured on the server. Add STREAM_API_KEY / STREAM_API_SECRET to the backend .env to enable real chat.');
+          setLoading(false);
+          return;
+        }
+
+        channelRef.current = channel;
+        setDemoMode(false);
+
+        // Load all existing messages
+        const existing = channel.state.messages.map((m) =>
+          mapStreamMessage(m as unknown as MessageResponse, userId)
+        );
+        setMessages(existing);
+
+        // Real-time: new message arrives
+        const unsubNew = channel.on('message.new', (event: Event) => {
+          if (event.message) {
+            // Skip own messages — handled by optimistic update in handleSendMessage
+            if (event.message.user?.id === userId) return;
+            const newMsg = mapStreamMessage(event.message as MessageResponse, userId);
+            setMessages((prev) => {
+              // avoid duplicates
+              if (prev.some((m) => m.id === newMsg.id)) return prev;
+              return [...prev, newMsg];
+            });
+            // scroll to bottom
+            setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 80);
+            // mark as read immediately
+            channel!.markRead().catch(() => {});
+          }
+        }).unsubscribe;
+
+        // Real-time: message edited/deleted
+        const unsubUpdate = channel.on('message.updated', (event: Event) => {
+          if (event.message) {
+            const updated = mapStreamMessage(event.message as MessageResponse, userId);
+            setMessages((prev) =>
+              prev.map((m) => (m.id === updated.id ? updated : m))
+            );
+          }
+        }).unsubscribe;
+
+        // Real-time: other user reads → update tick
+        const unsubRead = channel.on('message.read', () => {
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.userId === userId && m.status === 'sent'
+                ? { ...m, status: 'read' }
+                : m
+            )
+          );
+        }).unsubscribe;
+
+        listenersRef.current = [unsubNew, unsubUpdate, unsubRead];
+        await channel.markRead().catch(() => {});
+        // scroll to last message after load
+        setTimeout(() => flatListRef.current?.scrollToEnd({ animated: false }), 150);
+      } catch (err) {
+        console.error('[ChatConversation] init error:', err);
+        setStreamError(
+          `Could not connect to Stream Chat: ${err instanceof Error ? err.message : String(err)}`
+        );
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    init();
+
+    return () => {
+      listenersRef.current.forEach((unsub) => unsub());
+      listenersRef.current = [];
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId, streamChannelId, tailorId, token, isExplicitDemo, demoChannelId]);
+
+  // â”€â”€ Send text â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+  const handleSendMessage = async () => {
+    if (!inputText.trim() || !userId || sending) return;
+    if (!demoMode && !channelRef.current) return;
+
+    setSending(true);
+    const textToSend = inputText.trim();
+    setInputText('');
+
+    if (demoMode) {
+      const msg: ChatMessage = {
+        id: `demo-local-${Date.now()}`,
+        text: textToSend,
+        userId,
+        userName: 'You',
+        createdAt: new Date(),
+        status: 'sent',
+      };
+      setMessages((prev) => [...prev, msg]);
+
+      setTimeout(() => {
+        const replies = [
+          "Sure! I'll note that down.",
+          'Absolutely, that can be arranged.',
+          'Great choice! It will look wonderful.',
+          'Understood. I will prepare the sample accordingly.',
+          'Let me check with our stitching team and get back to you.',
+        ];
+        const reply: ChatMessage = {
+          id: `demo-reply-${Date.now()}`,
+          text: replies[Math.floor(Math.random() * replies.length)],
+          userId: `demo-other`,
+          userName: otherUserName,
+          createdAt: new Date(),
+        };
+        setMessages((prev) => [...prev, reply]);
+      }, 1000 + Math.random() * 1000);
+
+      setSending(false);
       return;
     }
 
-    if (token) setAuthToken(token);
-
-    const initializeSocket = async () => {
-      try {
-        setLoading(true);
-
-        if (demoModeParam) {
-          setMessages(buildDemoMessages(userId, tailorNameFromParams || otherUserName));
-          setLoading(false);
-          setDemoMode(true);
-          return;
-        }
-
-        let resolvedConversationId = conversationId;
-        if (!activeConversationId && tailorId && userRole === 'customer') {
-          const created = await Conversations.getOrCreate(tailorId, userId);
-          resolvedConversationId = created.conversation_id;
-          setOtherUserName(created.tailor_name || tailorNameFromParams || 'Tailor');
-        }
-
-        if (!resolvedConversationId) {
-          Alert.alert('Missing conversation', 'This conversation could not be opened.');
-          router.back();
-          return;
-        }
-
-        setActiveConversationId(resolvedConversationId);
-        setDemoMode(false);
-
-        // Load initial messages
-        const loaded = await Messages.list(resolvedConversationId, userId, undefined, 40);
-        setMessages(loaded);
-
-        // Connect WebSocket
-        socketRef.current = new ConversationSocket(userId);
-        socketRef.current.onEvent('new_message', (event: any) => {
-          const data = event?.data;
-          if (data?.conversation_id === resolvedConversationId) {
-            setMessages((prev) =>
-              prev.some((m) => m.message_id === data?.message_id) ? prev : [...prev, data]
-            );
-          }
-        });
-
-        socketRef.current.onEvent('message_status', (event: any) => {
-          const data = event?.data;
-          setMessages((prev) =>
-            prev.map((msg) =>
-              msg.message_id === data?.message_id ? { ...msg, status: data.status } : msg
-            )
-          );
-        });
-
-        socketRef.current.connect();
-        setLoading(false);
-      } catch {
-        setMessages(buildDemoMessages(userId, tailorNameFromParams || otherUserName));
-        setDemoMode(true);
-        setActiveConversationId('demo-conversation');
-        setLoading(false);
-      }
+    // Real Stream send
+    const tempId = `local-${Date.now()}`;
+    const optimistic: ChatMessage = {
+      id: tempId,
+      text: textToSend,
+      userId,
+      userName: 'You',
+      createdAt: new Date(),
+      status: 'sending',
     };
+    setMessages((prev) => [...prev, optimistic]);
 
-    initializeSocket();
-
-    return () => {
-      socketRef.current?.disconnect();
-    };
-  }, [userId, conversationId, tailorId, userRole, token]);
-
-  const handleSendMessage = async () => {
-    if (!inputText.trim() || !userId || sending || !activeConversationId) return;
-
-    setSending(true);
-    let optimisticId: string | null = null;
     try {
-      if (demoMode) {
-        const msg: ChatMessage = {
-          message_id: `demo-${Date.now()}`,
-          conversation_id: activeConversationId,
-          sender_id: userId,
-          sender_role: userRole === 'tailor' ? 'tailor' : 'customer',
-          content: inputText.trim(),
-          message_type: 'text',
-          status: 'read',
-          media_url: null,
-          media_mime: null,
-          media_size: null,
-          media_duration: null,
-          thumbnail_url: null,
-          reply_to_id: null,
-          reply_to_preview: null,
-          is_deleted: false,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        };
-        setMessages((prev) => [...prev, msg]);
-        setInputText('');
-        setShowMediaOptions(false);
-        return;
-      }
-
-      optimisticId = `local-${Date.now()}`;
-      const optimisticMsg: ChatMessage = {
-        message_id: optimisticId,
-        conversation_id: activeConversationId,
-        sender_id: userId,
-        sender_role: userRole === 'tailor' ? 'tailor' : 'customer',
-        content: inputText.trim(),
-        message_type: 'text',
-        status: 'sent',
-        media_url: null,
-        media_mime: null,
-        media_size: null,
-        media_duration: null,
-        thumbnail_url: null,
-        reply_to_id: null,
-        reply_to_preview: null,
-        is_deleted: false,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
-      setMessages((prev) => [...prev, optimisticMsg]);
-      const textToSend = inputText.trim();
-      setInputText('');
-      setShowMediaOptions(false);
-
-      const sentMessage = await Messages.sendText({
-        conversation_id: activeConversationId,
-        sender_id: userId,
-        content: textToSend,
-      });
-      setMessages((prev) => prev.map((m) => (m.message_id === optimisticId ? sentMessage : m)));
-    } catch (error) {
-      console.error('Failed to send message:', error);
-      if (optimisticId) {
-        setMessages((prev) => prev.filter((m) => m.message_id !== optimisticId));
-      }
+      const sent = await channelRef.current!.sendMessage({ text: textToSend });
+      const confirmed = mapStreamMessage(sent.message as MessageResponse, userId);
+      setMessages((prev) =>
+        prev.map((m) => (m.id === tempId ? confirmed : m))
+      );
+      setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 80);
+    } catch (err) {
+      console.error('[ChatConversation] sendMessage error:', err);
+      setMessages((prev) => prev.filter((m) => m.id !== tempId));
       Alert.alert('Error', 'Failed to send message');
     } finally {
       setSending(false);
     }
   };
 
-  const sendPickedMedia = async (kind: 'image' | 'video') => {
-    setShowMediaOptions(false);
+  // â”€â”€ Send image â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+  const handleSendImage = async () => {
+    setShowAttachMenu(false);
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
       Alert.alert('Permission Required', 'Please grant gallery access');
@@ -334,105 +422,155 @@ export default function ChatConversation() {
     }
 
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: kind === 'image' ? ['images'] as any : ['videos'] as any,
+      mediaTypes: ['images'] as any,
       quality: 0.7,
     });
 
-    if (!result.canceled && userId && activeConversationId) {
+    if (!result.canceled && userId) {
       setSending(true);
-      let tempId: string | null = null;
-      try {
-        const asset = result.assets[0];
-        const mime = asset.mimeType || (kind === 'image' ? 'image/jpeg' : 'video/mp4');
-        tempId = `local-${Date.now()}`;
+      const asset = result.assets[0];
+      const tempId = `local-img-${Date.now()}`;
 
-        const optimisticMedia: ChatMessage = {
-          message_id: tempId,
-          conversation_id: activeConversationId,
-          sender_id: userId,
-          sender_role: userRole === 'tailor' ? 'tailor' : 'customer',
-          content: kind === 'image' ? 'Image sent' : 'Video sent',
-          message_type: kind,
-          status: 'sent',
-          media_url: asset.uri,
-          media_mime: mime,
-          media_size: asset.fileSize || 0,
-          media_duration: null,
-          thumbnail_url: null,
-          reply_to_id: null,
-          reply_to_preview: null,
-          is_deleted: false,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        };
-        setMessages((prev) => [...prev, optimisticMedia]);
+      const optimistic: ChatMessage = {
+        id: tempId,
+        text: '',
+        userId,
+        userName: 'You',
+        createdAt: new Date(),
+        status: 'sending',
+        imageUrl: asset.uri,
+      };
+      setMessages((prev) => [...prev, optimistic]);
 
-        if (demoMode) {
+      if (demoMode) {
+        setTimeout(() => {
           setMessages((prev) =>
-            prev.map((m) => (m.message_id === tempId ? { ...m, status: 'read' } : m))
+            prev.map((m) => (m.id === tempId ? { ...m, status: 'read' } : m))
           );
-          return;
-        }
+        }, 800);
+        setSending(false);
+        return;
+      }
 
-        let uploaded: { media_url: string; media_key: string };
-        try {
-          uploaded = await Media.upload({
-            conversation_id: activeConversationId,
-            sender_id: userId,
-            fileUri: asset.uri,
-            filename: asset.fileName || (kind === 'image' ? 'image.jpg' : 'video.mp4'),
-            content_type: mime,
-            file_size: asset.fileSize || 0,
-          });
-        } catch (uploadError) {
-          console.warn(`Cloud ${kind} upload failed, sending fallback media:`, uploadError);
-          uploaded = {
-            media_url: await buildFallbackMediaUrl(asset, kind, mime),
-            media_key: `local-${kind}-${Date.now()}`,
-          };
-        }
-
-        const sentMedia = await Messages.sendMedia({
-          conversation_id: activeConversationId,
-          sender_id: userId,
-          message_type: kind,
-          media_url: uploaded.media_url,
-          media_key: uploaded.media_key,
-          media_mime: mime,
-          media_size: asset.fileSize || 0,
+      try {
+        const uploadResponse = await channelRef.current!.sendImage(asset.uri);
+        const sent = await channelRef.current!.sendMessage({
+          text: '',
+          attachments: [
+            {
+              type: 'image',
+              image_url: uploadResponse.file,
+              asset_url: uploadResponse.file,
+            },
+          ],
         });
-
-        setMessages((prev) => prev.map((m) => (m.message_id === tempId ? sentMedia : m)));
-      } catch (error) {
-        console.error(`Failed to send ${kind}:`, error);
-        Alert.alert('Error', `Failed to send ${kind}`);
-        if (tempId) {
-          setMessages((prev) => prev.filter((m) => m.message_id !== tempId));
-        }
+        const confirmed = mapStreamMessage(sent.message as MessageResponse, userId);
+        confirmed.imageUrl = uploadResponse.file;
+        setMessages((prev) =>
+          prev.map((m) => (m.id === tempId ? confirmed : m))
+        );
+      } catch (err) {
+        console.error('[ChatConversation] image send error:', err);
+        setMessages((prev) => prev.filter((m) => m.id !== tempId));
+        Alert.alert('Error', 'Failed to send image');
       } finally {
         setSending(false);
       }
     }
   };
 
-  const handleSendImage = () => sendPickedMedia('image');
-  const handleSendVideo = () => sendPickedMedia('video');
-  const handleStartCall = () => {
-    if (!otherUserPhone) {
-      Alert.alert('Phone number unavailable', 'This tailor has not shared a phone number yet.');
+  const handleSendVideo = async () => {
+    setShowAttachMenu(false);
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert('Permission Required', 'Please grant gallery access');
       return;
     }
 
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['videos'] as any,
+      videoMaxDuration: 120,
+    });
+
+    if (!result.canceled && userId) {
+      setSending(true);
+      const asset = result.assets[0];
+      const tempId = `local-vid-${Date.now()}`;
+
+      const optimistic: ChatMessage = {
+        id: tempId,
+        text: '',
+        userId,
+        userName: 'You',
+        createdAt: new Date(),
+        status: 'sending',
+        videoUrl: asset.uri,
+      };
+      setMessages((prev) => [...prev, optimistic]);
+
+      if (demoMode) {
+        setTimeout(() => {
+          setMessages((prev) =>
+            prev.map((m) => (m.id === tempId ? { ...m, status: 'read' } : m))
+          );
+        }, 800);
+        setSending(false);
+        return;
+      }
+
+      try {
+        const ext = asset.uri.split('.').pop()?.toLowerCase() || 'mp4';
+        const mimeType = ext === 'mov' ? 'video/quicktime' : 'video/mp4';
+        const filename = asset.uri.split('/').pop() || `video_${Date.now()}.${ext}`;
+        const uploadResponse = await (channelRef.current! as any).sendFile(
+          asset.uri,
+          filename,
+          mimeType
+        );
+        const sent = await channelRef.current!.sendMessage({
+          text: '',
+          attachments: [
+            {
+              type: 'video',
+              asset_url: uploadResponse.file,
+              title: filename,
+              mime_type: mimeType,
+            },
+          ],
+        });
+        const confirmed = mapStreamMessage(sent.message as MessageResponse, userId);
+        confirmed.videoUrl = uploadResponse.file;
+        setMessages((prev) =>
+          prev.map((m) => (m.id === tempId ? confirmed : m))
+        );
+      } catch (err) {
+        console.error('[ChatConversation] video send error:', err);
+        setMessages((prev) => prev.filter((m) => m.id !== tempId));
+        Alert.alert('Error', 'Failed to send video. Try a shorter clip (under 2 minutes).');
+      } finally {
+        setSending(false);
+      }
+    }
+  };
+
+  // â”€â”€ Call â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+  const handleStartCall = () => {
+    if (!otherUserPhone) {
+      Alert.alert('Phone number unavailable', 'This user has not shared a phone number yet.');
+      return;
+    }
     const dialNumber = otherUserPhone.replace(/\s+/g, '');
     Linking.openURL(`tel:${dialNumber}`).catch(() => {
       Alert.alert('Call Failed', `Unable to open dialer for ${otherUserPhone}.`);
     });
   };
 
+  // â”€â”€ Render message â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
   const renderMessage = ({ item }: { item: ChatMessage }) => {
-    const isOwn = item.sender_id === userId;
-    const senderLabel = isOwn ? 'You' : otherUserName;
-    const timestamp = formatMessageTime(item.created_at);
+    const isOwn = item.userId === userId;
+    const timestamp = formatMessageTime(item.createdAt);
 
     return (
       <View
@@ -441,11 +579,13 @@ export default function ChatConversation() {
           isOwn ? styles.ownMessageRow : styles.otherMessageRow,
         ]}
       >
-        {!isOwn ? (
+        {!isOwn && (
           <View style={[styles.messageAvatar, { backgroundColor: `${tint}22` }]}>
-            <ThemedText style={[styles.messageAvatarText, { color: tint }]}>{initials(otherUserName)}</ThemedText>
+            <ThemedText style={[styles.messageAvatarText, { color: tint }]}>
+              {initials(item.userName)}
+            </ThemedText>
           </View>
-        ) : null}
+        )}
         <View
           style={[
             styles.messageBubble,
@@ -454,79 +594,82 @@ export default function ChatConversation() {
               : { backgroundColor: card, borderWidth: 1, borderColor: '#e5e7eb' },
           ]}
         >
-          {!isOwn ? (
-            <ThemedText style={[styles.senderLabel, { color: muted }]}>{senderLabel}</ThemedText>
-          ) : null}
-          {item.message_type === 'text' && (
-            <ThemedText
-              style={[
-                styles.messageText,
-                isOwn ? { color: '#fff' } : { color: text },
-              ]}
+          {!isOwn && (
+            <ThemedText style={[styles.senderLabel, { color: muted }]}>
+              {item.userName}
+            </ThemedText>
+          )}
+          {item.imageUrl ? (
+            <Pressable onPress={() => setImageViewerUri(item.imageUrl!)}>
+              <Image
+                source={{ uri: item.imageUrl }}
+                style={styles.mediaPreview}
+                resizeMode="cover"
+              />
+            </Pressable>
+          ) : item.videoUrl ? (
+            <Pressable
+              onPress={() => Linking.openURL(item.videoUrl!).catch(() =>
+                Alert.alert('Error', 'Could not open video.')
+              )}
+              style={styles.videoBubble}
             >
-              {item.content}
+              <View style={styles.videoThumb}>
+                <Ionicons name="play-circle" size={44} color="#fff" />
+              </View>
+              <ThemedText style={[styles.videoLabel, isOwn ? { color: '#dbeafe' } : { color: muted }]}>
+                Tap to play video
+              </ThemedText>
+            </Pressable>
+          ) : (
+            <ThemedText
+              style={[styles.messageText, isOwn ? { color: '#fff' } : { color: text }]}
+            >
+              {item.text}
             </ThemedText>
           )}
-          {item.message_type === 'image' && (
-            <View style={styles.mediaWrap}>
-              {item.media_url ? (
-                <Pressable
-                  onPress={() => setImageViewerUri(item.media_url!)}
-                  accessibilityRole="button"
-                  accessibilityLabel="View photo full screen"
-                >
-                  <Image source={{ uri: item.media_url }} style={styles.mediaPreview} resizeMode="cover" />
-                </Pressable>
-              ) : (
-                <ThemedText style={{ fontSize: 14, color: isOwn ? '#fff' : text }}>
-                  📷 Image
-                </ThemedText>
-              )}
-              {item.content ? (
-                <ThemedText style={[styles.mediaCaption, { color: isOwn ? '#fff' : text }]}>{item.content}</ThemedText>
-              ) : null}
-            </View>
-          )}
-          {item.message_type === 'video' && (
-            <View style={styles.mediaWrap}>
-              {item.media_url ? (
-                <ChatVideoPreview uri={item.media_url} style={styles.mediaPreview} />
-              ) : (
-                <ThemedText style={{ fontSize: 14, color: isOwn ? '#fff' : text }}>
-                  🎥 Video
-                </ThemedText>
-              )}
-              {item.content ? (
-                <ThemedText style={[styles.mediaCaption, { color: isOwn ? '#fff' : text }]}>{item.content}</ThemedText>
-              ) : null}
-            </View>
-          )}
-          {item.message_type === 'audio' && (
-            <ThemedText style={{ fontSize: 14, color: isOwn ? '#fff' : text }}>
-              🎙️ Audio
-            </ThemedText>
-          )}
-          {item.message_type === 'call_log' && (
-            <ThemedText style={{ fontSize: 14, color: isOwn ? '#fff' : text }}>
-              {item.content || '📞 Call event'}
-            </ThemedText>
-          )}
-          <ThemedText style={[styles.timestamp, isOwn ? { color: '#dbeafe' } : { color: muted }]}>
-            {timestamp} {isOwn && item.status === 'read' && '✓✓'}
-            {isOwn && item.status === 'delivered' && '✓'}
+          <ThemedText
+            style={[
+              styles.timestamp,
+              isOwn ? { color: '#dbeafe' } : { color: muted },
+            ]}
+          >
+            {timestamp}
+            {isOwn && item.status === 'sending' && ' Â·Â·Â·'}
+            {isOwn && item.status === 'sent' && ' âœ“'}
+            {isOwn && item.status === 'delivered' && ' âœ“âœ“'}
+            {isOwn && item.status === 'read' && ' âœ“âœ“'}
           </ThemedText>
         </View>
       </View>
     );
   };
 
+  // â”€â”€ Loading â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
   if (loading) {
     return (
       <ThemedView style={styles.container}>
-        <ActivityIndicator size="large" color={tint} style={{ marginTop: 50 }} />
+        <View style={[styles.header, { backgroundColor: tint }]}>
+          <AppBackButton onPress={() => router.back()} variant="tint" />
+          <View style={styles.headerTitle}>
+            <ThemedText style={{ color: '#fff', fontSize: 16, fontWeight: '600' }}>
+              {otherUserFirstName}
+            </ThemedText>
+          </View>
+          <View style={styles.headerActions} />
+        </View>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <ActivityIndicator size="large" color={tint} />
+          <ThemedText style={{ color: muted, marginTop: 12, fontSize: 13 }}>
+            Connecting to Stream Chatâ€¦
+          </ThemedText>
+        </View>
       </ThemedView>
     );
   }
+
+  // â”€â”€ Main render â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   return (
     <ThemedView style={styles.container}>
@@ -536,15 +679,17 @@ export default function ChatConversation() {
         <View style={styles.headerTitle}>
           <View style={styles.headerProfileRow}>
             <View style={styles.headerAvatar}>
-              <ThemedText style={styles.headerAvatarText}>{initials(otherUserName)}</ThemedText>
+              <ThemedText style={styles.headerAvatarText}>
+                {initials(otherUserName)}
+              </ThemedText>
             </View>
             <View style={{ flex: 1 }}>
-          <ThemedText style={{ color: '#fff', fontSize: 16, fontWeight: '600' }}>
-            {otherUserName}
-          </ThemedText>
-          <ThemedText style={{ color: '#e5e7eb', fontSize: 12 }}>
-            {otherUserPhone || otherUserAvatar}
-          </ThemedText>
+              <ThemedText style={{ color: '#fff', fontSize: 16, fontWeight: '600' }}>
+                {otherUserFirstName}
+              </ThemedText>
+              <ThemedText style={{ color: '#e5e7eb', fontSize: 12 }}>
+                {demoMode ? 'Demo conversation' : streamError ? 'Stream not configured' : otherUserEmail || otherUserPhone || ''}
+              </ThemedText>
             </View>
           </View>
         </View>
@@ -555,16 +700,49 @@ export default function ChatConversation() {
         </View>
       </View>
 
+      {/* Demo banner â€” only for explicit demo sessions */}
+      {demoMode && (
+        <View style={[styles.infoBanner, { backgroundColor: `${tint}18` }]}>
+          <Ionicons name="flask-outline" size={14} color={tint} />
+          <ThemedText style={[styles.infoBannerText, { color: tint }]}>
+            Demo mode â€” messages are local only. Select a real profile to start live chat.
+          </ThemedText>
+        </View>
+      )}
+
+      {/* Stream error banner â€” for real users when Stream keys are missing */}
+      {streamError && !demoMode && (
+        <View style={[styles.infoBanner, { backgroundColor: '#FEF3C7' }]}>
+          <Ionicons name="warning-outline" size={14} color="#D97706" />
+          <ThemedText style={[styles.infoBannerText, { color: '#92400E' }]} numberOfLines={4}>
+            {streamError}
+          </ThemedText>
+        </View>
+      )}
+
       <KeyboardAvoidingView
-        behavior="padding"
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+        keyboardVerticalOffset={0}
       >
+        {/* Empty state for real chats with no messages yet */}
+        {!demoMode && !streamError && messages.length === 0 && (
+          <View style={styles.emptyState}>
+            <Ionicons name="chatbubbles-outline" size={48} color={muted} style={{ marginBottom: 12 }} />
+            <ThemedText style={[styles.emptyStateTitle, { color: muted }]}>
+              No messages yet
+            </ThemedText>
+            <ThemedText style={[styles.emptyStateSubtitle, { color: muted }]}>
+              Send the first message to start the conversation with {otherUserName}
+            </ThemedText>
+          </View>
+        )}
+
         <FlatList
           ref={flatListRef}
           data={messages}
           renderItem={renderMessage}
-          keyExtractor={(item) => item.message_id}
+          keyExtractor={(item) => item.id}
           contentContainerStyle={styles.messagesList}
           keyboardShouldPersistTaps="handled"
           onContentSizeChange={() =>
@@ -572,44 +750,53 @@ export default function ChatConversation() {
           }
         />
 
-        {/* Input Area */}
-        <View style={[styles.inputArea, { backgroundColor: card, borderTopColor: muted }]}>
-          <Pressable onPress={() => setShowMediaOptions((prev) => !prev)} disabled={sending}>
+        {/* Input â€” disabled when Stream error for real users */}
+        <View style={[styles.inputArea, { backgroundColor: card, borderTopColor: muted, paddingBottom: keyboardVisible ? 18 : Math.max(insets.bottom, 12) }]}>
+          {/* Attach menu popup */}
+          {showAttachMenu && (
+            <View style={[styles.attachMenu, { backgroundColor: card }]}>
+              <Pressable onPress={handleSendImage} style={styles.attachOption}>
+                <Ionicons name="image-outline" size={22} color={tint} />
+                <ThemedText style={[styles.attachOptionText, { color: tint }]}>Photo</ThemedText>
+              </Pressable>
+              <Pressable onPress={handleSendVideo} style={styles.attachOption}>
+                <Ionicons name="videocam-outline" size={22} color={tint} />
+                <ThemedText style={[styles.attachOptionText, { color: tint }]}>Video</ThemedText>
+              </Pressable>
+            </View>
+          )}
+          <Pressable
+            onPress={() => setShowAttachMenu((v) => !v)}
+            disabled={sending || (!!streamError && !demoMode)}
+          >
             <Ionicons
-              name={showMediaOptions ? 'close' : 'add'}
-              size={24}
-              color={sending ? muted : tint}
+              name={showAttachMenu ? "close-circle-outline" : "add-circle-outline"}
+              size={26}
+              color={sending || (!!streamError && !demoMode) ? muted : tint}
               style={styles.inputIcon}
             />
           </Pressable>
-          {showMediaOptions ? (
-            <View style={[styles.mediaOptionsMenu, { backgroundColor: card, borderColor: muted }]}>
-              <Pressable style={styles.mediaOptionBtn} onPress={handleSendImage} disabled={sending}>
-                <Ionicons name="image" size={18} color={tint} />
-                <ThemedText style={styles.mediaOptionText}>Image</ThemedText>
-              </Pressable>
-              <Pressable style={styles.mediaOptionBtn} onPress={handleSendVideo} disabled={sending}>
-                <Ionicons name="videocam" size={18} color={tint} />
-                <ThemedText style={styles.mediaOptionText}>Video</ThemedText>
-              </Pressable>
-            </View>
-          ) : null}
           <TextInput
-            style={[
-              styles.input,
-              { color: text, borderColor: muted },
-            ]}
-            placeholder="Message..."
+            style={[styles.input, { color: text, borderColor: muted }]}
+            placeholder={
+              streamError && !demoMode
+                ? 'Stream Chat not configuredâ€¦'
+                : demoMode
+                ? 'Type a message (demo)â€¦'
+                : 'Messageâ€¦'
+            }
             placeholderTextColor={muted}
             value={inputText}
             onChangeText={setInputText}
-            editable={!sending}
+            editable={!sending && !(!!streamError && !demoMode)}
             multiline
-            onFocus={() => setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 120)}
+            onFocus={() =>
+              setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 120)
+            }
           />
           <Pressable
             onPress={handleSendMessage}
-            disabled={!inputText.trim() || sending}
+            disabled={!inputText.trim() || sending || (!!streamError && !demoMode)}
             style={styles.sendButton}
           >
             {sending ? (
@@ -618,13 +805,14 @@ export default function ChatConversation() {
               <Ionicons
                 name="send"
                 size={20}
-                color={inputText.trim() ? tint : muted}
+                color={inputText.trim() && !(!!streamError && !demoMode) ? tint : muted}
               />
             )}
           </Pressable>
         </View>
       </KeyboardAvoidingView>
 
+      {/* Full-screen image viewer */}
       <Modal
         visible={!!imageViewerUri}
         transparent
@@ -639,23 +827,23 @@ export default function ChatConversation() {
           >
             <Ionicons name="close" size={28} color="#fff" />
           </Pressable>
-          {imageViewerUri ? (
+          {imageViewerUri && (
             <Image
               source={{ uri: imageViewerUri }}
               style={styles.lightboxImage}
               resizeMode="contain"
             />
-          ) : null}
+          )}
         </View>
       </Modal>
     </ThemedView>
   );
 }
 
+// â”€â”€ Styles â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
+  container: { flex: 1 },
   header: {
     paddingTop: 54,
     paddingBottom: 14,
@@ -664,22 +852,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  backButton: {
-    width: 44,
-    height: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerTitle: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'flex-start',
-  },
-  headerProfileRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    maxWidth: '100%',
-  },
+  headerTitle: { flex: 1, justifyContent: 'center', alignItems: 'flex-start' },
+  headerProfileRow: { flexDirection: 'row', alignItems: 'center', maxWidth: '100%' },
   headerAvatar: {
     width: 38,
     height: 38,
@@ -689,39 +863,33 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.22)',
     marginRight: 10,
   },
-  headerAvatarText: {
-    color: '#fff',
-    fontSize: 13,
-    fontWeight: '800',
-  },
-  headerActions: {
-    width: 44,
+  headerAvatarText: { color: '#fff', fontSize: 13, fontWeight: '800' },
+  headerActions: { width: 44, flexDirection: 'row', justifyContent: 'flex-end', gap: 6 },
+  headerActionBtn: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
+  infoBanner: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
+    alignItems: 'flex-start',
     gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
   },
-  headerActionBtn: {
-    width: 32,
-    height: 32,
+  infoBannerText: {
+    fontSize: 12,
+    flex: 1,
+    lineHeight: 17,
+  },
+  emptyState: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: 36,
   },
-  messagesList: {
-    paddingHorizontal: 12,
-    paddingTop: 22,
-    paddingBottom: 18,
-  },
-  messageRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    marginBottom: 10,
-  },
-  ownMessageRow: {
-    justifyContent: 'flex-end',
-  },
-  otherMessageRow: {
-    justifyContent: 'flex-start',
-  },
+  emptyStateTitle: { fontSize: 18, fontWeight: '700', marginBottom: 8 },
+  emptyStateSubtitle: { fontSize: 14, textAlign: 'center', lineHeight: 20 },
+  messagesList: { paddingHorizontal: 12, paddingTop: 22, paddingBottom: 18 },
+  messageRow: { flexDirection: 'row', alignItems: 'flex-end', marginBottom: 10 },
+  ownMessageRow: { justifyContent: 'flex-end' },
+  otherMessageRow: { justifyContent: 'flex-start' },
   messageAvatar: {
     width: 30,
     height: 30,
@@ -731,10 +899,7 @@ const styles = StyleSheet.create({
     marginRight: 7,
     marginBottom: 15,
   },
-  messageAvatarText: {
-    fontSize: 11,
-    fontWeight: '800',
-  },
+  messageAvatarText: { fontSize: 11, fontWeight: '800' },
   messageBubble: {
     maxWidth: '78%',
     paddingHorizontal: 12,
@@ -742,71 +907,72 @@ const styles = StyleSheet.create({
     paddingBottom: 7,
     borderRadius: 18,
   },
-  senderLabel: {
-    fontSize: 11,
-    fontWeight: '600',
-    marginBottom: 4,
-  },
-  messageText: {
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  mediaWrap: {
-    minWidth: 180,
-  },
+  senderLabel: { fontSize: 11, fontWeight: '600', marginBottom: 4 },
+  messageText: { fontSize: 14, lineHeight: 20 },
   mediaPreview: {
     width: 180,
     height: 140,
     borderRadius: 10,
     backgroundColor: '#e5e7eb',
   },
-  mediaCaption: {
-    marginTop: 6,
-    fontSize: 13,
+  videoBubble: {
+    width: 180,
+    borderRadius: 10,
+    overflow: 'hidden',
   },
-  timestamp: {
-    fontSize: 10,
-    marginTop: 5,
-    alignSelf: 'flex-end',
+  videoThumb: {
+    width: 180,
+    height: 130,
+    backgroundColor: '#1e293b',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
+  videoLabel: {
+    fontSize: 11,
+    paddingVertical: 5,
+    paddingHorizontal: 8,
+    textAlign: 'center',
+    opacity: 0.75,
+  },
+  attachMenu: {
+    position: 'absolute',
+    bottom: '100%',
+    left: 8,
+    flexDirection: 'row',
+    gap: 6,
+    padding: 8,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#f1d6e2',
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 4,
+    zIndex: 10,
+  },
+  attachOption: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    backgroundColor: '#fdf2f8',
+    gap: 4,
+  },
+  attachOptionText: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  timestamp: { fontSize: 10, marginTop: 5, alignSelf: 'flex-end' },
   inputArea: {
     paddingHorizontal: 12,
-    paddingTop: 10,
-    paddingBottom: Platform.select({ ios: 18, android: 12, default: 12 }),
+    paddingTop: 12,
     borderTopWidth: 1,
     flexDirection: 'row',
     alignItems: 'flex-end',
     gap: 10,
   },
-  inputIcon: {
-    marginBottom: 6,
-  },
-  mediaOptionsMenu: {
-    position: 'absolute',
-    left: 12,
-    bottom: 62,
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingVertical: 6,
-    minWidth: 130,
-    zIndex: 20,
-    elevation: 8,
-    shadowColor: '#000',
-    shadowOpacity: 0.12,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-  },
-  mediaOptionBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  mediaOptionText: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
+  inputIcon: { marginBottom: 6 },
   input: {
     flex: 1,
     borderWidth: 1,
@@ -831,14 +997,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 12,
   },
-  lightboxClose: {
-    position: 'absolute',
-    right: 14,
-    zIndex: 10,
-    padding: 8,
-  },
-  lightboxImage: {
-    width: '100%',
-    height: '88%',
-  },
+  lightboxClose: { position: 'absolute', right: 14, zIndex: 10, padding: 8 },
+  lightboxImage: { width: '100%', height: '88%' },
 });

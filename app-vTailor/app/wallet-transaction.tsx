@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { SURFACE_MUTED, TEXT_DARK, UI } from '@/constants/ui';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useMemo, useState } from 'react';
-import { Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Linking, Pressable, ScrollView, KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/contexts/AuthContext';
 import { confirmWalletTransaction, createWalletTransaction, failWalletTransaction, getWalletSummary } from '@/services/walletApi';
@@ -195,7 +195,8 @@ const WalletTransactionScreen = () => {
 
   return (
     <View style={[styles.container, { paddingTop: Math.max(insets.top + 10, 28) }]}>
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }} keyboardVerticalOffset={0}>
+        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         <View style={styles.headerRow}>
           <Pressable onPress={() => router.replace(walletPath as any)} style={styles.backBtn}>
             <Ionicons name="chevron-back" size={24} color={TEXT_DARK} />
@@ -343,6 +344,7 @@ const WalletTransactionScreen = () => {
           </Pressable>
         )}
       </ScrollView>
+      </KeyboardAvoidingView>
     </View>
   );
 };

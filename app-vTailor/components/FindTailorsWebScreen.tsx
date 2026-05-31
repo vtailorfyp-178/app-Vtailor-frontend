@@ -15,8 +15,10 @@ import { ThemedView } from '@/components/themed-view';
 import { ThemedText } from '@/components/themed-text';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { useAuth } from '@/contexts/AuthContext';
-import { Conversations, setAuthToken } from '@/services/conversationApi';
+import { Ionicons } from '@expo/vector-icons';
+import { fetchOrCreateStreamChannel } from '@/services/streamChatService';
 import { getNearbyTailors, type NearbyTailor } from '@/services/tailorsApi';
+import { searchUsers, type UserSearchResult } from '@/services/usersApi';
 
 type SortMode = 'distance' | 'rating' | 'reviews';
 type PriceRange = 'all' | 'budget' | 'mid' | 'premium';
@@ -39,6 +41,109 @@ function priceBounds(range: PriceRange): { min?: number; max?: number } {
   return {};
 }
 
+const DEMO_TAILORS: NearbyTailor[] = [
+  {
+    user_id: 'demo_tailor_1',
+    name: 'Ustad Imran Darzi',
+    email: 'imran.darzi@demo.vtailor',
+    shop_name: 'Imran Fashion House',
+    address: 'Gulberg III, Lahore',
+    bio: 'Expert in bridal and formal wear with 15+ years experience.',
+    working_hours: 'Mon–Sat: 10am – 8pm',
+    phone: '+923001234567',
+    avatar: null,
+    specialization: ['Bridal', 'Formal', 'Sherwani'],
+    experience: '15 years',
+    rating: 4.8,
+    review_count: 124,
+    price_from: 2500,
+    price_to: 15000,
+    is_available: true,
+    location: { latitude: 31.5204, longitude: 74.3587 },
+    distance_km: 1.2,
+  },
+  {
+    user_id: 'demo_tailor_2',
+    name: 'Nasreen Khayyat',
+    email: 'nasreen.khayyat@demo.vtailor',
+    shop_name: 'Nasreen Boutique',
+    address: 'Model Town, Lahore',
+    bio: 'Specialising in ladies suits, lehengas, and party wear.',
+    working_hours: 'Mon–Sun: 11am – 9pm',
+    phone: '+923211234567',
+    avatar: null,
+    specialization: ['Ladies Suits', 'Party Wear', 'Lehenga'],
+    experience: '10 years',
+    rating: 4.6,
+    review_count: 87,
+    price_from: 1800,
+    price_to: 9000,
+    is_available: true,
+    location: { latitude: 31.4840, longitude: 74.3292 },
+    distance_km: 2.4,
+  },
+  {
+    user_id: 'demo_tailor_3',
+    name: 'Ali Hassan Tailor',
+    email: 'ali.hassan@demo.vtailor',
+    shop_name: 'Hassan Tailors',
+    address: 'DHA Phase 5, Lahore',
+    bio: 'Gents specialist — suits, shalwar kameez, and western formals.',
+    working_hours: 'Mon–Sat: 9am – 7pm',
+    phone: '+923451234567',
+    avatar: null,
+    specialization: ['Gents Suits', 'Shalwar Kameez', 'Formals'],
+    experience: '8 years',
+    rating: 4.4,
+    review_count: 63,
+    price_from: 1200,
+    price_to: 6000,
+    is_available: false,
+    location: { latitude: 31.4713, longitude: 74.4049 },
+    distance_km: 3.1,
+  },
+  {
+    user_id: 'demo_tailor_4',
+    name: 'Rabia Mirza',
+    email: 'rabia.mirza@demo.vtailor',
+    shop_name: 'Rabia Couture',
+    address: 'Johar Town, Lahore',
+    bio: 'Premium bridal and couture designer with unique embroidery work.',
+    working_hours: 'Tue–Sun: 10am – 8pm',
+    phone: '+923311234567',
+    avatar: null,
+    specialization: ['Bridal', 'Couture', 'Embroidery'],
+    experience: '12 years',
+    rating: 4.9,
+    review_count: 201,
+    price_from: 5000,
+    price_to: 35000,
+    is_available: true,
+    location: { latitude: 31.4677, longitude: 74.2699 },
+    distance_km: 4.5,
+  },
+  {
+    user_id: 'demo_tailor_5',
+    name: 'Tariq Budget Tailors',
+    email: 'tariq.bunai@demo.vtailor',
+    shop_name: 'Tariq Tailors',
+    address: 'Badami Bagh, Lahore',
+    bio: 'Affordable stitching for all occasions. Alterations available.',
+    working_hours: 'Mon–Sat: 8am – 6pm',
+    phone: '+923561234567',
+    avatar: null,
+    specialization: ['Alterations', 'Budget', 'Traditional'],
+    experience: '20 years',
+    rating: 4.1,
+    review_count: 310,
+    price_from: 500,
+    price_to: 2500,
+    is_available: true,
+    location: { latitude: 31.5765, longitude: 74.3249 },
+    distance_km: 5.8,
+  },
+];
+
 export default function FindTailorsWebScreen() {
   const router = useRouter();
   const { token, userId } = useAuth();
@@ -59,6 +164,17 @@ export default function FindTailorsWebScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [errorText, setErrorText] = useState<string | null>(null);
+  const [dbTailors, setDbTailors] = useState<UserSearchResult[]>([]);
+  const [dbLoading, setDbLoading] = useState(false);
+
+  const displayTailors = useMemo(() => {
+    if (tailors.length > 0) return tailors;
+    if (!query.trim()) return DEMO_TAILORS;
+    const q = query.toLowerCase();
+    return DEMO_TAILORS.filter(
+      (t) => t.name.toLowerCase().includes(q) || t.specialization.some((s) => s.toLowerCase().includes(q))
+    );
+  }, [tailors, query]);
 
   const specialtyOptions = useMemo(() => {
     const set = new Set<string>();
@@ -92,9 +208,28 @@ export default function FindTailorsWebScreen() {
         sortBy,
         limit: 80,
       });
-      setTailors(data.results || []);
+      const results = data.results || [];
+      setTailors(results);
+      // If no GPS results, fall back to DB search automatically
+      if (results.length === 0 && token) {
+        setDbLoading(true);
+        searchUsers(token, query, 'tailor', 30)
+          .then(setDbTailors)
+          .catch(() => setDbTailors([]))
+          .finally(() => setDbLoading(false));
+      } else {
+        setDbTailors([]);
+      }
     } catch {
-      setErrorText('Unable to load nearby tailors right now.');
+      setErrorText('Unable to load nearby tailors. Showing all tailors from database.');
+      // On error, still try DB search
+      if (token) {
+        setDbLoading(true);
+        searchUsers(token, query, 'tailor', 30)
+          .then(setDbTailors)
+          .catch(() => setDbTailors([]))
+          .finally(() => setDbLoading(false));
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -105,20 +240,29 @@ export default function FindTailorsWebScreen() {
     loadTailors();
   }, [loadTailors]);
 
-  const onMessagePress = async (tailor: NearbyTailor) => {
-    if (!token || !userId) return;
+  // DB search when user types (query debounce handled by useCallback dep)
+  useEffect(() => {
+    if (!token) return;
+    setDbLoading(true);
+    searchUsers(token, query, 'tailor', 30)
+      .then(setDbTailors)
+      .catch(() => setDbTailors([]))
+      .finally(() => setDbLoading(false));
+  }, [query, token]);
 
+  const onMessagePressDb = async (tailor: UserSearchResult) => {
+    if (!token || !userId) return;
     try {
-      setAuthToken(token);
-      const conversation = await Conversations.getOrCreate(tailor.user_id, userId);
+      const channel = await fetchOrCreateStreamChannel(token, tailor.user_id, userId);
       router.push({
         pathname: '/customer/chat-conversation',
         params: {
-          conversation_id: conversation.conversation_id,
-          id: conversation.conversation_id,
+          stream_channel_id: channel.channel_id,
+          stream_cid: channel.cid,
+          id: channel.channel_id,
           otherUserId: tailor.user_id,
-          otherUserName: tailor.name,
-          otherUserAvatar: tailor.avatar || initials(tailor.name),
+          otherUserName: tailor.name || 'Tailor',
+          otherUserEmail: tailor.email || '',
           otherUserPhone: tailor.phone || '',
         },
       });
@@ -127,11 +271,57 @@ export default function FindTailorsWebScreen() {
         pathname: '/customer/chat-conversation',
         params: {
           tailorId: tailor.user_id,
+          id: `real-${tailor.user_id}`,
+          otherUserId: tailor.user_id,
+          otherUserName: tailor.name || 'Tailor',
+          otherUserEmail: tailor.email || '',
+          otherUserPhone: tailor.phone || '',
+        },
+      });
+    }
+  };
+
+  const onMessagePress = async (tailor: NearbyTailor) => {
+    if (!token || !userId) return;
+
+    if (tailor.user_id.startsWith('demo_')) {
+      router.push({
+        pathname: '/customer/chat-conversation',
+        params: {
+          id: `demo-${tailor.user_id}`,
           otherUserId: tailor.user_id,
           otherUserName: tailor.name,
-          otherUserAvatar: tailor.avatar || initials(tailor.name),
+          otherUserEmail: tailor.email || '',
           otherUserPhone: tailor.phone || '',
-          demo: '1',
+        },
+      });
+      return;
+    }
+
+    try {
+      const channel = await fetchOrCreateStreamChannel(token, tailor.user_id, userId);
+      router.push({
+        pathname: '/customer/chat-conversation',
+        params: {
+          stream_channel_id: channel.channel_id,
+          stream_cid: channel.cid,
+          id: channel.channel_id,
+          otherUserId: tailor.user_id,
+          otherUserName: tailor.name,
+          otherUserEmail: tailor.email || '',
+          otherUserPhone: tailor.phone || '',
+        },
+      });
+    } catch {
+      // Fallback: navigate with tailorId so chat-conversation can create the channel directly
+      router.push({
+        pathname: '/customer/chat-conversation',
+        params: {
+          tailorId: tailor.user_id,
+          otherUserId: tailor.user_id,
+          otherUserName: tailor.name,
+          otherUserEmail: tailor.email || '',
+          otherUserPhone: tailor.phone || '',
         },
       });
     }
@@ -207,6 +397,24 @@ export default function FindTailorsWebScreen() {
         >
           <ThemedText style={styles.actionText}>View</ThemedText>
         </Pressable>
+        <Pressable
+          style={[styles.actionBtn, { borderColor: tint }]}
+          onPress={() =>
+            (router as any).push({
+              pathname: '/customer/place-order',
+              params: {
+                tailorId:       item.user_id,
+                tailorName:     item.name,
+                specialization: (item.specialization || []).join(','),
+                rating:         String(item.rating),
+                priceFrom:      String(item.price_from || ''),
+                priceTo:        String(item.price_to || ''),
+              },
+            })
+          }
+        >
+          <ThemedText style={[styles.actionText, { color: tint }]}>Order</ThemedText>
+        </Pressable>
         <Pressable style={[styles.actionBtnFilled, { backgroundColor: tint }]} onPress={() => onMessagePress(item)}>
           <ThemedText style={[styles.actionText, { color: '#fff' }]}>Message</ThemedText>
         </Pressable>
@@ -256,12 +464,34 @@ export default function FindTailorsWebScreen() {
         </View>
       )}
 
-      {!loading && !errorText && (
+      {!loading && !errorText && displayTailors.length > 0 && tailors.length > 0 && (
         <FlatList
-          data={tailors}
+          data={displayTailors}
           keyExtractor={(item) => item.user_id}
           renderItem={renderTailorCard}
           contentContainerStyle={{ paddingHorizontal: 12, paddingBottom: 16 }}
+          onRefresh={() => loadTailors(true)}
+          refreshing={refreshing}
+        />
+      )}
+
+      {!loading && tailors.length === 0 && (
+        <FlatList
+          data={displayTailors}
+          keyExtractor={(item) => item.user_id}
+          renderItem={renderTailorCard}
+          ListHeaderComponent={
+            dbTailors.length > 0 ? (
+              <View style={[styles.dbSectionHeader, { borderColor: inputBorder }]}>
+                <Ionicons name="people-circle-outline" size={16} color={tint} />
+                <ThemedText style={[styles.dbSectionTitle, { color: tint }]}>
+                  {query ? `Tailors matching "${query}" in database` : 'All registered tailors'}
+                </ThemedText>
+                {dbLoading && <ActivityIndicator size="small" color={tint} style={{ marginLeft: 6 }} />}
+              </View>
+            ) : null
+          }
+          contentContainerStyle={{ paddingHorizontal: 12, paddingBottom: 24 }}
           onRefresh={() => loadTailors(true)}
           refreshing={refreshing}
         />
@@ -335,6 +565,23 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 10,
     alignItems: 'center',
+  },
+  dbSectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 10,
+    borderTopWidth: 1,
+  },
+  dbSectionTitle: { fontSize: 13, fontWeight: '700', flex: 1 },
+  dbCard: {
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: 12,
+    marginHorizontal: 12,
+    marginBottom: 12,
   },
   actionBtnFilled: {
     flex: 1,

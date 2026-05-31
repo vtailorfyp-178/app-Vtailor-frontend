@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, Alert, Image } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, Alert, Image, KeyboardAvoidingView, Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/contexts/AuthContext';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { ThemedText } from '@/components/themed-text';
@@ -18,6 +19,7 @@ export default function TailorProfileEdit() {
   const tint = useThemeColor({}, 'tint');
   const inputBorder = useThemeColor({}, 'inputBorder');
   const muted = useThemeColor({}, 'muted');
+  const insets = useSafeAreaInsets();
 
   const [profileImage, setProfileImage] = useState<string | null>(user?.avatar ?? null);
   const [name, setName] = useState(user?.name || '');
@@ -126,7 +128,8 @@ export default function TailorProfileEdit() {
           <View style={styles.headerButton} />
         </View>
 
-        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }} keyboardVerticalOffset={0}>
+          <ScrollView contentContainerStyle={[styles.content, { paddingBottom: Math.max(insets.bottom + 16, 40) }]} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
           {/* Profile Image */}
           <View style={styles.profileImageSection}>
             <View style={[styles.profileImageBox, { backgroundColor: cardBg }]}>
@@ -231,7 +234,8 @@ export default function TailorProfileEdit() {
           </Pressable>
 
           <View style={{ height: 40 }} />
-        </ScrollView>
+          </ScrollView>
+        </KeyboardAvoidingView>
       </View>
     </ProtectedRoute>
   );

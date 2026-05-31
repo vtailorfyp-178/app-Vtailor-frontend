@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, Image, Pressable, TextInput, ScrollView, Platform, Alert } from 'react-native';
+import { View, StyleSheet, Image, Pressable, TextInput, ScrollView, Platform, Alert, KeyboardAvoidingView } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -149,6 +150,7 @@ export default function ProfileSetup() {
   const avatarBg = useThemeColor({}, 'card');
   const avatarBtn = rolePrimary;
   const chipActiveBg = rolePrimary;
+  const insets = useSafeAreaInsets();
 
   return (
     <ThemedView style={styles.container}>
@@ -164,8 +166,8 @@ export default function ProfileSetup() {
         <ThemedText style={[styles.subtitle, { color: muted }]}>{isTailor ? 'Build a trusted storefront for customers' : 'Tell tailors how to reach and serve you'}</ThemedText>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-        <View style={[styles.avatarRow, { backgroundColor: '#fff', borderColor: roleBorder }]}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }} keyboardVerticalOffset={0}>
+        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">        <View style={[styles.avatarRow, { backgroundColor: '#fff', borderColor: roleBorder }]}>
           <View style={[styles.avatarPlaceholder, { backgroundColor: avatarBg, borderColor: rolePrimary, borderWidth: 2 }]}>
             {profileImage ? <Image source={{ uri: profileImage }} style={styles.avatarImage} /> : <Ionicons name="person-outline" size={34} color={roleText} />}
           </View>
@@ -267,13 +269,14 @@ export default function ProfileSetup() {
             </View>
           </View>
         )}
-      </ScrollView>
+        </ScrollView>
 
-      <View style={styles.footer}>
-        <Pressable onPress={handleSubmit} style={[styles.button, { backgroundColor: rolePrimary }, (!formData.name || !formData.address) && styles.buttonDisabled]} disabled={!formData.name || !formData.address}>
-          <ThemedText style={[styles.buttonText, isTailor && { color: roleText }]}>Complete Setup</ThemedText>
-        </Pressable>
-      </View>
+        <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 16) }]}>
+          <Pressable onPress={handleSubmit} style={[styles.button, { backgroundColor: rolePrimary }, (!formData.name || !formData.address) && styles.buttonDisabled]} disabled={!formData.name || !formData.address}>
+            <ThemedText style={[styles.buttonText, isTailor && { color: roleText }]}>Complete Setup</ThemedText>
+          </Pressable>
+        </View>
+      </KeyboardAvoidingView>
     </ThemedView>
   );
 }
@@ -309,7 +312,7 @@ const styles = StyleSheet.create({
   roleBadgeText: { fontSize: 11, fontWeight: '900' },
   title: { color: TEXT_DARK, fontSize: 28, fontWeight: '900', textAlign: 'center' },
   subtitle: { marginTop: 6, color: '#6b7280', textAlign: 'center', fontSize: 13, fontWeight: '600', lineHeight: 19 },
-  scroll: { padding: 20, paddingTop: 8, paddingBottom: 124 },
+  scroll: { padding: 20, paddingTop: 8, paddingBottom: 20 },
   avatarRow: {
     alignItems: 'center',
     marginBottom: 16,
@@ -344,7 +347,7 @@ const styles = StyleSheet.create({
   chipTextActive: { color: '#fff', fontWeight: '800', fontSize: 12 },
   sampleGrid: { flexDirection: 'row', justifyContent: 'space-between' },
   sampleBox: { width: '30%', aspectRatio: 1, borderRadius: 16, backgroundColor: '#f3f4f6', alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
-  footer: { position: 'absolute', left: 0, right: 0, bottom: 0, padding: 16, borderTopWidth: 1, borderColor: '#fce7f3', backgroundColor: '#fff' },
+  footer: { padding: 16, borderTopWidth: 1, borderColor: '#fce7f3', backgroundColor: '#fff' },
   button: { paddingVertical: 15, borderRadius: 16, alignItems: 'center', ...UI.softShadow },
   buttonDisabled: { opacity: 0.55 },
   buttonText: { color: '#fff', fontWeight: '900', fontSize: 15 },

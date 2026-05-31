@@ -3,19 +3,27 @@ import { SURFACE_MUTED, TEXT_DARK, UI } from '@/constants/ui';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { ThemedText } from './themed-text';
+import { getUnreadCount } from '@/services/notificationsApi';
 
 const CustomerHome = () => {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const tint = useThemeColor({}, 'tint');
   const muted = useThemeColor({}, 'muted');
   const card = useThemeColor({}, 'card');
   const inputBorder = useThemeColor({}, 'inputBorder');
   const iconBg = useThemeColor({}, 'iconBg');
   const textColor = useThemeColor({}, 'text');
+
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    if (!token) return;
+    getUnreadCount(token).then(setUnreadCount).catch(() => {});
+  }, [token]);
 
   const quickActions = [
     { label: 'Customize', icon: 'color-palette-outline', route: '/customer/select2d' },
@@ -57,9 +65,13 @@ const CustomerHome = () => {
         <Pressable onPress={() => (router as any).push('/customer/notifications')} style={styles.notificationPress}>
           <View style={[styles.notificationBtn, { backgroundColor: iconBg }]}>
             <Ionicons name="notifications-outline" size={21} color={tint} />
-            <View style={styles.notificationBadge}>
-              <ThemedText style={{ color: '#fff', fontSize: 11, fontWeight: '600' }}>3</ThemedText>
-            </View>
+            {unreadCount > 0 && (
+              <View style={styles.notificationBadge}>
+                <ThemedText style={{ color: '#fff', fontSize: 11, fontWeight: '600' }}>
+                  {unreadCount > 99 ? '99+' : String(unreadCount)}
+                </ThemedText>
+              </View>
+            )}
           </View>
         </Pressable>
       </View>

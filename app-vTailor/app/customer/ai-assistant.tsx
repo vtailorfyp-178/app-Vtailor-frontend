@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, ScrollView, TextInput, Pressable, StyleSheet, KeyboardAvoidingView, Platform, ActivityIndicator, Alert } from 'react-native';
+import { View, ScrollView, TextInput, Pressable, StyleSheet, KeyboardAvoidingView, Platform, ActivityIndicator, Alert, Keyboard } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ThemedText } from '@/components/themed-text';
@@ -26,7 +27,7 @@ type Message = {
 const welcomeMessage: Message = {
   id: 'welcome-1',
   sender: 'ai',
-  text: "Hello, I'm your V Tailor AI assistant. I can help you with:\n\n• Design suggestions\n• Measurement guidance\n• Fabric recommendations\n• Style advice\n\nHow can I assist you today?",
+  text: "Hello! Main hoon Vogue, aapki AI Style Assistant.\n\nMain in sab mein aapki madad kar sakti hoon:\n• Design suggestions aur outfit ideas\n• Measurement guidance\n• Fabric recommendations\n• Style advice for any occasion\n\nAap mujhse English ya Roman Urdu mein poochh sakte hain — dono samajhti hoon!\n\nKya poochh na chahenge?",
   timestamp: 'Just now',
 };
 
@@ -50,6 +51,7 @@ export default function AIStyleAssistant() {
   const router = useRouter();
   const params = useLocalSearchParams<{ sessionId?: string }>();
   const { user, loginEmail } = useAuth();
+  const insets = useSafeAreaInsets();
   const tint = useThemeColor({}, 'tint');
   const muted = useThemeColor({}, 'muted');
   const card = useThemeColor({}, 'card');
@@ -58,6 +60,7 @@ export default function AIStyleAssistant() {
 
   const [message, setMessage] = useState('');
   const [messages, setMessages] = useState<Message[]>([welcomeMessage]);
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(
     typeof params.sessionId === 'string' ? params.sessionId : null
   );
@@ -78,6 +81,20 @@ export default function AIStyleAssistant() {
     // scroll to bottom when messages change
     setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 120);
   }, [messages]);
+
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const showSub = Keyboard.addListener(showEvent, () => {
+      setKeyboardVisible(true);
+      setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 150);
+    });
+    const hideSub = Keyboard.addListener(hideEvent, () => setKeyboardVisible(false));
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -349,9 +366,9 @@ export default function AIStyleAssistant() {
       </View>
 
       <KeyboardAvoidingView
-        behavior="padding"
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardArea}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 12 : 0}
+        keyboardVerticalOffset={0}
       >
         {historyLoading ? (
           <View style={[styles.messages, styles.loaderWrap]}>
@@ -403,11 +420,11 @@ export default function AIStyleAssistant() {
           </View>
         )}
 
-        <View style={[styles.inputShell, { backgroundColor: card }]}> 
+        <View style={[styles.inputShell, { backgroundColor: card, marginBottom: keyboardVisible ? 10 : Math.max(insets.bottom, 10) }]}> 
           <TextInput
             value={message}
             onChangeText={setMessage}
-            placeholder="Ask me anything..."
+            placeholder="Kuch bhi poochhein... (English ya Urdu)"
             placeholderTextColor={muted}
             style={[styles.input, { color: text }]}
             onSubmitEditing={() => handleSend()}
@@ -458,7 +475,7 @@ const styles = StyleSheet.create({
   quickWrap: { paddingVertical: 8, borderTopWidth: 1, borderColor: '#e6e7eb', backgroundColor: SURFACE_MUTED },
   suggestion: { paddingHorizontal: 14, paddingVertical: 8, marginHorizontal: 6, borderRadius: 999, borderWidth: 1 },
   errorWrap: { paddingHorizontal: 12, paddingVertical: 6, borderTopWidth: 1, borderColor: '#fee2e2', backgroundColor: '#fef2f2' },
-  inputShell: { flexDirection: 'row', alignItems: 'center', padding: 10, marginHorizontal: 12, marginBottom: 10, borderRadius: 22, borderWidth: 1, borderColor: '#f1d6e2', ...UI.shadow },
+  inputShell: { flexDirection: 'row', alignItems: 'center', padding: 10, marginHorizontal: 12, borderRadius: 22, borderWidth: 1, borderColor: '#f1d6e2', ...UI.shadow },
   input: { flex: 1, minHeight: 44, paddingHorizontal: 14, borderRadius: 16, backgroundColor: '#f8fafc', fontSize: 15, color: TEXT_DARK },
   sendBtn: { width: 44, height: 44, borderRadius: 16, marginLeft: 8, alignItems: 'center', justifyContent: 'center' },
 });

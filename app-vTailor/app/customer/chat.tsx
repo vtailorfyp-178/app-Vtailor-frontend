@@ -7,6 +7,7 @@ export default function ChatPage() {
   const router = useRouter();
   const tailorId = typeof params.tailorId === 'string' ? params.tailorId : undefined;
   const tailorName = typeof params.tailorName === 'string' ? params.tailorName : undefined;
+  const tailorPhone = typeof params.tailorPhone === 'string' ? params.tailorPhone : undefined;
 
   useEffect(() => {
     if (!tailorId) return;
@@ -16,9 +17,10 @@ export default function ChatPage() {
         tailorId,
         otherUserId: tailorId,
         otherUserName: tailorName || 'Tailor',
+        ...(tailorPhone ? { otherUserPhone: tailorPhone } : {}),
       },
     });
-  }, [router, tailorId, tailorName]);
+  }, [router, tailorId, tailorName, tailorPhone]);
 
   return <CustomerChat />;
 }

@@ -5,9 +5,11 @@ import AppBackButton from '@/components/AppBackButton';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React, { useMemo, useState } from 'react';
-import { Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { dressPreviewFromOrderDescription } from '@/services/orderDressPreview';
+import { useAuth } from '@/contexts/AuthContext';
+import { getOrders, type Order as ApiOrder } from '@/services/ordersApi';
 
 type OrderStatusFilter = 'All' | 'Active' | 'Delivered' | 'Canceled';
 
@@ -81,44 +83,88 @@ const orders = [
 
 const FILTERS: OrderStatusFilter[] = ['All', 'Active', 'Delivered', 'Canceled'];
 
+// Status helpers shared for both sample and real orders
 const getStatusColors = (status: string) => {
   switch (status) {
-    case 'Delivered':
-      return { bg: '#ecfdf5', color: '#059669' };
-    case 'In Progress':
-      return { bg: '#e0f2fe', color: '#0e7490' };
-    case 'Cutting':
-      return { bg: '#fffbeb', color: '#b45309' };
+    case 'Delivered':   return { bg: '#ecfdf5', color: '#059669' };
+    case 'In Progress': return { bg: '#e0f2fe', color: '#0e7490' };
+    case 'Cutting':     return { bg: '#fffbeb', color: '#b45309' };
     case 'Canceled':
-      return { bg: '#e0f2fe', color: '#0369a1' };
-    default:
-      return { bg: '#f3f4f6', color: '#6b7280' };
+    case 'declined':    return { bg: '#fee2e2', color: '#dc2626' };
+    case 'pending':     return { bg: '#fef3c7', color: '#b45309' };
+    case 'accepted':    return { bg: '#ecfdf5', color: '#059669' };
+    default:            return { bg: '#f3f4f6', color: '#6b7280' };
   }
 };
 
-export default function CustomerOrders() {
-  const bg = useThemeColor({}, 'background');
-  const card = useThemeColor({}, 'card');
-  const router = useRouter();
-  const [selectedFilter, setSelectedFilter] = useState<OrderStatusFilter>('All');
+function apiStatusLabel(s: string) {
+  if (s === 'pending')  return 'Pending';
+  if (s === 'accepted') return 'Accepted';
+  if (s === 'declined') return 'Declined';
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
 
-  const filteredOrders = useMemo(() => {
-    if (selectedFilter === 'All') return orders;
-    if (selectedFilter === 'Active') {
-      return orders.filter((order) => order.status === 'In Progress' || order.status === 'Cutting');
+function isActiveStatus(s: string) {
+  return s === 'In Progress' || s === 'Cutting' || s === 'pending' || s === 'accepted';
+}
+function isDeliveredStatus(s: string) {
+  return s === 'Delivered';
+}
+function isCanceledStatus(s: string) {
+  return s === 'Canceled' || s === 'declined';
+}
+
+export default function CustomerOrders() {
+  const bg   = useThemeColor({}, 'background');
+  const card = useThemeColor({}, 'card');
+  const muted = useThemeColor({}, 'muted');
+  const tint = useThemeColor({}, 'tint');
+  const router = useRouter();
+  const { token } = useAuth();
+
+  const [selectedFilter, setSelectedFilter] = useState<OrderStatusFilter>('All');
+  const [apiOrders, setApiOrders]   = useState<ApiOrder[]>([]);
+  const [loadingApi, setLoadingApi] = useState(false);
+
+  const loadApiOrders = useCallback(async () => {
+    if (!token) return;
+    setLoadingApi(true);
+    try {
+      const data = await getOrders(token);
+      setApiOrders(data);
+    } catch {
+      // silently fall through to sample data
+    } finally {
+      setLoadingApi(false);
     }
-    if (selectedFilter === 'Delivered') {
-      return orders.filter((order) => order.status === 'Delivered');
-    }
-    return orders.filter((order) => order.status === 'Canceled');
+  }, [token]);
+
+  useEffect(() => { loadApiOrders(); }, [loadApiOrders]);
+
+  // ── sample orders filter ────────────────────────────────────────────────────
+  const filteredSamples = useMemo(() => {
+    if (selectedFilter === 'All')       return orders;
+    if (selectedFilter === 'Active')    return orders.filter((o) => isActiveStatus(o.status));
+    if (selectedFilter === 'Delivered') return orders.filter((o) => isDeliveredStatus(o.status));
+    return orders.filter((o) => isCanceledStatus(o.status));
   }, [selectedFilter]);
 
+  // ── api orders filter ───────────────────────────────────────────────────────
+  const filteredApi = useMemo(() => {
+    if (selectedFilter === 'All')       return apiOrders;
+    if (selectedFilter === 'Active')    return apiOrders.filter((o) => isActiveStatus(o.status));
+    if (selectedFilter === 'Delivered') return apiOrders.filter((o) => isDeliveredStatus(o.status));
+    return apiOrders.filter((o) => isCanceledStatus(o.status));
+  }, [selectedFilter, apiOrders]);
+
+  // ── filter counts (combined) ────────────────────────────────────────────────
+  const allOrders  = [...apiOrders, ...orders];
   const filterCounts = useMemo<Record<OrderStatusFilter, number>>(() => ({
-    All: orders.length,
-    Active: orders.filter((order) => order.status === 'In Progress' || order.status === 'Cutting').length,
-    Delivered: orders.filter((order) => order.status === 'Delivered').length,
-    Canceled: orders.filter((order) => order.status === 'Canceled').length,
-  }), []);
+    All:       allOrders.length,
+    Active:    allOrders.filter((o) => isActiveStatus(o.status)).length,
+    Delivered: allOrders.filter((o) => isDeliveredStatus(o.status)).length,
+    Canceled:  allOrders.filter((o) => isCanceledStatus(o.status)).length,
+  }), [apiOrders]);
 
   const openTimeline = (order: (typeof orders)[number]) => {
     const preview = dressPreviewFromOrderDescription(order.name);
@@ -141,10 +187,7 @@ export default function CustomerOrders() {
         sampleStyle: order.sample.style,
         sampleColor: order.sample.color,
         ...(preview
-          ? {
-              modelId: preview.modelId,
-              selections: JSON.stringify(preview.selections),
-            }
+          ? { modelId: preview.modelId, selections: JSON.stringify(preview.selections) }
           : {}),
       },
     });
@@ -173,7 +216,6 @@ export default function CustomerOrders() {
               <Text style={styles.summaryText}>{filterCounts.Delivered} delivered, {filterCounts.Canceled} canceled</Text>
             </View>
           </View>
-
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filtersRow}>
             {FILTERS.map((filter) => {
               const active = selectedFilter === filter;
@@ -197,21 +239,91 @@ export default function CustomerOrders() {
         </View>
 
         <ScrollView style={styles.list} contentContainerStyle={styles.listContent}>
-          {filteredOrders.length === 0 ? (
+
+          {/* ── Real API Orders ──────────────────────────────────────────── */}
+          {loadingApi && (
+            <View style={styles.loadingRow}>
+              <ActivityIndicator size="small" color={tint} />
+              <Text style={[styles.emptyText, { marginLeft: 8 }]}>Loading your orders…</Text>
+            </View>
+          )}
+
+          {!loadingApi && filteredApi.length > 0 && (
+            <View style={styles.sectionHeader}>
+              <View style={[styles.sectionPill, { backgroundColor: tint }]}>
+                <Ionicons name="checkmark-circle" size={13} color="#fff" />
+                <Text style={styles.sectionPillText}>My Orders</Text>
+              </View>
+            </View>
+          )}
+
+          {filteredApi.map((order) => {
+            const s = getStatusColors(order.status);
+            return (
+              <View key={order.id} style={[styles.card, { backgroundColor: card, borderColor: '#d1fae5' }]}>
+                <View style={styles.cardTop}>
+                  <View style={[styles.avatar, { backgroundColor: '#d1fae5' }]}>
+                    <Text style={[styles.avatarText, { color: '#059669' }]}>
+                      {order.tailor_name.charAt(0).toUpperCase()}
+                    </Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.orderName}>{order.description}</Text>
+                    <Text style={styles.tailorName}>{order.tailor_name}</Text>
+                  </View>
+                  <View style={styles.priceWrap}>
+                    <Text style={styles.priceLabel}>Budget</Text>
+                    <Text style={styles.priceText}>Rs. {order.budget.toLocaleString()}</Text>
+                  </View>
+                </View>
+                <View style={styles.compactMetaRow}>
+                  <View style={[styles.statusBadge, { backgroundColor: s.bg }]}>
+                    <Text style={[styles.statusText, { color: s.color }]}>{apiStatusLabel(order.status)}</Text>
+                  </View>
+                  {order.proposed_price != null && (
+                    <View style={styles.metaChip}>
+                      <Ionicons name="pricetag-outline" size={13} color="#059669" />
+                      <Text style={[styles.metaChipText, { color: '#059669' }]}>Rs. {order.proposed_price.toLocaleString()}</Text>
+                    </View>
+                  )}
+                  {order.delivery_days != null && (
+                    <View style={styles.metaChip}>
+                      <Ionicons name="time-outline" size={13} color="#0e7490" />
+                      <Text style={[styles.metaChipText, { color: '#0e7490' }]}>{order.delivery_days}d delivery</Text>
+                    </View>
+                  )}
+                </View>
+                {!!order.note && (
+                  <Text style={[styles.tailorName, { marginTop: 4, fontStyle: 'italic' }]}>"{order.note}"</Text>
+                )}
+              </View>
+            );
+          })}
+
+          {/* ── Sample/Demo Orders ───────────────────────────────────────── */}
+          <View style={styles.sectionHeader}>
+            <View style={[styles.sectionPill, { backgroundColor: '#f3e8ff' }]}>
+              <Ionicons name="flask-outline" size={13} color="#7c3aed" />
+              <Text style={[styles.sectionPillText, { color: '#7c3aed' }]}>Sample Orders</Text>
+            </View>
+          </View>
+
+          {filteredSamples.length === 0 ? (
             <View style={[styles.emptyCard, { backgroundColor: card }]}>
               <Ionicons name="file-tray-outline" size={32} color="#ec4899" />
-              <Text style={styles.emptyText}>No orders found for {selectedFilter}.</Text>
+              <Text style={styles.emptyText}>No sample orders match this filter.</Text>
             </View>
           ) : null}
-          {filteredOrders.map((order) => {
+
+          {filteredSamples.map((order) => {
             const statusStyle = getStatusColors(order.status);
             return (
               <TouchableOpacity
-                key={order.id} 
+                key={order.id}
                 style={[styles.card, { backgroundColor: card }]}
                 onPress={() => openTimeline(order)}
                 activeOpacity={0.7}
-              > 
+              >
                 <View style={styles.cardTop}>
                   <View style={styles.avatar}>
                     <Text style={styles.avatarText}>{order.tailorAvatar}</Text>
@@ -225,7 +337,6 @@ export default function CustomerOrders() {
                     <Text style={styles.priceText}>Rs. {order.price.toLocaleString()}</Text>
                   </View>
                 </View>
-
                 <View style={styles.compactMetaRow}>
                   <View style={[styles.statusBadge, { backgroundColor: statusStyle.bg }]}>
                     <Text style={[styles.statusText, { color: statusStyle.color }]}>{order.status}</Text>
@@ -235,7 +346,6 @@ export default function CustomerOrders() {
                     <Text style={styles.metaChipText}>{order.date}</Text>
                   </View>
                 </View>
-
                 <View style={styles.cardFooter}>
                   <View style={styles.samplePill}>
                     <Ionicons name="color-palette-outline" size={14} color="#be185d" />
@@ -303,4 +413,8 @@ const styles = StyleSheet.create({
   samplePillText: { color: '#be185d', fontSize: 11, fontWeight: '800' },
   timelineHint: { flexDirection: 'row', alignItems: 'center', gap: 3 },
   timelineHintText: { color: '#ec4899', fontSize: 12, fontWeight: '900' },
-});
+  loadingRow: { flexDirection: 'row', alignItems: 'center', padding: 16 },
+  sectionHeader: { marginBottom: 8, marginTop: 4 },
+  sectionPill: { flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20 },
+  sectionPillText: { color: '#fff', fontSize: 11, fontWeight: '800' },
+})

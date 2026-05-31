@@ -3,6 +3,7 @@ import { SURFACE_MUTED, UI } from '@/constants/ui';
 import { useAuth } from '@/contexts/AuthContext';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { updateTailorAvailability, updateTailorLocation } from '@/services/tailorsApi';
+import { getUnreadCount } from '@/services/notificationsApi';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
@@ -72,6 +73,12 @@ export default function TailorHome() {
   const [isOpen, setIsOpen] = useState<boolean>(false);
   const [syncingPresence, setSyncingPresence] = useState(false);
   const [lastSyncAt, setLastSyncAt] = useState<string | null>(null);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    if (!token) return;
+    getUnreadCount(token).then(setUnreadCount).catch(() => {});
+  }, [token]);
 
   const getStatusStyle = (status: string) => {
     if (status === 'ready') return { backgroundColor: '#ecfdf3', color: '#15803d' };
@@ -195,7 +202,7 @@ export default function TailorHome() {
         </View>
         <Pressable style={styles.bellWrap} onPress={() => router.push('/tailor/notifications')}>
           <Ionicons name="notifications-outline" size={22} color="#111" />
-          <View style={styles.badge}><Text style={styles.badgeText}>3</Text></View>
+          <View style={styles.badge}>{unreadCount > 0 && <Text style={styles.badgeText}>{unreadCount > 99 ? '99+' : String(unreadCount)}</Text>}</View>
         </Pressable>
       </View>
 

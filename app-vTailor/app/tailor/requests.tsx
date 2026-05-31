@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, ScrollView, Pressable, StyleSheet } from 'react-native';
+import React, { useCallback, useEffect, useState } from 'react';
+import { ActivityIndicator, Alert, View, ScrollView, Pressable, StyleSheet, Text } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -7,6 +7,8 @@ import { useThemeColor } from '@/hooks/use-theme-color';
 import { Ionicons } from '@expo/vector-icons';
 import AppBackButton from '@/components/AppBackButton';
 import { SURFACE_MUTED, TEXT_DARK, UI } from '@/constants/ui';
+import { useAuth } from '@/contexts/AuthContext';
+import { getOrders, acceptOrder, declineOrder, type Order as ApiOrder } from '@/services/ordersApi';
 
 interface CustomerRequest {
   id: string;
@@ -18,7 +20,7 @@ interface CustomerRequest {
   initials: string;
 }
 
-const PENDING_REQUESTS: CustomerRequest[] = [
+const SAMPLE_REQUESTS: CustomerRequest[] = [
   {
     id: 'REQ-001',
     customerName: 'Fatima Khan',
@@ -39,34 +41,110 @@ const PENDING_REQUESTS: CustomerRequest[] = [
   },
 ];
 
+function relTime(iso: string): string {
+  try {
+    const d = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+    if (d < 60)    return 'Just now';
+    if (d < 3600)  return `${Math.floor(d / 60)} min ago`;
+    if (d < 86400) return `${Math.floor(d / 3600)} hr ago`;
+    return `${Math.floor(d / 86400)}d ago`;
+  } catch { return ''; }
+}
+
 export default function TailorRequests() {
   const router = useRouter();
-  const tint = useThemeColor({}, 'tint');
-  const card = useThemeColor({}, 'card');
+  const { token } = useAuth();
+  const tint        = useThemeColor({}, 'tint');
+  const card        = useThemeColor({}, 'card');
   const inputBorder = useThemeColor({}, 'inputBorder');
-  const muted = useThemeColor({}, 'muted');
+  const muted       = useThemeColor({}, 'muted');
 
-  const [requests, setRequests] = useState<CustomerRequest[]>(PENDING_REQUESTS);
+  const [sampleRequests, setSampleRequests] = useState<CustomerRequest[]>(SAMPLE_REQUESTS);
+  const [apiOrders, setApiOrders]           = useState<ApiOrder[]>([]);
+  const [loadingApi, setLoadingApi]         = useState(false);
 
-  const handleAccept = (reqId: string) => {
-    const acceptedReq = requests.find((r) => r.id === reqId);
-    if (acceptedReq) {
-      // Navigate tailor to decide price page for this request
-      (router as any).push({ pathname: '/tailor/decided-price', params: { orderId: acceptedReq.id, customerName: acceptedReq.customerName, price: String(acceptedReq.budget) } });
-      setRequests((prev) => prev.map((req) => (req.id === reqId ? { ...req, status: 'accepted' } : req)));
+  const loadApiOrders = useCallback(async () => {
+    if (!token) return;
+    setLoadingApi(true);
+    try {
+      const data = await getOrders(token);
+      setApiOrders(data);
+    } catch {
+      // silently show sample data only
+    } finally {
+      setLoadingApi(false);
+    }
+  }, [token]);
+
+  useEffect(() => { loadApiOrders(); }, [loadApiOrders]);
+
+  const handleApiAccept = (order: ApiOrder) => {
+    Alert.prompt
+      ? Alert.prompt(
+          'Set Price',
+          `Propose a price for "${order.description}"`,
+          [
+            { text: 'Cancel', style: 'cancel' },
+            {
+              text: 'Accept',
+              onPress: async (price?: string) => {
+                if (!price || !token) return;
+                try {
+                  const updated = await acceptOrder(token, order.id, {
+                    proposed_price: Number(price),
+                    delivery_days: 7,
+                  });
+                  setApiOrders((prev) => prev.map((o) => (o.id === order.id ? updated : o)));
+                } catch (e: any) {
+                  Alert.alert('Error', e?.message || 'Failed to accept');
+                }
+              },
+            },
+          ],
+          'plain-text',
+          String(order.budget)
+        )
+      : (router as any).push({
+          pathname: '/tailor/decided-price',
+          params: { orderId: order.id, customerName: order.customer_name, price: String(order.budget) },
+        });
+  };
+
+  const handleApiDecline = async (order: ApiOrder) => {
+    if (!token) return;
+    Alert.alert('Decline Order', `Decline "${order.description}" from ${order.customer_name}?`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Decline',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            const updated = await declineOrder(token, order.id);
+            setApiOrders((prev) => prev.map((o) => (o.id === order.id ? updated : o)));
+          } catch (e: any) {
+            Alert.alert('Error', e?.message || 'Failed to decline');
+          }
+        },
+      },
+    ]);
+  };
+
+  const handleSampleAccept = (reqId: string) => {
+    const req = sampleRequests.find((r) => r.id === reqId);
+    if (req) {
+      (router as any).push({ pathname: '/tailor/decided-price', params: { orderId: req.id, customerName: req.customerName, price: String(req.budget) } });
+      setSampleRequests((prev) => prev.map((r) => (r.id === reqId ? { ...r, status: 'accepted' as const } : r)));
     }
   };
 
-  const handleDecline = (reqId: string) => {
-    setRequests((prev) =>
-      prev.map((req) =>
-        req.id === reqId ? { ...req, status: 'declined' } : req
-      )
-    );
+  const handleSampleDecline = (reqId: string) => {
+    setSampleRequests((prev) => prev.map((r) => (r.id === reqId ? { ...r, status: 'declined' as const } : r)));
   };
 
-  const pendingRequests = requests.filter((r) => r.status === 'pending');
-  const processedRequests = requests.filter((r) => r.status !== 'pending');
+  const pendingApi       = apiOrders.filter((o) => o.status === 'pending');
+  const processedApi     = apiOrders.filter((o) => o.status !== 'pending');
+  const pendingSamples   = sampleRequests.filter((r) => r.status === 'pending');
+  const processedSamples = sampleRequests.filter((r) => r.status !== 'pending');
 
   return (
     <ThemedView style={styles.container}>
@@ -77,31 +155,128 @@ export default function TailorRequests() {
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll}>
-        {/* Pending Requests Section */}
-        <View>
+
+        {/* ── Real API Pending Requests ─────────────────────────────────── */}
+        {loadingApi && (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+            <ActivityIndicator size="small" color={tint} />
+            <ThemedText style={{ color: muted }}>Loading requests…</ThemedText>
+          </View>
+        )}
+
+        {pendingApi.length > 0 && (
+          <View>
+            <View style={styles.sectionHeader}>
+              <ThemedText style={styles.sectionTitle}>New Requests</ThemedText>
+              <View style={[styles.badge, { backgroundColor: '#059669' }]}>
+                <ThemedText style={styles.badgeText}>{pendingApi.length}</ThemedText>
+              </View>
+            </View>
+            {pendingApi.map((order) => (
+              <View key={order.id} style={[styles.requestCard, { backgroundColor: card, borderColor: '#bbf7d0' }]}>
+                <View style={styles.requestHeader}>
+                  <View style={styles.customerInfo}>
+                    <View style={[styles.customerAvatar, { backgroundColor: '#d1fae5' }]}>
+                      <ThemedText style={[styles.customerAvatarText, { color: '#059669' }]}>
+                        {order.customer_name.charAt(0).toUpperCase()}
+                      </ThemedText>
+                    </View>
+                    <View style={{ marginLeft: 12, flex: 1 }}>
+                      <ThemedText style={styles.customerName}>{order.customer_name}</ThemedText>
+                      <ThemedText style={[styles.small, { color: muted }]}>{order.description}</ThemedText>
+                    </View>
+                  </View>
+                </View>
+                <View style={styles.detailsRow}>
+                  <View style={styles.detailItem}>
+                    <ThemedText style={[styles.label, { color: muted }]}>Budget</ThemedText>
+                    <View style={styles.detailValueRow}>
+                      <Ionicons name="cash-outline" size={16} color="#059669" />
+                      <ThemedText style={styles.value}>Rs {order.budget.toLocaleString()}</ThemedText>
+                    </View>
+                  </View>
+                  <View style={styles.detailItem}>
+                    <ThemedText style={[styles.label, { color: muted }]}>Received</ThemedText>
+                    <View style={styles.detailValueRow}>
+                      <Ionicons name="time-outline" size={15} color={muted} />
+                      <ThemedText style={[styles.small, { color: muted }]}>{relTime(order.created_at)}</ThemedText>
+                    </View>
+                  </View>
+                </View>
+                <View style={[styles.actionButtons, { borderTopColor: inputBorder }]}>
+                  <Pressable onPress={() => handleApiDecline(order)} style={[styles.declineBtn, { borderColor: '#dc2626' }]}>
+                    <Ionicons name="close" size={18} color="#dc2626" />
+                    <ThemedText style={[styles.btnText, { color: '#dc2626' }]}>Decline</ThemedText>
+                  </Pressable>
+                  <Pressable onPress={() => handleApiAccept(order)} style={[styles.acceptBtn, { backgroundColor: '#059669' }]}>
+                    <Ionicons name="checkmark" size={18} color="#fff" />
+                    <ThemedText style={[styles.btnText, { color: '#fff' }]}>Accept</ThemedText>
+                  </Pressable>
+                </View>
+              </View>
+            ))}
+          </View>
+        )}
+
+        {/* Processed real orders */}
+        {processedApi.length > 0 && (
+          <View style={{ marginTop: 12 }}>
+            {processedApi.map((order) => (
+              <View key={order.id} style={[
+                styles.requestCard, styles.processedCard,
+                { backgroundColor: order.status === 'accepted' ? '#ecfdf5' : '#fff1f2',
+                  borderColor: order.status === 'accepted' ? '#059669' : '#dc2626' }
+              ]}>
+                <View style={styles.requestHeader}>
+                  <View style={styles.customerInfo}>
+                    <View style={[styles.customerAvatar, { backgroundColor: '#FCE4F2' }]}>
+                      <ThemedText style={[styles.customerAvatarText, { color: tint }]}>
+                        {order.customer_name.charAt(0).toUpperCase()}
+                      </ThemedText>
+                    </View>
+                    <View style={{ marginLeft: 12, flex: 1 }}>
+                      <ThemedText style={styles.customerName}>{order.customer_name}</ThemedText>
+                      <ThemedText style={[styles.small, { color: muted }]}>{order.description}</ThemedText>
+                    </View>
+                  </View>
+                  <View style={styles.statusBadge}>
+                    <Ionicons
+                      name={order.status === 'accepted' ? 'checkmark-circle' : 'close-circle'}
+                      size={20}
+                      color={order.status === 'accepted' ? '#059669' : '#dc2626'}
+                    />
+                    <ThemedText style={[styles.statusText, { color: order.status === 'accepted' ? '#059669' : '#dc2626' }]}>
+                      {order.status === 'accepted' ? 'Accepted' : 'Declined'}
+                    </ThemedText>
+                  </View>
+                </View>
+              </View>
+            ))}
+          </View>
+        )}
+
+        {/* ── Sample Pending Requests ───────────────────────────────────── */}
+        <View style={{ marginTop: 20 }}>
           <View style={styles.sectionHeader}>
-            <ThemedText style={styles.sectionTitle}>Pending Requests</ThemedText>
-            <View style={[styles.badge, { backgroundColor: tint }]}>
-              <ThemedText style={styles.badgeText}>{pendingRequests.length}</ThemedText>
+            <ThemedText style={styles.sectionTitle}>Sample Requests</ThemedText>
+            <View style={[styles.badge, { backgroundColor: '#7c3aed' }]}>
+              <ThemedText style={styles.badgeText}>{pendingSamples.length}</ThemedText>
+            </View>
+            <View style={[styles.demoPill]}>
+              <ThemedText style={styles.demoPillText}>Demo</ThemedText>
             </View>
           </View>
 
-          {pendingRequests.length === 0 ? (
+          {pendingSamples.length === 0 ? (
             <View style={[styles.emptyState, { backgroundColor: card }]}>
               <View style={[styles.emptyIcon, { backgroundColor: '#FCE4F2' }]}>
                 <Ionicons name="file-tray-outline" size={26} color={tint} />
               </View>
-              <ThemedText style={{ fontWeight: '600', marginBottom: 4 }}>No Pending Requests</ThemedText>
-              <ThemedText style={[styles.emptyText, { color: muted }]}>
-                You'll get notifications when customers send requests
-              </ThemedText>
+              <ThemedText style={{ fontWeight: '600', marginBottom: 4 }}>No Pending Sample Requests</ThemedText>
             </View>
           ) : (
-            pendingRequests.map((request) => (
-              <View
-                key={request.id}
-                style={[styles.requestCard, { backgroundColor: card, borderColor: inputBorder }]}
-              >
+            pendingSamples.map((request) => (
+              <View key={request.id} style={[styles.requestCard, { backgroundColor: card, borderColor: inputBorder }]}>
                 <View style={styles.requestHeader}>
                   <View style={styles.customerInfo}>
                     <View style={[styles.customerAvatar, { backgroundColor: '#FCE4F2' }]}>
@@ -109,13 +284,10 @@ export default function TailorRequests() {
                     </View>
                     <View style={{ marginLeft: 12, flex: 1 }}>
                       <ThemedText style={styles.customerName}>{request.customerName}</ThemedText>
-                      <ThemedText style={[styles.small, { color: muted }]}>
-                        {request.dressType}
-                      </ThemedText>
+                      <ThemedText style={[styles.small, { color: muted }]}>{request.dressType}</ThemedText>
                     </View>
                   </View>
                 </View>
-
                 <View style={styles.detailsRow}>
                   <View style={styles.detailItem}>
                     <ThemedText style={[styles.label, { color: muted }]}>Budget</ThemedText>
@@ -132,20 +304,12 @@ export default function TailorRequests() {
                     </View>
                   </View>
                 </View>
-
                 <View style={[styles.actionButtons, { borderTopColor: inputBorder }]}>
-                  <Pressable
-                    onPress={() => handleDecline(request.id)}
-                    style={[styles.declineBtn, { borderColor: '#dc2626' }]}
-                  >
+                  <Pressable onPress={() => handleSampleDecline(request.id)} style={[styles.declineBtn, { borderColor: '#dc2626' }]}>
                     <Ionicons name="close" size={18} color="#dc2626" />
                     <ThemedText style={[styles.btnText, { color: '#dc2626' }]}>Decline</ThemedText>
                   </Pressable>
-
-                  <Pressable
-                    onPress={() => handleAccept(request.id)}
-                    style={[styles.acceptBtn, { backgroundColor: tint }]}
-                  >
+                  <Pressable onPress={() => handleSampleAccept(request.id)} style={[styles.acceptBtn, { backgroundColor: tint }]}>
                     <Ionicons name="checkmark" size={18} color="#fff" />
                     <ThemedText style={[styles.btnText, { color: '#fff' }]}>Accept</ThemedText>
                   </Pressable>
@@ -155,23 +319,15 @@ export default function TailorRequests() {
           )}
         </View>
 
-        {/* Processed Requests Section */}
-        {processedRequests.length > 0 && (
-          <View style={{ marginTop: 20 }}>
-            <ThemedText style={styles.sectionTitle}>Processed Requests</ThemedText>
-
-            {processedRequests.map((request) => (
-              <View
-                key={request.id}
-                style={[
-                  styles.requestCard,
-                  styles.processedCard,
-                  {
-                    backgroundColor: request.status === 'accepted' ? '#ecfdf5' : '#fff1f2',
-                    borderColor: request.status === 'accepted' ? '#059669' : '#dc2626',
-                  },
-                ]}
-              >
+        {/* Processed sample requests */}
+        {processedSamples.length > 0 && (
+          <View style={{ marginTop: 12 }}>
+            {processedSamples.map((request) => (
+              <View key={request.id} style={[
+                styles.requestCard, styles.processedCard,
+                { backgroundColor: request.status === 'accepted' ? '#ecfdf5' : '#fff1f2',
+                  borderColor: request.status === 'accepted' ? '#059669' : '#dc2626' }
+              ]}>
                 <View style={styles.requestHeader}>
                   <View style={styles.customerInfo}>
                     <View style={[styles.customerAvatar, { backgroundColor: '#FCE4F2' }]}>
@@ -179,34 +335,16 @@ export default function TailorRequests() {
                     </View>
                     <View style={{ marginLeft: 12, flex: 1 }}>
                       <ThemedText style={styles.customerName}>{request.customerName}</ThemedText>
-                      <ThemedText style={[styles.small, { color: muted }]}>
-                        {request.dressType}
-                      </ThemedText>
+                      <ThemedText style={[styles.small, { color: muted }]}>{request.dressType}</ThemedText>
                     </View>
                   </View>
-
-                  <View
-                    style={[
-                      styles.statusBadge,
-                      {
-                        backgroundColor:
-                          request.status === 'accepted' ? '#ecfdf5' : '#fff1f2',
-                      },
-                    ]}
-                  >
+                  <View style={styles.statusBadge}>
                     <Ionicons
                       name={request.status === 'accepted' ? 'checkmark-circle' : 'close-circle'}
                       size={20}
                       color={request.status === 'accepted' ? '#059669' : '#dc2626'}
                     />
-                    <ThemedText
-                      style={[
-                        styles.statusText,
-                        {
-                          color: request.status === 'accepted' ? '#059669' : '#dc2626',
-                        },
-                      ]}
-                    >
+                    <ThemedText style={[styles.statusText, { color: request.status === 'accepted' ? '#059669' : '#dc2626' }]}>
                       {request.status === 'accepted' ? 'Accepted' : 'Declined'}
                     </ThemedText>
                   </View>
@@ -311,4 +449,6 @@ const styles = StyleSheet.create({
     borderRadius: 14,
   },
   btnText: { marginLeft: 6, fontWeight: '600', fontSize: 12 },
+  demoPill: { marginLeft: 8, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10, backgroundColor: '#f3e8ff' },
+  demoPillText: { fontSize: 10, fontWeight: '700', color: '#7c3aed' },
 });

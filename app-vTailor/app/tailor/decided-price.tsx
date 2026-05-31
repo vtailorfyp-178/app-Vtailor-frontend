@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, StyleSheet, Pressable, Text, TextInput, Alert } from 'react-native';
+import { View, ScrollView, StyleSheet, Pressable, Text, TextInput, Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ThemedText } from '@/components/themed-text';
 import { useThemeColor } from '@/hooks/use-theme-color';
@@ -16,6 +17,7 @@ export default function TailorDecidedPrice() {
 
   const card = useThemeColor({}, 'card');
   const tint = useThemeColor({}, 'tint');
+  const insets = useSafeAreaInsets();
 
   const [priceInput, setPriceInput] = React.useState<string>(price ? String(price) : '');
   const [daysInput, setDaysInput] = React.useState<string>(days ? String(days) : '');
@@ -52,7 +54,8 @@ export default function TailorDecidedPrice() {
           <View style={styles.headerBtn} />
         </View>
 
-        <View style={styles.content}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }} keyboardVerticalOffset={0}>
+          <ScrollView contentContainerStyle={[styles.content, { paddingBottom: Math.max(insets.bottom + 16, 24) }]} keyboardShouldPersistTaps="handled">
           <ThemedText style={styles.label}>Order ID</ThemedText>
           <ThemedText style={styles.value}>{orderId}</ThemedText>
 
@@ -91,7 +94,8 @@ export default function TailorDecidedPrice() {
               </Pressable>
             </>
           )}
-        </View>
+          </ScrollView>
+        </KeyboardAvoidingView>
       </View>
     </ProtectedRoute>
   );

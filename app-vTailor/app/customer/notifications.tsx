@@ -1,77 +1,154 @@
 import { Ionicons } from '@expo/vector-icons';
 import { SURFACE_MUTED, TEXT_DARK, UI } from '@/constants/ui';
 import AppBackButton from '@/components/AppBackButton';
-import React from 'react';
-import { ScrollView, Pressable, StyleSheet, View } from 'react-native';
+import React, { useCallback, useEffect, useState } from 'react';
+import { ActivityIndicator, ScrollView, Pressable, StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useThemeColor } from '@/hooks/use-theme-color';
+import { useAuth } from '@/contexts/AuthContext';
+import {
+  type AppNotification,
+  getNotifications,
+  markNotificationRead,
+  markAllNotificationsRead,
+} from '@/services/notificationsApi';
+
+// ── Notification type → icon / colour ─────────────────────────────────────────
+
+function notifIcon(type: string): React.ComponentProps<typeof Ionicons>['name'] {
+  switch (type) {
+    case 'chat_message':    return 'chatbubble-outline';
+    case 'chat_started':    return 'chatbubbles-outline';
+    case 'wallet_pending':  return 'time-outline';
+    case 'wallet_confirmed':return 'card-outline';
+    case 'wallet_failed':   return 'close-circle-outline';
+    case 'order_requested': return 'receipt-outline';
+    case 'order_accepted':  return 'checkmark-circle-outline';
+    case 'order_declined':  return 'close-circle-outline';
+    default:                return 'notifications-outline';
+  }
+}
+
+function notifColor(type: string): string {
+  switch (type) {
+    case 'chat_message':    return '#3b82f6';
+    case 'chat_started':    return '#8b5cf6';
+    case 'wallet_pending':  return '#f59e0b';
+    case 'wallet_confirmed':return '#059669';
+    case 'wallet_failed':   return '#ef4444';
+    case 'order_requested': return '#f97316';
+    case 'order_accepted':  return '#059669';
+    case 'order_declined':  return '#ef4444';
+    default:                return '#ec4899';
+  }
+}
+
+function relativeTime(iso: string): string {
+  try {
+    const diff = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+    if (diff < 60)   return 'Just now';
+    if (diff < 3600) return `${Math.floor(diff / 60)} min ago`;
+    if (diff < 86400)return `${Math.floor(diff / 3600)} hr ago`;
+    return `${Math.floor(diff / 86400)} day${Math.floor(diff / 86400) === 1 ? '' : 's'} ago`;
+  } catch {
+    return '';
+  }
+}
+
+// ── Demo notifications (shown when no real ones exist) ────────────────────────
+
+const DEMO_NOTIFICATIONS: AppNotification[] = [
+  {
+    id: 'demo-1', user_id: '', type: 'order_accepted', is_read: false,
+    title: 'Order Accepted!',
+    message: 'Aliya Formal Dresses accepted your Long Frock request. Proposed: Rs. 8,500 — 7 day delivery.',
+    data: {}, created_at: new Date(Date.now() - 3 * 3600_000).toISOString(),
+  },
+  {
+    id: 'demo-2', user_id: '', type: 'wallet_confirmed', is_read: true,
+    title: 'Payment Confirmed',
+    message: 'Rs. 8,500 wallet top-up via JazzCash has been confirmed.',
+    data: {}, created_at: new Date(Date.now() - 24 * 3600_000).toISOString(),
+  },
+  {
+    id: 'demo-3', user_id: '', type: 'chat_started', is_read: true,
+    title: 'New Message',
+    message: 'Zainab Bridal Couture started a conversation with you.',
+    data: {}, created_at: new Date(Date.now() - 48 * 3600_000).toISOString(),
+  },
+];
+
+// ── Component ──────────────────────────────────────────────────────────────────
 
 const CustomerNotifications = () => {
   const router = useRouter();
+  const { token } = useAuth();
+  const tint    = useThemeColor({}, 'tint');
+  const muted   = useThemeColor({}, 'muted');
+  const iconBg  = useThemeColor({}, 'iconBg');
 
-  const notifications = [
-    {
-      id: 1,
-      type: 'request_accepted',
-      title: 'Request Accepted!',
-      message: 'Ahmad Master Tailor has accepted your Long Frock request. They will contact you soon!',
-      time: '5 min ago',
-      color: '#059669',
-      icon: 'checkmark-circle-outline' as const,
-    },
-    {
-      id: 2,
-      type: 'status',
-      title: 'Order Update',
-      message: 'Your Long Frock cutting is completed. Stitching begins tomorrow!',
-      time: '2 hours ago',
-      color: '#f59e0b',
-      icon: 'cube-outline' as const,
-    },
-    {
-      id: 3,
-      type: 'delivery',
-      title: 'Delivery Reminder',
-      message: '3 days left for Shalwar Kameez delivery',
-      time: '5 hours ago',
-      color: null,
-      icon: 'time-outline' as const,
-    },
-    {
-      id: 4,
-      type: 'complete',
-      title: 'Order Completed',
-      message: 'Your Casual Kurta order has been completed. Ready for pickup!',
-      time: '1 day ago',
-      color: null,
-      icon: 'shield-checkmark-outline' as const,
-    },
-    {
-      id: 5,
-      type: 'payment',
-      title: 'Payment Confirmed',
-      message: 'Rs. 8,500 payment received for Long Frock',
-      time: '2 days ago',
-      color: '#0f172a',
-      icon: 'card-outline' as const,
-    },
-    {
-      id: 6,
-      type: 'cancelled',
-      title: 'Order Cancelled',
-      message: 'Tailor cancelled your order. Refund initiated.',
-      time: '3 days ago',
-      color: '#ef4444',
-      icon: 'close-circle-outline' as const,
-    },
-  ];
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error,   setError]   = useState<string | null>(null);
 
-  // theme colors
-  const tint = useThemeColor({}, 'tint');
-  const muted = useThemeColor({}, 'muted');
-  const iconBg = useThemeColor({}, 'iconBg');
+  const load = useCallback(async () => {
+    if (!token) {
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      // Race the API call against an 8-second timeout so we never spin > 8s
+      const data = await Promise.race([
+        getNotifications(token, 50),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('timeout')), 8000)
+        ),
+      ]);
+      setNotifications(data);
+    } catch {
+      setError('Could not load notifications. Showing sample data below.');
+    } finally {
+      setLoading(false);
+    }
+  }, [token]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const handleTap = async (notif: AppNotification) => {
+    if (!token) return;
+    if (!notif.is_read) {
+      await markNotificationRead(token, notif.id);
+      setNotifications((prev) =>
+        prev.map((n) => (n.id === notif.id ? { ...n, is_read: true } : n))
+      );
+    }
+    // Navigate to relevant screen
+    const data = notif.data as Record<string, string>;
+    if ((notif.type === 'chat_message' || notif.type === 'chat_started') && data.channelId) {
+      router.push({
+        pathname: '/customer/chat-conversation',
+        params: {
+          stream_channel_id: data.channelId,
+          stream_cid: data.channelCid ?? '',
+          id: data.channelId,
+          otherUserId: data.otherUserId ?? '',
+          otherUserName: data.otherUserName ?? '',
+        },
+      });
+    }
+  };
+
+  const handleMarkAllRead = async () => {
+    if (!token) return;
+    await markAllNotificationsRead(token);
+    setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
+  };
+
+  const unreadCount = notifications.filter((n) => !n.is_read).length;
 
   return (
     <ThemedView style={styles.container}>
@@ -79,60 +156,97 @@ const CustomerNotifications = () => {
         <AppBackButton onPress={() => (router as any).back()} />
         <View style={{ flex: 1 }}>
           <ThemedText style={styles.title}>Notifications</ThemedText>
-          <ThemedText style={[styles.subtitle, { color: muted }]}>Order, delivery, and wallet updates</ThemedText>
+          <ThemedText style={[styles.subtitle, { color: muted }]}>
+            Chat, delivery, and wallet updates
+          </ThemedText>
         </View>
+        {unreadCount > 0 && (
+          <Pressable onPress={handleMarkAllRead} style={styles.markAllBtn}>
+            <ThemedText style={[styles.markAllText, { color: tint }]}>Mark all read</ThemedText>
+          </Pressable>
+        )}
       </ThemedView>
 
-      <ScrollView contentContainerStyle={styles.list}>
-        {notifications.length === 0 ? (
-          <ThemedView style={styles.empty}>
-            <View style={styles.emptyIcon}>
-              <Ionicons name="notifications-outline" size={34} color={tint} />
+      {loading ? (
+        <View style={styles.center}>
+          <ActivityIndicator size="large" color={tint} />
+        </View>
+      ) : (
+        <ScrollView contentContainerStyle={styles.list}>
+          {/* Error banner — non-blocking, shows above content */}
+          {error && (
+            <View style={styles.errorBanner}>
+              <Ionicons name="cloud-offline-outline" size={16} color="#b45309" />
+              <ThemedText style={styles.errorBannerText}>{error}</ThemedText>
+              <Pressable onPress={load} style={styles.retryInline}>
+                <ThemedText style={[styles.retryInlineText, { color: tint }]}>Retry</ThemedText>
+              </Pressable>
             </View>
-            <ThemedText style={styles.emptyTitle}>No Notifications</ThemedText>
-            <ThemedText style={styles.emptyDesc}>You're all caught up!</ThemedText>
-          </ThemedView>
-        ) : (
-          notifications.map((notif) => (
-            <ThemedView key={notif.id} style={styles.card}>
-              <ThemedView style={[styles.iconBox, { backgroundColor: (notif.color ? notif.color + '22' : iconBg) }]}>
-                <Ionicons name={notif.icon} size={21} color={notif.color || tint} />
-              </ThemedView>
-              <ThemedView style={styles.content}>
-                <View style={styles.titleRow}>
-                  <ThemedText style={styles.nTitle}>{notif.title}</ThemedText>
-                  <View style={[styles.dot, { backgroundColor: notif.color || tint }]} />
-                </View>
-                <ThemedText style={[styles.nMessage, { color: muted }]}>{notif.message}</ThemedText>
-                <ThemedText style={[styles.nTime, { color: muted }]}>{notif.time}</ThemedText>
-              </ThemedView>
-            </ThemedView>
-          ))
-        )}
-      </ScrollView>
+          )}
+
+          {/* Show real notifications; fall back to demo ones when empty */}
+          {(notifications.length > 0 ? notifications : DEMO_NOTIFICATIONS).map((notif) => {
+            const color = notifColor(notif.type);
+            const isReal = notifications.length > 0;
+            return (
+              <Pressable key={notif.id} onPress={() => isReal ? handleTap(notif) : undefined}>
+                <ThemedView style={[styles.card, !notif.is_read && styles.cardUnread]}>
+                  <ThemedView style={[styles.iconBox, { backgroundColor: color + '22' }]}>
+                    <Ionicons name={notifIcon(notif.type)} size={21} color={color} />
+                  </ThemedView>
+                  <ThemedView style={styles.content}>
+                    <View style={styles.titleRow}>
+                      <ThemedText style={styles.nTitle}>{notif.title}</ThemedText>
+                      {!notif.is_read && <View style={[styles.dot, { backgroundColor: color }]} />}
+                    </View>
+                    <ThemedText style={[styles.nMessage, { color: muted }]}>{notif.message}</ThemedText>
+                    <ThemedText style={[styles.nTime, { color: muted }]}>{relativeTime(notif.created_at)}</ThemedText>
+                  </ThemedView>
+                </ThemedView>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+      )}
     </ThemedView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: SURFACE_MUTED },
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingBottom: 16, paddingTop: 10 },
-  backButton: { width: 42, height: 42, borderRadius: 14, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', marginRight: 10, ...UI.softShadow },
-  title: { fontSize: 23, fontWeight: '900', color: TEXT_DARK },
-  subtitle: { fontSize: 12, marginTop: 3, fontWeight: '600' },
-  list: { padding: 16, paddingBottom: 120 },
-  card: { flexDirection: 'row', padding: 14, backgroundColor: '#fff', borderRadius: UI.radius.lg, marginBottom: 12, borderWidth: 1, borderColor: '#fbcfe8', ...UI.softShadow },
-  iconBox: { width: 46, height: 46, borderRadius: 16, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
-  content: { flex: 1 },
-  titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
-  dot: { width: 8, height: 8, borderRadius: 4 },
-  nTitle: { fontSize: 14, fontWeight: '800', marginBottom: 4, color: TEXT_DARK },
-  nMessage: { fontSize: 13, color: '#6b7280', lineHeight: 18 },
-  nTime: { fontSize: 11, color: '#9ca3af', marginTop: 8 },
-  empty: { alignItems: 'center', paddingTop: 60 },
-  emptyIcon: { width: 66, height: 66, borderRadius: 24, backgroundColor: '#fdf2f8', alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
+  container:  { flex: 1, backgroundColor: SURFACE_MUTED },
+  header:     { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingBottom: 16, paddingTop: 10 },
+  title:      { fontSize: 23, fontWeight: '900', color: TEXT_DARK },
+  subtitle:   { fontSize: 12, marginTop: 3, fontWeight: '600' },
+  markAllBtn: { paddingHorizontal: 10, paddingVertical: 6 },
+  markAllText:{ fontSize: 12, fontWeight: '700' },
+  list:       { padding: 16, paddingBottom: 120 },
+  center:     { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 },
+  errorBanner:{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#fef3c7', borderRadius: 10, padding: 10, marginBottom: 12, borderWidth: 1, borderColor: '#fcd34d' },
+  errorBannerText: { flex: 1, fontSize: 12, color: '#92400e', fontWeight: '600' },
+  retryInline:{ paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, backgroundColor: '#fff', borderWidth: 1, borderColor: '#fcd34d' },
+  retryInlineText: { fontSize: 12, fontWeight: '700' },
+  card: {
+    flexDirection: 'row',
+    padding: 14,
+    backgroundColor: '#fff',
+    borderRadius: UI.radius.lg,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#fbcfe8',
+    ...UI.softShadow,
+  },
+  cardUnread: { borderColor: '#ec4899', backgroundColor: '#fff9fc' },
+  iconBox:    { width: 46, height: 46, borderRadius: 16, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
+  content:    { flex: 1 },
+  titleRow:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  dot:        { width: 8, height: 8, borderRadius: 4 },
+  nTitle:     { fontSize: 14, fontWeight: '800', marginBottom: 4, color: TEXT_DARK },
+  nMessage:   { fontSize: 13, color: '#6b7280', lineHeight: 18 },
+  nTime:      { fontSize: 11, color: '#9ca3af', marginTop: 8 },
+  empty:      { alignItems: 'center', paddingTop: 60 },
+  emptyIcon:  { width: 66, height: 66, borderRadius: 24, backgroundColor: '#fdf2f8', alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
   emptyTitle: { fontSize: 16, fontWeight: '600' },
-  emptyDesc: { fontSize: 13, color: '#6b7280', marginTop: 6 },
+  emptyDesc:  { fontSize: 13, color: '#6b7280', marginTop: 6 },
 });
 
 export default CustomerNotifications;

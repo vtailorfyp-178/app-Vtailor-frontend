@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { View, ScrollView, TextInput, Pressable, StyleSheet, Image, KeyboardAvoidingView, Platform, Keyboard } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ThemedText } from '@/components/themed-text';
@@ -33,6 +34,7 @@ export default function MeasurementForm() {
   const card = useThemeColor({}, 'card');
   const inputBorder = useThemeColor({}, 'inputBorder');
   const muted = useThemeColor({}, 'muted');
+  const insets = useSafeAreaInsets();
 
   const [step, setStep] = useState<Step>('shirt');
   const [shirt, setShirt] = useState<Record<string, string>>({});
@@ -110,7 +112,7 @@ export default function MeasurementForm() {
         <ThemedText style={styles.headerTitle}>Measurement Form</ThemedText>
       </View>
 
-      <KeyboardAvoidingView behavior="padding" style={styles.keyboardArea} keyboardVerticalOffset={Platform.OS === 'ios' ? 8 : 0}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.keyboardArea} keyboardVerticalOffset={0}>
       <ScrollView
         ref={scrollRef}
         contentContainerStyle={[styles.scroll, { paddingBottom: keyboardVisible ? 96 : 16 }]}
@@ -207,7 +209,7 @@ export default function MeasurementForm() {
         )}
       </ScrollView>
 
-      <View style={[styles.footer, { borderTopColor: inputBorder, backgroundColor: card }]}> 
+      <View style={[styles.footer, { borderTopColor: inputBorder, backgroundColor: card, paddingBottom: Math.max(insets.bottom, 12) }]}> 
         {step === 'shirt' ? (
           <Pressable onPress={() => setStep('trouser')} disabled={!shirtComplete} style={[styles.proceed, { backgroundColor: shirtComplete ? tint : '#f3f4f6' }]}>
             <ThemedText style={{ color: shirtComplete ? '#fff' : '#999' }}>Continue to Trouser</ThemedText>

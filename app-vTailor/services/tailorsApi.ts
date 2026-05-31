@@ -62,6 +62,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 export type NearbyTailor = {
   user_id: string;
   name: string;
+  email?: string | null;
   shop_name?: string | null;
   address?: string | null;
   bio?: string | null;

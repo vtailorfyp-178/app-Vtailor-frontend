@@ -1,5 +1,6 @@
 import React, { useRef, useState } from 'react';
-import { View, StyleSheet, Image, Pressable, TextInput, Alert, NativeSyntheticEvent, TextInputKeyPressEventData } from 'react-native';
+import { View, StyleSheet, Image, Pressable, TextInput, Alert, NativeSyntheticEvent, TextInputKeyPressEventData, KeyboardAvoidingView, ScrollView, Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -39,6 +40,7 @@ export default function AuthScreen() {
   const authPrimary = role === 'tailor' ? tailorMain : customerMain;
 
   const [otpFocusedIndex, setOtpFocusedIndex] = useState<number | null>(null);
+  const insets = useSafeAreaInsets();
 
   const handleRoleSelect = (selectedRole: UserRole) => {
     setRole(selectedRole);
@@ -208,6 +210,13 @@ export default function AuthScreen() {
 
   return (
     <ThemedView style={styles.container}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }} keyboardVerticalOffset={0}>
+        <ScrollView
+          contentContainerStyle={[styles.scrollContent, { paddingTop: Math.max(insets.top + 16, 42), paddingBottom: Math.max(insets.bottom + 16, 24) }]}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+          bounces={false}
+        >
       <View style={styles.header}>
         {step !== 'role' ? (
           <Pressable onPress={handleBack} style={styles.backButton}>
@@ -380,6 +389,9 @@ export default function AuthScreen() {
         )}
 
       </View>
+
+        </ScrollView>
+      </KeyboardAvoidingView>
     </ThemedView>
   );
 }
@@ -387,10 +399,11 @@ export default function AuthScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingHorizontal: 16,
-    paddingTop: 42,
-    justifyContent: 'flex-start',
     backgroundColor: SURFACE_MUTED,
+  },
+  scrollContent: {
+    paddingHorizontal: 16,
+    flexGrow: 1,
   },
   header: {
     marginTop: 12,
@@ -479,7 +492,6 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   content: {
-    flex: 1,
     justifyContent: 'flex-start',
   },
   roleList: {

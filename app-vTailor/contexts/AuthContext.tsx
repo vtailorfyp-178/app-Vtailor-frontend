@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getProfile } from '@/services/authApi';
+import { connectStreamUser, disconnectStreamUser } from '@/services/streamChatService';
 
 export type UserRole = 'customer' | 'tailor' | null;
 
@@ -123,6 +124,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 await AsyncStorage.setItem(completedKey(profileRole, rid || storedUserId), 'true');
               }
             }
+            // Connect Stream Chat after session restore
+            const streamUserId = rid || storedUserId;
+            if (streamUserId) {
+              const displayName = remoteProfile.name || remail || streamUserId;
+              connectStreamUser(
+                storedToken,
+                streamUserId,
+                displayName,
+                profileRole ?? undefined,
+                remoteProfile.phone ?? undefined,
+                remail ?? undefined
+              ).catch((e) => console.warn('[Stream] session-restore connect failed:', e));
+            }
           } catch (error) {
             console.error('Failed to hydrate profile from backend:', error);
           }
@@ -157,6 +171,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     AsyncStorage.setItem('userRole', role ?? '').catch(() => {});
     if (newUserId) AsyncStorage.setItem('userId', newUserId).catch(() => {});
     if (email) AsyncStorage.setItem('loginEmail', email).catch(() => {});
+
+    // Connect Stream Chat
+    const streamId = newUserId;
+    if (streamId) {
+      // Use email as a temporary placeholder only; updateProfile() will re-sync the real name
+      const displayName = email || streamId;
+      connectStreamUser(newToken, streamId, displayName, role ?? undefined, undefined, email ?? undefined).catch(
+        (e) => console.warn('[Stream] login connect failed:', e)
+      );
+    }
   };
 
   const logout = () => {
@@ -167,6 +191,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setCustomerProfile(null);
     setTailorProfile(null);
     setIsProfileCompleted(false);
+    // Disconnect Stream Chat
+    disconnectStreamUser().catch((e) => console.warn('[Stream] logout disconnect failed:', e));
     AsyncStorage.multiRemove([
       'authToken', 'userRole', 'loginEmail',
       'userId',
@@ -198,6 +224,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         AsyncStorage.setItem(profileKey('tailor', idToWrite), JSON.stringify(next)).catch(() => {});
         return next;
       });
+    }
+
+    // Re-sync phone/email to Stream so other users can see them in chat
+    if (token && idToWrite && (profile.phone || profile.email)) {
+      const displayName = profile.name || loginEmail || idToWrite;
+      connectStreamUser(
+        token,
+        idToWrite,
+        displayName,
+        roleToWrite ?? undefined,
+        profile.phone ?? undefined,
+        profile.email ?? loginEmail ?? undefined
+      ).catch(() => {});
     }
   };
 
