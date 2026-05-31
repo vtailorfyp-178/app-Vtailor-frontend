@@ -6,15 +6,25 @@ import {
   getCachedParsedScene,
   hasCachedParsedScene,
 } from '@/services/glb/glbParsedSceneCache';
+import { isCasualFabricDressGlbUrl, isFrillSareeGlbUrl } from '@/services/glb/casualFabricDress';
+import {
+  applyCasualFabricBaseMaterial,
+  applyCasualFabricTextureToMesh,
+  clearCasualFabricTextureFromMesh,
+} from '@/services/glb/casualFabricMaterial';
+import { loadFabricTextureForMesh } from '@/services/glb/fabricTextureCache';
+import {
+  fabricPrintPatternMeta,
+  fabricPrintTileUrl,
+} from '@/services/glb/fabricPrintSelection';
 import { glbNeedsEmbeddedTextures } from '@/services/glb/glbMaterialPolicy';
 import { isNativeThreeParseError, loadGltfFromUrl } from '@/services/glb/loadGltfFromUrl';
 import { GlbHtmlModelViewer } from '@/components/GlbHtmlModelViewer';
 import { setActiveGlbLoadUrl } from '@/services/glb/glbModelCache';
 import {
-  applyChiffonClothMaterial,
+  applyCasualFabricTintToMesh,
+  applyDressFabricMaterialsToScene,
   applyFabricColorTintToMesh,
-  applyPatiyalaFabricTintToMesh,
-  applyPatiyalaFabricTintToScene,
   isFabricDressMesh,
   isPatiyalaTintMesh,
   toDisplayStandardMaterial,
@@ -72,13 +82,10 @@ function fitDressCamera(
 
 type FabricMaterialSlot = {
   mat: THREE.MeshStandardMaterial;
+  mesh: THREE.Mesh;
   baseColor: THREE.Color;
   isDressFabric: boolean;
 };
-
-function isPatiyalaGlbUrl(glbUrl: string): boolean {
-  return /patiyala/i.test(decodeURIComponent(glbUrl));
-}
 
 function prepareFabricMaterialSlots(
   model: THREE.Object3D,
@@ -100,13 +107,14 @@ function prepareFabricMaterialSlots(
     for (const source of sourceMats) {
       const mat = toDisplayStandardMaterial(source);
       const baseColor = mat.color.clone();
-      applyChiffonClothMaterial(mat, dressFabric);
-      if (tint && dressFabric && fabricColorHex) {
-        if (patiyalaTint) applyPatiyalaFabricTintToMesh(mat, fabricColorHex);
-        else applyFabricColorTintToMesh(mat, fabricColorHex, baseColor);
+      if (dressFabric) {
+        applyCasualFabricBaseMaterial(mat, true);
+        if (tint && fabricColorHex) applyCasualFabricTintToMesh(mat, fabricColorHex);
+      } else {
+        applyCasualFabricBaseMaterial(mat, false);
       }
       if (dressFabric || (patiyalaTint && tint)) {
-        slots.push({ mat, baseColor, isDressFabric: true });
+        slots.push({ mat, mesh: obj, baseColor, isDressFabric: true });
       }
       nextMats.push(mat);
     }
@@ -132,8 +140,31 @@ function applyFabricColorTint(
   }
   for (const { mat, baseColor, isDressFabric } of slots) {
     if (!isDressFabric) continue;
-    if (patiyalaTint) applyPatiyalaFabricTintToMesh(mat, hex);
+    if (patiyalaTint) applyCasualFabricTintToMesh(mat, hex);
     else applyFabricColorTintToMesh(mat, hex, baseColor);
+  }
+}
+
+async function applyFabricTextureToSlots(
+  slots: FabricMaterialSlot[],
+  fabricPrintRaw: string | null | undefined,
+): Promise<void> {
+  if (!slots.length) return;
+  const tileUrl = fabricPrintTileUrl(fabricPrintRaw);
+  if (!tileUrl) {
+    for (const { mat, baseColor, isDressFabric } of slots) {
+      if (!isDressFabric) continue;
+      clearCasualFabricTextureFromMesh(mat);
+      mat.color.copy(baseColor);
+      mat.needsUpdate = true;
+    }
+    return;
+  }
+  const meta = fabricPrintPatternMeta(fabricPrintRaw);
+  for (const { mat, mesh, isDressFabric } of slots) {
+    if (!isDressFabric) continue;
+    const tex = await loadFabricTextureForMesh(tileUrl, mesh, meta);
+    applyCasualFabricTextureToMesh(mat, tex);
   }
 }
 
@@ -193,6 +224,7 @@ type Props = {
   width: number;
   height: number;
   fabricColorHex?: string | null;
+  fabricTextureUrl?: string | null;
   /** @deprecated Grarah uses per-variant GLB — do not pass runtime tint. */
   weddingColorHex?: string | null;
   backgroundImage?: ImageSourcePropType | null;
@@ -205,6 +237,7 @@ export function TraditionalDressGlbViewer({
   width,
   height,
   fabricColorHex,
+  fabricTextureUrl = null,
   weddingColorHex: _weddingColorHex,
   backgroundImage,
   style,
@@ -224,6 +257,7 @@ export function TraditionalDressGlbViewer({
 
   const ctxRef = useRef<ExpoWebGLRenderingContext | null>(null);
   const frameIdRef = useRef<ReturnType<typeof requestAnimationFrame> | null>(null);
+  const draggingRef = useRef(false);
   const rootGroupRef = useRef<THREE.Group | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
@@ -239,6 +273,42 @@ export function TraditionalDressGlbViewer({
   const [banner, setBanner] = useState<string | null>('Loading 3D dress…');
   const [useWebViewFallback, setUseWebViewFallback] = useState(false);
   const displayedUrlRef = useRef<string | null>(null);
+  const fabricColorHexRef = useRef(fabricColorHex);
+  const fabricTextureUrlRef = useRef(fabricTextureUrl);
+  fabricColorHexRef.current = fabricColorHex;
+  fabricTextureUrlRef.current = fabricTextureUrl ?? null;
+
+  const tickRef = useRef<() => void>(() => {});
+
+  tickRef.current = () => {
+    frameIdRef.current = null;
+    const gl = ctxRef.current;
+    const renderer = rendererRef.current;
+    const scene = sceneRef.current;
+    const cam = cameraRef.current;
+    const root = rootGroupRef.current;
+
+    if (disposedRef.current || !gl || !renderer || !scene || !cam || !root) return;
+
+    const z = THREE.MathUtils.clamp(zoomRef.current, ZOOM_MIN, ZOOM_MAX);
+    const pivotY =
+      pivotYRef.current + THREE.MathUtils.clamp(zoomOffsetRef.current, LOOK_Y_MIN, LOOK_Y_MAX);
+    cam.position.set(0, pivotY, z);
+    cam.lookAt(0, pivotY, 0);
+    root.rotation.order = 'YXZ';
+    root.rotation.y = rotY.current;
+    root.rotation.x = 0;
+    renderer.render(scene, cam);
+    gl.endFrameEXP?.();
+    if (draggingRef.current) {
+      frameIdRef.current = requestAnimationFrame(() => tickRef.current());
+    }
+  };
+
+  const requestRender = useCallback(() => {
+    if (disposedRef.current || frameIdRef.current !== null) return;
+    frameIdRef.current = requestAnimationFrame(() => tickRef.current());
+  }, []);
 
   const clearDressFromScene = useCallback(() => {
     const root = rootGroupRef.current;
@@ -264,21 +334,20 @@ export function TraditionalDressGlbViewer({
       if (previous && previous !== model) disposeObject3DTree(previous);
 
       root.add(model);
-      const texturedDress = glbNeedsEmbeddedTextures(glbUrl);
-      const patiyalaTint = !texturedDress && isPatiyalaGlbUrl(glbUrl);
-      if (texturedDress) {
-        fabricSlotsRef.current = [];
-      } else if (patiyalaTint) {
-        applyPatiyalaFabricTintToScene(model, fabricColorHex ?? null);
-        fabricSlotsRef.current = prepareFabricMaterialSlots(model, fabricColorHex, {
-          tintAllDressMeshes: true,
-        });
-      } else {
-        fabricSlotsRef.current = prepareFabricMaterialSlots(model, fabricColorHex, {
-          tintAllDressMeshes: false,
-        });
-        applyFabricColorTint(fabricSlotsRef.current, fabricColorHex, false);
-      }
+      const casualFabric = isCasualFabricDressGlbUrl(glbUrl);
+      const chiffon = isFrillSareeGlbUrl(glbUrl);
+      applyDressFabricMaterialsToScene(model, {
+        fabricColorHex: null,
+        tintAllDressPanels: casualFabric,
+        chiffon,
+      });
+      fabricSlotsRef.current = prepareFabricMaterialSlots(model, null, {
+        tintAllDressMeshes: casualFabric,
+      });
+      applyFabricColorTint(fabricSlotsRef.current, fabricColorHexRef.current, casualFabric);
+      void applyFabricTextureToSlots(fabricSlotsRef.current, fabricTextureUrlRef.current).then(() => {
+        requestRender();
+      });
 
       const cam = cameraRef.current;
       if (cam) {
@@ -299,9 +368,13 @@ export function TraditionalDressGlbViewer({
       setBanner(
         usedFallback ? 'Showing default preview (selected model unavailable).' : null,
       );
+      requestRender();
     },
-    [clearDressFromScene, fabricColorHex, glbUrl],
+    [clearDressFromScene, glbUrl, requestRender],
   );
+
+  const mountModelInSceneRef = useRef(mountModelInScene);
+  mountModelInSceneRef.current = mountModelInScene;
 
   const tryInstantFromCache = useCallback((): boolean => {
     const template = getCachedParsedScene(glbUrl);
@@ -340,7 +413,7 @@ export function TraditionalDressGlbViewer({
       if (cancelled || gen !== loadGenRef.current) return;
       if (tryInstantFromCache()) return;
 
-      loadGltfFromUrl(glbUrl, fabricColorHex, {
+      loadGltfFromUrl(glbUrl, null, {
         allowFallback: false,
       })
         .then(({ model, usedFallback }) => {
@@ -348,7 +421,7 @@ export function TraditionalDressGlbViewer({
             disposeObject3DTree(model);
             return;
           }
-          mountModelInScene(model, usedFallback);
+          mountModelInSceneRef.current(model, usedFallback);
         })
         .catch((err) => {
           if (isGlbLoadSupersededError(err)) return;
@@ -378,7 +451,7 @@ export function TraditionalDressGlbViewer({
         displayedUrlRef.current = null;
       }
     };
-  }, [glbUrl, tryInstantFromCache, mountModelInScene]);
+  }, [glbUrl, tryInstantFromCache]);
 
   useEffect(() => {
     if (!glReady || !displayModel) return;
@@ -410,52 +483,19 @@ export function TraditionalDressGlbViewer({
   }, [clearDressFromScene]);
 
   useEffect(() => {
-    const root = rootGroupRef.current;
-    const model = root?.children[0];
-    if (!model || !glReady) return;
-    if (glbNeedsEmbeddedTextures(glbUrl)) {
-      fabricSlotsRef.current = [];
-    } else {
-      const patiyalaTint = isPatiyalaGlbUrl(glbUrl);
-      if (patiyalaTint) {
-        applyPatiyalaFabricTintToScene(model, fabricColorHex ?? null);
-        fabricSlotsRef.current = prepareFabricMaterialSlots(model, fabricColorHex, {
-          tintAllDressMeshes: true,
-        });
+    if (!fabricSlotsRef.current.length || !glReady) return;
+    const casualFabric = isCasualFabricDressGlbUrl(glbUrl);
+    const apply = async () => {
+      if (fabricTextureUrl) {
+        await applyFabricTextureToSlots(fabricSlotsRef.current, fabricTextureUrl);
       } else {
-        fabricSlotsRef.current = prepareFabricMaterialSlots(model, fabricColorHex, {
-          tintAllDressMeshes: false,
-        });
-        applyFabricColorTint(fabricSlotsRef.current, fabricColorHex, false);
+        await applyFabricTextureToSlots(fabricSlotsRef.current, null);
+        applyFabricColorTint(fabricSlotsRef.current, fabricColorHex, casualFabric);
       }
-    }
-    const renderer = rendererRef.current;
-    const scene = sceneRef.current;
-    const cam = cameraRef.current;
-    if (renderer && scene && cam) renderer.render(scene, cam);
-  }, [fabricColorHex, glReady, displayModel, glbUrl]);
-
-  const tick = () => {
-    const gl = ctxRef.current;
-    const renderer = rendererRef.current;
-    const scene = sceneRef.current;
-    const cam = cameraRef.current;
-    const root = rootGroupRef.current;
-
-    if (disposedRef.current || !gl || !renderer || !scene || !cam || !root) return;
-
-    const z = THREE.MathUtils.clamp(zoomRef.current, ZOOM_MIN, ZOOM_MAX);
-    const pivotY =
-      pivotYRef.current + THREE.MathUtils.clamp(zoomOffsetRef.current, LOOK_Y_MIN, LOOK_Y_MAX);
-    cam.position.set(0, pivotY, z);
-    cam.lookAt(0, pivotY, 0);
-    root.rotation.order = 'YXZ';
-    root.rotation.y = rotY.current;
-    root.rotation.x = 0;
-    renderer.render(scene, cam);
-    gl.endFrameEXP?.();
-    frameIdRef.current = requestAnimationFrame(tick);
-  };
+      requestRender();
+    };
+    void apply();
+  }, [fabricColorHex, fabricTextureUrl, glReady, glbUrl, requestRender]);
 
   const onContextCreate = useCallback(
     async (gl: ExpoWebGLRenderingContext) => {
@@ -480,30 +520,40 @@ export function TraditionalDressGlbViewer({
         camera.lookAt(0, pivotYRef.current, 0);
         cameraRef.current = camera;
 
+        const casualFabric = isCasualFabricDressGlbUrl(glbUrl);
+        const texturedDress = glbNeedsEmbeddedTextures(glbUrl) || casualFabric;
         const renderer = createRenderer(gl, w, h, hasBackdrop);
         renderer.setSize(w, h, false);
         if (hasBackdrop) renderer.setClearColor(0x000000, 0);
         renderer.outputColorSpace = THREE.SRGBColorSpace;
         renderer.toneMapping = THREE.ACESFilmicToneMapping;
-        renderer.toneMappingExposure = 1.12;
+        renderer.toneMappingExposure = texturedDress ? 1.28 : 1.2;
         rendererRef.current = renderer;
 
         THREE.ColorManagement.enabled = true;
 
-        scene.add(new THREE.AmbientLight(0xffffff, 0.92));
-        scene.add(new THREE.HemisphereLight(0xffffff, 0xb8c0cc, 0.85));
-        const key = new THREE.DirectionalLight(0xffffff, 1.2);
+        const ambientIntensity = texturedDress ? 0.78 : 1.0;
+        const hemiIntensity = texturedDress ? 0.85 : 0.95;
+        const keyIntensity = texturedDress ? 1.42 : 1.32;
+        scene.add(new THREE.AmbientLight(0xffffff, ambientIntensity));
+        scene.add(new THREE.HemisphereLight(0xfff8fc, 0x8898b8, hemiIntensity));
+        const key = new THREE.DirectionalLight(0xfff5f8, keyIntensity);
         key.position.set(5, 10, 6);
         scene.add(key);
-        const fill = new THREE.DirectionalLight(0xfff9fc, 0.48);
+        const fill = new THREE.DirectionalLight(0xfff9fc, texturedDress ? 0.58 : 0.52);
         fill.position.set(-4, 6, 8);
         scene.add(fill);
-        const rim = new THREE.DirectionalLight(0xe8f0ff, 0.32);
+        const rim = new THREE.DirectionalLight(0xe8f0ff, texturedDress ? 0.42 : 0.36);
         rim.position.set(-6, 4, -5);
         scene.add(rim);
-        const bounce = new THREE.PointLight(0xffffff, 0.28, 30, 1.85);
-        bounce.position.set(0, 1.45, 4.2);
-        scene.add(bounce);
+        const frontFill = new THREE.DirectionalLight(0xffffff, texturedDress ? 0.32 : 0.24);
+        frontFill.position.set(0, 3, 9);
+        scene.add(frontFill);
+        if (!texturedDress) {
+          const bounce = new THREE.PointLight(0xffffff, 0.32, 30, 1.85);
+          bounce.position.set(0, 1.45, 4.2);
+          scene.add(bounce);
+        }
 
         const rootGroup = new THREE.Group();
         rootGroupRef.current = rootGroup;
@@ -517,18 +567,20 @@ export function TraditionalDressGlbViewer({
       }
 
       if (frameIdRef.current !== null) cancelAnimationFrame(frameIdRef.current);
-      frameIdRef.current = requestAnimationFrame(tick);
+      requestRender();
     },
-    [hasBackdrop],
+    [glbUrl, hasBackdrop, requestRender],
   );
 
   const applyZoomIn = useCallback(() => {
     zoomRef.current = THREE.MathUtils.clamp(zoomRef.current * ZOOM_BUTTON_STEP, ZOOM_MIN, ZOOM_MAX);
-  }, []);
+    requestRender();
+  }, [requestRender]);
 
   const applyZoomOut = useCallback(() => {
     zoomRef.current = THREE.MathUtils.clamp(zoomRef.current / ZOOM_BUTTON_STEP, ZOOM_MIN, ZOOM_MAX);
-  }, []);
+    requestRender();
+  }, [requestRender]);
 
   const applyLookUp = useCallback(() => {
     zoomOffsetRef.current = THREE.MathUtils.clamp(
@@ -536,7 +588,8 @@ export function TraditionalDressGlbViewer({
       LOOK_Y_MIN,
       LOOK_Y_MAX,
     );
-  }, []);
+    requestRender();
+  }, [requestRender]);
 
   const applyLookDown = useCallback(() => {
     zoomOffsetRef.current = THREE.MathUtils.clamp(
@@ -544,7 +597,8 @@ export function TraditionalDressGlbViewer({
       LOOK_Y_MIN,
       LOOK_Y_MAX,
     );
-  }, []);
+    requestRender();
+  }, [requestRender]);
 
   const panResponder = useMemo(
     () =>
@@ -552,9 +606,11 @@ export function TraditionalDressGlbViewer({
         onStartShouldSetPanResponder: () => true,
         onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dx) > 4 || Math.abs(g.dy) > 4,
         onPanResponderGrant: () => {
+          draggingRef.current = true;
           panStartRotY.current = rotY.current;
           panStartZoom.current = zoomRef.current;
           panAxis.current = null;
+          requestRender();
         },
         onPanResponderMove: (_, g) => {
           if (!panAxis.current) {
@@ -563,6 +619,7 @@ export function TraditionalDressGlbViewer({
           }
           if (panAxis.current === 'rotate') {
             rotY.current = panStartRotY.current + g.dx * ROT_Y_SENS;
+            requestRender();
             return;
           }
           zoomRef.current = THREE.MathUtils.clamp(
@@ -570,9 +627,16 @@ export function TraditionalDressGlbViewer({
             ZOOM_MIN,
             ZOOM_MAX,
           );
+          requestRender();
+        },
+        onPanResponderRelease: () => {
+          draggingRef.current = false;
+        },
+        onPanResponderTerminate: () => {
+          draggingRef.current = false;
         },
       }),
-    [],
+    [requestRender],
   );
 
   const w = Math.max(200, layoutRef.current.width);
@@ -584,6 +648,8 @@ export function TraditionalDressGlbViewer({
         glbUrl={glbUrl}
         width={w}
         height={h}
+        fabricColorHex={fabricColorHex}
+        fabricTextureUrl={fabricTextureUrl}
         style={style}
         isUpdating={isUpdating}
       />

@@ -1,4 +1,5 @@
 import type { ImageSourcePropType, StyleProp, ViewStyle } from 'react-native';
+import type { FabricPatternMeta } from '@/services/glb/fabricPrintSelection';
 import { MobileGlbWebViewer } from '@/components/MobileGlbWebViewer';
 
 type Props = {
@@ -6,6 +7,8 @@ type Props = {
   width: number;
   height: number;
   fabricColorHex?: string | null;
+  fabricTextureUrl?: string | null;
+  fabricPatternMeta?: FabricPatternMeta | null;
   weddingColorHex?: string | null;
   fallbackImage?: ImageSourcePropType | null;
   style?: StyleProp<ViewStyle>;

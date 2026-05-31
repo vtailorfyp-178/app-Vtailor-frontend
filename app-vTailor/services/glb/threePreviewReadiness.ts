@@ -1,5 +1,10 @@
 import type { DressSelections } from './dressGlbTypes';
-import { isCasualShortShirtModelId } from './dressGlbTypes';
+import {
+  isCasualShortShirtModelId,
+  isTrouserShirtBellBottomModelId,
+  isTrouserShirtTulipTrouserModelId,
+  isTrouserShirtVariationModelId,
+} from './dressGlbTypes';
 
 const LONG_FROCK_COLORS = new Set(['red', 'blue', 'white', 'black']);
 const SAREE_COLORS = new Set(['red', 'blue', 'white', 'black']);
@@ -34,6 +39,12 @@ export function with3dPreviewDefaults(modelId: string, s: DressSelections): Dres
   if (isCasualShortShirtModelId(modelId) && !next.bottom) {
     next.bottom = 'patiyala';
   }
+  if (isTrouserShirtBellBottomModelId(modelId) && !next.sleeves) {
+    next.sleeves = 'straight';
+  }
+  if (isTrouserShirtTulipTrouserModelId(modelId) && !next.sleeves) {
+    next.sleeves = 'full';
+  }
   return next;
 }
 
@@ -44,6 +55,9 @@ export function with3dPreviewDefaults(modelId: string, s: DressSelections): Dres
 export function canShowGlbPreview(modelId: string, s: DressSelections): boolean {
   if (!modelId) return false;
 
+  if (isTrouserShirtVariationModelId(modelId)) {
+    return Boolean(s.neck);
+  }
   if (isCasualShortShirtModelId(modelId)) {
     if (s.bottom === 'straight') return false;
     return Boolean(s.neck);
@@ -64,10 +78,13 @@ export function canShowGlbPreview(modelId: string, s: DressSelections): boolean 
   return false;
 }
 
-/** All tabs filled — required before "View 3D model" / order. */
+/** All tabs filled — required before opening full-screen 3D view / measurements. */
 export function isReadyFor3dPreview(modelId: string, s: DressSelections): boolean {
   if (!modelId) return false;
 
+  if (isTrouserShirtVariationModelId(modelId)) {
+    return Boolean(s.neck && s.sleeves);
+  }
   if (isCasualShortShirtModelId(modelId)) {
     if (s.bottom === 'straight') return false;
     return Boolean(s.neck && s.sleeves && (s.bottom === 'patiyala' || s.bottom == null));

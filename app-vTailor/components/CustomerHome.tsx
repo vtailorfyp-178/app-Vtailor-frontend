@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { DEMO_CUSTOMER_ORDERS, dressPreviewFromOrderDescription } from '@/services/orderDressPreview';
 import { ThemedText } from './themed-text';
 import { getUnreadCount } from '@/services/notificationsApi';
 
@@ -31,26 +32,36 @@ const CustomerHome = () => {
     { label: 'Find Tailors', icon: 'location-outline', route: '/customer/find-tailors' },
   ];
 
-  const currentOrders = [
-    { id: 1, name: 'Long Frock', tailor: 'Ahmad Tailor', tailorId: 'sample-tailor-aliya-formal', tailorPhone: '+923215560190', tailorAvatar: 'AT', tailorRating: '⭐ 4.8 (245 reviews)', status: 'In Progress', daysLeft: 5, price: 8500 },
-    { id: 2, name: 'Shalwar Kameez', tailor: 'Master Tailors', tailorId: 'sample-tailor-fatima-traditional', tailorPhone: '+923129018820', tailorAvatar: 'MT', tailorRating: '⭐ 4.6 (180 reviews)', status: 'Cutting', daysLeft: 12, price: 25000 },
-  ];
+  const currentOrders = DEMO_CUSTOMER_ORDERS.filter(
+    (o) => o.status === 'In Progress' || o.status === 'Cutting',
+  );
 
   const openOrderTimeline = (order: (typeof currentOrders)[number]) => {
+    const preview = dressPreviewFromOrderDescription(order.name);
     router.push({
       pathname: '/customer/order-timeline',
       params: {
         orderId: `ORD-${String(order.id).padStart(3, '0')}`,
         demo: '1',
         orderDescription: order.name,
-        orderDate: new Date().toISOString().slice(0, 10),
+        orderDate: order.date,
         orderPrice: String(order.price),
         tailorName: order.tailor,
         tailorId: order.tailorId,
         tailorPhone: order.tailorPhone,
         tailorAvatar: order.tailorAvatar,
-        tailorRating: order.tailorRating,
+        tailorRating: order.rating,
         statusLabel: order.status,
+        sampleNeck: order.sample.neck,
+        sampleSleeves: order.sample.sleeves,
+        sampleStyle: order.sample.style,
+        sampleColor: order.sample.color,
+        ...(preview
+          ? {
+              modelId: preview.modelId,
+              selections: JSON.stringify(preview.selections),
+            }
+          : {}),
       },
     } as any);
   };
@@ -128,8 +139,8 @@ const CustomerHome = () => {
                 <View style={styles.orderTop}>
                   <View>
                     <ThemedText style={styles.orderName}>{order.name}</ThemedText>
-                      <Pressable onPress={() => openOrderTimeline(order)}>
-                      <ThemedText style={[styles.orderTailor, { color: '#3b82f6', fontWeight: '600' }]}>{order.tailor}</ThemedText>
+                      <Pressable onPress={() => openOrderTimeline(order)} hitSlop={6}>
+                      <ThemedText style={[styles.orderTailor, { color: tint }]}>{order.tailor}</ThemedText>
                     </Pressable>
                   </View>
                   <View style={styles.statusBadge}>
@@ -215,7 +226,7 @@ const styles = StyleSheet.create({
   orderCard: { padding: 16, borderRadius: 18, borderWidth: 1, marginBottom: 8, ...UI.softShadow },
   orderTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 },
   orderName: { fontSize: 15, fontWeight: '800', color: TEXT_DARK },
-  orderTailor: { fontSize: 12, color: '#6b7280', marginTop: 2 },
+  orderTailor: { fontSize: 12, marginTop: 3, fontWeight: '700' },
   statusBadge: { paddingHorizontal: 10, paddingVertical: 6, backgroundColor: '#fef3c7', borderRadius: 999 },
   statusText: { fontSize: 11, fontWeight: '800', color: '#92400e' },
   orderBottom: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },

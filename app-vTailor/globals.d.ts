@@ -9,3 +9,13 @@ declare module '@/data/cloudinaryCatalog.json' {
   const rows: Array<{ relativePath: string; url: string; aliasOf?: string | null }>;
   export default rows;
 }
+
+declare module '@/data/bellBottomCloudinaryCatalog.json' {
+  const rows: Array<{ relativePath: string; url: string; aliasOf?: string | null }>;
+  export default rows;
+}
+
+declare module '@/data/tulipTrouserCloudinaryCatalog.json' {
+  const rows: Array<{ relativePath: string; url: string; aliasOf?: string | null }>;
+  export default rows;
+}

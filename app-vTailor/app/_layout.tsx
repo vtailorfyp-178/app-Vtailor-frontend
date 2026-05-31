@@ -1,11 +1,11 @@
 import 'react-native-gesture-handler';
 import 'react-native-reanimated';
+import { useEffect } from 'react';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { Slot } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { useEffect } from 'react';
 import { AppState, AppStateStatus } from 'react-native';
 
 import { ErrorBoundary } from '@/components/ErrorBoundary';
@@ -17,6 +17,7 @@ import {
   setupNotificationTapHandler,
   clearBadgeCount,
 } from '@/services/notificationService';
+import { pruneStaleApiBaseUrl } from '@/services/apiBase';
 
 // No anchor routes; root shows `app/index.tsx` (Splash) by default.
 
@@ -45,6 +46,10 @@ function NotificationBootstrap() {
 export default function RootLayout() {
   prefetchCloudinaryModelCatalog();
   const colorScheme = useColorScheme();
+
+  useEffect(() => {
+    void pruneStaleApiBaseUrl();
+  }, []);
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>

@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
+import { Platform } from 'react-native';
 import type { DressSelections } from '@/services/dressGlbResolver';
 import { isGlbLoadSupersededError } from '@/services/glb/glbFetchErrors';
 import {
   peekDressGlbUrlCached,
   resolveDressGlbUrlCached,
 } from '@/services/glb/glbUrlResolve';
+import { prefetchGlbBuffer, prefetchGltfScene } from '@/services/glb/loadGltfFromUrl';
 import { setActiveGlbLoadUrl } from '@/services/glb/glbModelCache';
 import type { GlbModelPath } from '@/services/glb/glbModelUrl';
 
@@ -53,19 +55,27 @@ export function useBundledDressGlb(
       if (!hit) {
         const straightOnly =
           modelId === 'shalwar-kameez-short' && selections.bottom === 'straight';
+        const trouserShirtVariation =
+          modelId === 'trouser-shirt-bell-bottom' || modelId === 'trouser-shirt-tulip-trouser';
         setState({
           url: null,
           path: null,
           loading: false,
           error: straightOnly
             ? '3D preview is available for Patiyala shalwar only.'
-            : 'No 3D model for this combination. Pick neck, sleeves, and color (red, blue, white, or black for long frock).',
+            : trouserShirtVariation
+              ? 'Trouser shirt 3D is loading from Cloudinary. If this persists, models may not be uploaded yet.'
+              : 'No 3D model for this combination. Pick neck, sleeves, and color (red, blue, white, or black for long frock).',
           resolvedKey: selectionKey,
         });
         setActiveGlbLoadUrl(null);
         return;
       }
       setActiveGlbLoadUrl(hit.url);
+      if (Platform.OS === 'web') {
+        prefetchGlbBuffer(hit.url);
+        prefetchGltfScene(hit.url);
+      }
       setState({
         url: hit.url,
         path: hit.path,
@@ -79,17 +89,21 @@ export function useBundledDressGlb(
       if (cancelled || gen !== resolveGenRef.current) return;
       if (isGlbLoadSupersededError(err)) return;
       setActiveGlbLoadUrl(null);
-      setState((prev) => ({
-        url: prev.url,
-        path: prev.path,
+      setState({
+        url: null,
+        path: null,
         loading: false,
         error: err instanceof Error ? err.message : 'Could not resolve 3D model.',
         resolvedKey: selectionKey,
-      }));
+      });
     };
 
     const cached = peekDressGlbUrlCached(selections, modelId);
     if (cached !== undefined) {
+      if (cached?.url && Platform.OS === 'web') {
+        prefetchGlbBuffer(cached.url);
+        prefetchGltfScene(cached.url);
+      }
       applyHit(cached);
       return () => {
         cancelled = true;

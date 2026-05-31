@@ -18,7 +18,7 @@ const logo = require('../../assets/images/vTailorlogo.jpeg');
 
 const lehngaImage = require('../../2d model/lehanga.png');
 
-const grarahImage = require('../../2d model/shrara.jpg');
+const grarahImage = require('../../2d model/shrara.png');
 
 
 

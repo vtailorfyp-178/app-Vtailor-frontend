@@ -1,10 +1,12 @@
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import AppBackButton from '@/components/AppBackButton';
 import { DressGlbPreview } from '@/components/DressGlbPreview';
+import { ROLE_COLORS, UI, TEXT_DARK, TEXT_MUTED } from '@/constants/ui';
+import { useThemeColor } from '@/hooks/use-theme-color';
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '@/contexts/AuthContext';
-import { dressPreviewFromOrderDescription } from '@/services/orderDressPreview';
+import { DEMO_CUSTOMER_ORDERS, dressPreviewFromOrderDescription } from '@/services/orderDressPreview';
 import { getUserCustomizations } from '@/services/userDataService';
 import { type TabId } from '@/services/dressGlbResolver';
 import { useBundledDressGlb } from '@/hooks/useBundledDressGlb';
@@ -17,10 +19,8 @@ import { with3dPreviewDefaults } from '@/services/glb/threePreviewReadiness';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  Alert,
   FlatList,
   Image,
-  Linking,
   SafeAreaView,
   Pressable,
   ScrollView,
@@ -30,6 +30,27 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
+
+const THEME = ROLE_COLORS.customer;
+
+function SectionHeader({
+  icon,
+  title,
+  accentColor,
+}: {
+  icon: React.ComponentProps<typeof Ionicons>['name'];
+  title: string;
+  accentColor: string;
+}) {
+  return (
+    <View style={styles.cardTitleRow}>
+      <View style={styles.sectionIconWrap}>
+        <Ionicons name={icon} size={16} color={accentColor} />
+      </View>
+      <Text style={styles.sectionTitle}>{title}</Text>
+    </View>
+  );
+}
 
 const STEPS = [
   "Order Accepted",
@@ -68,74 +89,24 @@ type TimelineOrder = {
   selections?: Record<string, string | null>;
 };
 
-const TIMELINE_ORDERS: TimelineOrder[] = [
-  {
-    orderId: 'ORD-001',
-    orderDescription: 'Long Frock',
-    orderDate: '2026-12-25',
-    orderPrice: '8500',
-    tailorName: 'Ahmad Tailor',
-    tailorId: 'sample-tailor-aliya-formal',
-    tailorPhone: '+923215560190',
-    tailorAvatar: 'AT',
-    tailorRating: '⭐ 4.8 (245 reviews)',
-    statusLabel: 'In Progress',
-    sampleNeck: 'Round Neck',
-    sampleSleeves: 'Bell Sleeves',
-    sampleStyle: 'Flared Bottom',
-    sampleColor: 'Beige',
-    modelId: 'long-frock',
-    selections: { neck: 'v-neck', sleeves: 'bell', bottom: null, 'frock-style': 'flared-bottom', colors: 'beige' },
-  },
-  {
-    orderId: 'ORD-002',
-    orderDescription: 'Shalwar Kameez',
-    orderDate: '2026-12-20',
-    orderPrice: '25000',
-    tailorName: 'Master Tailors',
-    tailorId: 'sample-tailor-fatima-traditional',
-    tailorPhone: '+923129018820',
-    tailorAvatar: 'MT',
-    tailorRating: '⭐ 4.6 (180 reviews)',
-    statusLabel: 'Cutting',
-    sampleNeck: 'V-Neck',
-    sampleSleeves: 'Bell Sleeves',
-    sampleStyle: 'Straight Style',
-    sampleColor: 'Beige',
-  },
-  {
-    orderId: 'ORD-003',
-    orderDescription: 'Kurti',
-    orderDate: '2026-12-15',
-    orderPrice: '3500',
-    tailorName: 'Classic Stitches',
-    tailorId: 'sample-tailor-noor-party',
-    tailorPhone: '+923332198744',
-    tailorAvatar: 'CS',
-    tailorRating: '⭐ 4.7 (132 reviews)',
-    statusLabel: 'Delivered',
-    sampleNeck: 'Round Neck',
-    sampleSleeves: 'Bell Sleeves',
-    sampleStyle: 'Straight Style',
-    sampleColor: 'Beige',
-  },
-  {
-    orderId: 'ORD-004',
-    orderDescription: 'Lehenga',
-    orderDate: '2026-12-10',
-    orderPrice: '6000',
-    tailorName: 'Ahmad Tailor',
-    tailorId: 'sample-tailor-zainab-bridal',
-    tailorPhone: '+923004102231',
-    tailorAvatar: 'AT',
-    tailorRating: '⭐ 4.8 (245 reviews)',
-    statusLabel: 'Delivered',
-    sampleNeck: 'Round Neck',
-    sampleSleeves: 'Bell Sleeves',
-    sampleStyle: 'Flared Style',
-    sampleColor: 'Beige',
-  },
-];
+const TIMELINE_ORDERS: TimelineOrder[] = DEMO_CUSTOMER_ORDERS.map((o) => ({
+  orderId: `ORD-${String(o.id).padStart(3, '0')}`,
+  orderDescription: o.name,
+  orderDate: o.date,
+  orderPrice: String(o.price),
+  tailorName: o.tailor,
+  tailorId: o.tailorId,
+  tailorPhone: o.tailorPhone,
+  tailorAvatar: o.tailorAvatar,
+  tailorRating: o.rating,
+  statusLabel: o.status,
+  sampleNeck: o.sample.neck,
+  sampleSleeves: o.sample.sleeves,
+  sampleStyle: o.sample.style,
+  sampleColor: o.sample.color,
+  modelId: o.modelId,
+  selections: o.selections,
+}));
 
 const defaultSelections: Record<TabId, string | null> = {
   neck: null,
@@ -144,6 +115,7 @@ const defaultSelections: Record<TabId, string | null> = {
   'frock-style': null,
   colors: null,
   'saree-style': null,
+  'fabric-print': null,
 };
 
 function mergedSelections(selections: Record<string, string | null>): Record<TabId, string | null> {
@@ -160,7 +132,7 @@ function imageForModel(modelId: string) {
   if (modelId === 'saree') return require('../../2d model/variations/saree.png');
   if (modelId === 'shalwar-kameez' || modelId === 'shalwar-kameez-long')
     return require('../../2d model/short-shirt-shalwar.png');
-  if (modelId === 'sharara') return require('../../2d model/shrara.jpg');
+  if (modelId === 'sharara') return require('../../2d model/shrara.png');
   if (modelId === 'grarah-short-shirt') return require('../../2d model/variations/short-shirt-grarah.png');
   if (modelId === 'grarah-peplum') return require('../../2d model/variations/peplum-grarah.png');
   if (modelId === 'lehnga-circular') return require('../../2d model/variations/circular.png');
@@ -243,6 +215,7 @@ function formatOrderDate(value?: string) {
 }
 
 export default function CustomerOrderTimelineScreen() {
+  const tint = useThemeColor({}, 'tint');
   const params = useLocalSearchParams();
   const { width: screenW } = useWindowDimensions();
   const glPreviewW = Math.max(260, Math.floor(screenW - 64));
@@ -308,6 +281,8 @@ export default function CustomerOrderTimelineScreen() {
   const previewFabricHex = usesCasualShortShirtFabricTint(previewModelId ?? '', mergedPreviewSelections)
     ? fabricColorHexFromId(mergedPreviewSelections.colors)
     : null;
+  const previewFabricTextureUrl = mergedPreviewSelections['fabric-print'];
+  const previewFabricColorHex = previewFabricTextureUrl ? null : previewFabricHex;
   const preview2d = previewModelId ? imageForModel(previewModelId) : null;
   const [activeTab, setActiveTab] = useState<'tailor' | 'order'>('order');
 
@@ -315,24 +290,31 @@ export default function CustomerOrderTimelineScreen() {
     setActiveTab('order');
   }, [selectedOrderId]);
 
-  const handleContactTailor = () => {
+  const handleViewTailorProfile = () => {
     router.push({
-      pathname: '/customer/chat-conversation',
+      pathname: '/customer/tailor-details',
       params: {
         tailorId: tailorIdFromParams,
-        otherUserId: tailorIdFromParams,
-        otherUserName: tailorName,
-        otherUserAvatar: tailorAvatarFromParams,
-        otherUserPhone: tailorPhoneFromParams,
+        tailorName: tailorName,
+        tailorPhone: tailorPhoneFromParams,
+        tailorAvatar: tailorAvatarFromParams,
+        tailorRating: tailorRating,
+        from: 'orders',
       },
-    });
+    } as any);
   };
 
-  const handleCallTailor = () => {
-    const dialNumber = tailorPhoneFromParams.replace(/\s+/g, '');
-    Linking.openURL(`tel:${dialNumber}`).catch(() => {
-      Alert.alert('Call Failed', `Unable to open dialer for ${tailorPhoneFromParams}.`);
-    });
+  const handleView3dModel = () => {
+    if (!previewModelId) return;
+    router.push({
+      pathname: '/customer/view-3d-model',
+      params: {
+        modelId: previewModelId,
+        modelName: orderDescription,
+        selections: JSON.stringify(previewSelections),
+        fullScreen: '1',
+      },
+    } as any);
   };
 
   const openOrder = (order: TimelineOrder) => {
@@ -521,6 +503,11 @@ export default function CustomerOrderTimelineScreen() {
     return estimatedDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   };
 
+  const progressPercent = Math.min(
+    100,
+    Math.round((currentStep / Math.max(STEPS.length - 1, 1)) * 100),
+  );
+
   const renderItem = ({ item, index }: { item: string; index: number }) => {
     const completed = index < currentStep;
     const active = index === currentStep;
@@ -532,7 +519,7 @@ export default function CustomerOrderTimelineScreen() {
             style={[
               styles.circle,
               completed && styles.completed,
-              active && styles.active,
+              active && { backgroundColor: tint, borderColor: tint },
             ]}
           >
             {completed && (
@@ -543,7 +530,7 @@ export default function CustomerOrderTimelineScreen() {
             )}
           </View>
           {index !== STEPS.length - 1 && (
-            <View style={[styles.line, completed && styles.lineCompleted]} />
+            <View style={[styles.line, completed && { backgroundColor: tint }]} />
           )}
         </View>
 
@@ -552,21 +539,21 @@ export default function CustomerOrderTimelineScreen() {
             style={[
               styles.title,
               completed && styles.completedText,
-              active && styles.activeText,
+              active && { color: tint, fontWeight: '900', fontSize: 15 },
             ]}
           >
             {item}
           </Text>
           {active && (
-            <Text style={styles.sub}>Currently working on this step</Text>
+            <Text style={[styles.sub, { color: tint }]}>Currently working on this step</Text>
           )}
           {completed && (
-            <Text style={styles.subCompleted}>✓ Completed</Text>
+            <Text style={styles.subCompleted}>Completed</Text>
           )}
           {!completed && !active && (
             <Text style={styles.subPending}>Pending</Text>
           )}
-          <Text style={styles.estimatedDate}>Est: {getEstimatedDate(index)}</Text>
+          <Text style={styles.estimatedDate}>Est. {getEstimatedDate(index)}</Text>
         </View>
       </View>
     );
@@ -577,7 +564,7 @@ export default function CustomerOrderTimelineScreen() {
       <ProtectedRoute requiredRole="customer">
         <SafeAreaView style={styles.safeArea}>
           <View style={styles.container}>
-            <View style={styles.headerContainer}>
+            <View style={[styles.headerContainer, { backgroundColor: tint }]}>
               <AppBackButton onPress={() => router.back()} />
               <View style={styles.headerContent}>
                 <Text style={styles.header}>Order Timeline</Text>
@@ -586,13 +573,15 @@ export default function CustomerOrderTimelineScreen() {
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-              <View style={styles.ordersPanel}>
+              <View style={styles.ordersPanelCard}>
                 <View style={styles.panelHeader}>
                   <View>
-                    <Text style={styles.panelEyebrow}>All Orders</Text>
+                    <Text style={[styles.panelEyebrow, { color: tint }]}>All Orders</Text>
                     <Text style={styles.panelTitle}>Open one order to see the timeline</Text>
                   </View>
-                  <Ionicons name="layers-outline" size={22} color="#be185d" />
+                  <View style={styles.panelHeaderIcon}>
+                    <Ionicons name="layers-outline" size={20} color={tint} />
+                  </View>
                 </View>
 
                 {TIMELINE_ORDERS.map((order) => (
@@ -603,7 +592,7 @@ export default function CustomerOrderTimelineScreen() {
                       </View>
                       <View style={{ flex: 1 }}>
                         <Text style={styles.orderListTitle}>{order.orderDescription}</Text>
-                        <Text style={styles.orderListSubtitle}>{order.tailorName}</Text>
+                        <Text style={[styles.orderListSubtitle, { color: tint }]}>{order.tailorName}</Text>
                       </View>
                       <View style={styles.orderListPriceWrap}>
                         <Text style={styles.orderListPriceLabel}>Total</Text>
@@ -612,7 +601,7 @@ export default function CustomerOrderTimelineScreen() {
                     </View>
                     <View style={styles.orderListMetaRow}>
                       <View style={styles.orderListPill}>
-                        <Text style={styles.orderListPillText}>{order.statusLabel}</Text>
+                        <Text style={[styles.orderListPillText, { color: tint }]}>{order.statusLabel}</Text>
                       </View>
                       <Text style={styles.orderListDate}>{order.orderDate}</Text>
                     </View>
@@ -631,7 +620,7 @@ export default function CustomerOrderTimelineScreen() {
       <ProtectedRoute requiredRole="customer">
         <SafeAreaView style={styles.safeArea}>
           <View style={styles.container}>
-            <View style={styles.headerContainer}>
+            <View style={[styles.headerContainer, { backgroundColor: tint }]}>
               <AppBackButton onPress={() => router.back()} />
               <View style={styles.headerContent}>
                 <Text style={styles.header}>Order Progress</Text>
@@ -640,7 +629,7 @@ export default function CustomerOrderTimelineScreen() {
             </View>
 
             <View style={styles.tabRow}>
-              <Pressable onPress={() => setActiveTab('tailor')} style={[styles.tabBtn, styles.tabBtnActive]}>
+              <Pressable onPress={() => setActiveTab('tailor')} style={[styles.tabBtn, { backgroundColor: tint, borderColor: tint }]}>
                 <Text style={[styles.tabText, styles.tabTextActive]}>Tailor Detail</Text>
               </Pressable>
               <Pressable onPress={() => setActiveTab('order')} style={styles.tabBtn}>
@@ -649,38 +638,47 @@ export default function CustomerOrderTimelineScreen() {
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-              <View style={styles.tailorCard}>
-                <View style={styles.tailorHeader}>
-                  <View style={styles.tailorAvatar}>
-                    <Ionicons name="storefront" size={32} color="#fff" />
+              <View style={styles.tailorDetailCard}>
+                <View style={styles.tailorDetailHero}>
+                  <View style={[styles.tailorAvatarLarge, { backgroundColor: tint }]}>
+                    <Text style={styles.tailorAvatarLargeText}>{tailorAvatarFromParams.slice(0, 2)}</Text>
                   </View>
-                  <View style={styles.tailorInfo}>
-                    <Text style={styles.tailorName}>{tailorName}</Text>
-                    <Text style={styles.tailorRating}>{tailorRating}</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.tailorNameLarge}>{tailorName}</Text>
+                    <Text style={styles.tailorRatingLarge}>{tailorRating}</Text>
+                    <View style={styles.verifiedPill}>
+                      <Ionicons name="shield-checkmark" size={12} color={tint} />
+                      <Text style={[styles.verifiedPillText, { color: tint }]}>Verified tailor</Text>
+                    </View>
                   </View>
                   <View style={styles.statusPill}>
-                    <Text style={styles.statusPillText}>{statusLabelFromParams || STEPS[currentStep]}</Text>
+                    <Text style={[styles.statusPillText, { color: tint }]}>{statusLabelFromParams || STEPS[currentStep]}</Text>
                   </View>
                 </View>
 
-                <View style={styles.tinyRow}>
-                  <Text style={styles.tinyLabel}>Tailor ID</Text>
-                  <Text style={styles.tinyValue}>{tailorIdFromParams}</Text>
-                </View>
-                <View style={styles.tinyRow}>
-                  <Text style={styles.tinyLabel}>Phone</Text>
-                  <Text style={styles.tinyValue}>{tailorPhoneFromParams}</Text>
+                <View style={styles.detailInfoGrid}>
+                  <View style={styles.detailInfoItem}>
+                    <Ionicons name="finger-print-outline" size={16} color={tint} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.detailInfoLabel}>Tailor ID</Text>
+                      <Text style={styles.detailInfoValue} numberOfLines={1}>{tailorIdFromParams}</Text>
+                    </View>
+                  </View>
+                  <View style={styles.detailInfoItem}>
+                    <Ionicons name="call-outline" size={16} color={tint} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.detailInfoLabel}>Phone</Text>
+                      <Text style={styles.detailInfoValue}>{tailorPhoneFromParams}</Text>
+                    </View>
+                  </View>
                 </View>
               </View>
 
-              <View style={styles.buttonContainer}>
-                <TouchableOpacity style={styles.contactButton} onPress={handleContactTailor}>
-                  <Ionicons name="chatbubble-ellipses-outline" size={20} color="#3b82f6" />
-                  <Text style={styles.contactButtonText}>Contact Tailor</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.callButton} onPress={handleCallTailor}>
-                  <Ionicons name="call" size={20} color="#fff" />
-                  <Text style={styles.callButtonText}>Call Tailor</Text>
+              <View style={styles.buttonContainerInline}>
+                <TouchableOpacity style={[styles.profileButton, { borderColor: tint }]} onPress={handleViewTailorProfile}>
+                  <Ionicons name="person-circle-outline" size={20} color={tint} />
+                  <Text style={[styles.profileButtonText, { color: tint }]}>View Full Tailor Profile</Text>
+                  <Ionicons name="chevron-forward" size={16} color={tint} />
                 </TouchableOpacity>
               </View>
             </ScrollView>
@@ -695,7 +693,7 @@ export default function CustomerOrderTimelineScreen() {
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.container}>
           {/* Header with Back Button */}
-          <View style={styles.headerContainer}>
+          <View style={[styles.headerContainer, { backgroundColor: tint }]}>
             <AppBackButton onPress={() => router.back()} />
             <View style={styles.headerContent}>
               <Text style={styles.header}>Order Progress</Text>
@@ -707,117 +705,111 @@ export default function CustomerOrderTimelineScreen() {
             <Pressable onPress={() => setActiveTab('tailor')} style={styles.tabBtn}>
               <Text style={styles.tabText}>Tailor Detail</Text>
             </Pressable>
-            <Pressable onPress={() => setActiveTab('order')} style={[styles.tabBtn, styles.tabBtnActive]}>
+            <Pressable onPress={() => setActiveTab('order')} style={[styles.tabBtn, { backgroundColor: tint, borderColor: tint }]}>
               <Text style={[styles.tabText, styles.tabTextActive]}>Order Detail</Text>
             </Pressable>
           </View>
 
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-            {/* Order Hero Card */}
-            <View style={styles.tailorCard}>
-              <View style={styles.tailorHeader}>
-                <View style={styles.tailorAvatar}>
-                  <Ionicons name="storefront" size={32} color="#fff" />
+            <View style={styles.orderHeroCard}>
+              <View style={styles.orderHeroHeader}>
+                <View style={[styles.tailorAvatarLarge, { backgroundColor: tint }]}>
+                  <Text style={styles.tailorAvatarLargeText}>{tailorAvatarFromParams.slice(0, 2)}</Text>
                 </View>
-                <View style={styles.tailorInfo}>
-                  <Text style={styles.tailorName}>{tailorName}</Text>
-                  <Text style={styles.tailorRating}>{tailorRating}</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.orderHeroLabel, { color: tint }]}>{ORDER_ID}</Text>
+                  <Text style={styles.orderHeroTitle}>{orderDescription}</Text>
+                  <Text style={[styles.orderHeroTailor, { color: tint }]}>{tailorName}</Text>
+                  <Text style={styles.orderHeroDate}>Ordered on {orderDate}</Text>
                 </View>
+                {orderPriceFromParams ? (
+                  <View style={styles.priceCard}>
+                    <Text style={styles.priceLabel}>Total</Text>
+                    <Text style={styles.priceValue}>Rs {Number(orderPriceFromParams).toLocaleString()}</Text>
+                  </View>
+                ) : null}
+              </View>
+
+              <View style={styles.orderHeroMetaRow}>
                 <View style={styles.statusPill}>
-                  <Text style={styles.statusPillText}>{statusLabelFromParams || STEPS[currentStep]}</Text>
+                  <Text style={[styles.statusPillText, { color: tint }]}>{statusLabelFromParams || STEPS[currentStep]}</Text>
                 </View>
+                <Text style={styles.tailorRatingCompact}>{tailorRating}</Text>
               </View>
 
-              {/* Order Details */}
-              <View style={styles.orderDetailsSection}>
-                <View style={styles.orderHeroTop}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.orderHeroLabel}>{ORDER_ID}</Text>
-                    <Text style={styles.orderHeroTitle}>{orderDescription}</Text>
-                    <Text style={styles.orderHeroDate}>Ordered on {orderDate}</Text>
-                  </View>
-                  {orderPriceFromParams ? (
-                    <View style={styles.priceCard}>
-                      <Text style={styles.priceLabel}>Total</Text>
-                      <Text style={styles.priceValue}>Rs {Number(orderPriceFromParams).toLocaleString()}</Text>
-                    </View>
-                  ) : null}
-                </View>
-              </View>
-
-              {previewModelId && (previewDressGlb.url != null || preview2d != null) ? (
-                <View style={styles.previewCard}>
-                  <View style={styles.cardTitleRow}>
-                    <Ionicons name="cube-outline" size={18} color="#be185d" />
-                    <Text style={styles.sectionTitle}>Ordered 3D design</Text>
-                  </View>
-                  <View style={styles.previewViewport}>
-                    {previewDressGlb.url != null ? (
-                      <DressGlbPreview
-                        key={`${ORDER_ID}-${previewDressGlb.url}-${mergedPreviewSelections.colors ?? ''}`}
-                        glbUrl={previewDressGlb.url}
-                        width={glPreviewW}
-                        height={glPreviewH}
-                        fabricColorHex={previewFabricHex}
-                        fallbackImage={preview2d}
-                      />
-                    ) : preview2d ? (
-                      <Image source={preview2d} style={styles.preview2d} resizeMode="contain" />
-                    ) : null}
-                  </View>
-                </View>
-              ) : null}
-
-              <View style={styles.designCard}>
-                <View style={styles.cardTitleRow}>
-                  <Ionicons name="color-palette-outline" size={18} color="#be185d" />
-                  <Text style={styles.sectionTitle}>Design Details</Text>
-                </View>
-                <View style={styles.infoGrid}>
-                  {orderInfoRows.map((row) => (
-                    <View key={row.label} style={styles.infoChip}>
-                      <Text style={styles.infoChipLabel}>{row.label}</Text>
-                      <Text style={styles.infoChipValue}>{row.value}</Text>
-                    </View>
-                  ))}
-                </View>
-              </View>
-
-              <View style={styles.designCard}>
-                <View style={styles.cardTitleRow}>
-                  <Ionicons name="body-outline" size={18} color="#be185d" />
-                  <Text style={styles.sectionTitle}>Measurements</Text>
-                </View>
-                <View style={styles.infoGrid}>
-                  {measurementRows.map((row) => (
-                    <View key={row.label} style={styles.infoChip}>
-                      <Text style={styles.infoChipLabel}>{row.label}</Text>
-                      <Text style={styles.infoChipValue}>{row.value}</Text>
-                    </View>
-                  ))}
-                </View>
-              </View>
-
-              {/* Progress Bar */}
               <View style={styles.progressSection}>
-                <Text style={styles.sectionTitle}>Overall Progress</Text>
+                <View style={styles.progressHeaderRow}>
+                  <Text style={styles.sectionTitle}>Overall Progress</Text>
+                  <View style={[styles.progressBadge, { backgroundColor: tint }]}>
+                    <Text style={styles.progressBadgeText}>{progressPercent}%</Text>
+                  </View>
+                </View>
                 <View style={styles.progressBar}>
                   <View
                     style={[
                       styles.progressFill,
-                      { width: `${(currentStep / (STEPS.length - 1)) * 100}%` }
+                      { width: `${progressPercent}%` },
                     ]}
                   />
                 </View>
                 <Text style={styles.progressText}>
-                  {currentStep + 1} of {STEPS.length} steps completed
+                  Step {currentStep + 1} of {STEPS.length} · {STEPS[currentStep]}
                 </Text>
               </View>
             </View>
 
-            {/* Timeline Section */}
+            {previewModelId && (previewDressGlb.url != null || preview2d != null) ? (
+              <View style={styles.previewCard}>
+                <SectionHeader icon="cube-outline" title="Ordered 3D Design" accentColor={tint} />
+                <View style={styles.previewViewport}>
+                  {previewDressGlb.url != null ? (
+                    <DressGlbPreview
+                      key={`${ORDER_ID}-${previewDressGlb.url}-${mergedPreviewSelections.colors ?? ''}`}
+                      glbUrl={previewDressGlb.url}
+                      width={glPreviewW}
+                      height={glPreviewH}
+                      fabricColorHex={previewFabricColorHex}
+                      fabricTextureUrl={previewFabricTextureUrl}
+                      fallbackImage={preview2d}
+                    />
+                  ) : preview2d ? (
+                    <Image source={preview2d} style={styles.preview2d} resizeMode="contain" />
+                  ) : null}
+                </View>
+                <Pressable style={styles.view3dLink} onPress={handleView3dModel}>
+                  <Ionicons name="expand-outline" size={18} color={tint} />
+                  <Text style={[styles.view3dLinkText, { color: tint }]}>View full 3D model</Text>
+                  <Ionicons name="chevron-forward" size={16} color={tint} />
+                </Pressable>
+              </View>
+            ) : null}
+
+            <View style={styles.designCard}>
+              <SectionHeader icon="color-palette-outline" title="Design Details" accentColor={tint} />
+              <View style={styles.infoGrid}>
+                {orderInfoRows.map((row) => (
+                  <View key={row.label} style={styles.infoChip}>
+                    <Text style={styles.infoChipLabel}>{row.label}</Text>
+                    <Text style={styles.infoChipValue}>{row.value}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+
+            <View style={styles.designCard}>
+              <SectionHeader icon="body-outline" title="Measurements" accentColor={tint} />
+              <View style={styles.infoGrid}>
+                {measurementRows.map((row) => (
+                  <View key={row.label} style={styles.infoChip}>
+                    <Text style={styles.infoChipLabel}>{row.label}</Text>
+                    <Text style={styles.infoChipValue}>{row.value}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+
             <View style={styles.timelineSection}>
-              <Text style={styles.sectionTitle}>Timeline</Text>
+              <SectionHeader icon="git-branch-outline" title="Production Timeline" accentColor={tint} />
               <FlatList
                 data={STEPS}
                 keyExtractor={(item, index) => index.toString()}
@@ -826,11 +818,17 @@ export default function CustomerOrderTimelineScreen() {
               />
             </View>
 
-            {/* Status Message */}
-            <View style={styles.statusMessageCard}>
+            <View
+              style={[
+                styles.statusMessageCard,
+                currentStep === STEPS.length - 1 ? styles.statusComplete : styles.statusInProgress,
+              ]}
+            >
               {currentStep === STEPS.length - 1 ? (
                 <>
-                  <Ionicons name="checkmark-circle" size={40} color="#10b981" />
+                  <View style={[styles.statusIconWrap, styles.statusIconComplete]}>
+                    <Ionicons name="checkmark-circle" size={36} color="#10b981" />
+                  </View>
                   <Text style={styles.statusTitle}>Order Complete!</Text>
                   <Text style={styles.statusMessage}>
                     Your dress is ready for pickup. Contact the tailor for delivery details.
@@ -838,7 +836,9 @@ export default function CustomerOrderTimelineScreen() {
                 </>
               ) : (
                 <>
-                  <Ionicons name="time-outline" size={40} color="#f59e0b" />
+                  <View style={[styles.statusIconWrap, styles.statusIconActive]}>
+                    <Ionicons name="cut-outline" size={32} color={tint} />
+                  </View>
                   <Text style={styles.statusTitle}>In Progress</Text>
                   <Text style={styles.statusMessage}>
                     Your tailor is working on: {STEPS[currentStep]}
@@ -847,24 +847,6 @@ export default function CustomerOrderTimelineScreen() {
               )}
             </View>
           </ScrollView>
-
-          {/* Action Buttons */}
-          <View style={styles.buttonContainer}>
-            <TouchableOpacity 
-              style={styles.contactButton}
-              onPress={handleContactTailor}
-            >
-              <Ionicons name="chatbubble-ellipses-outline" size={20} color="#3b82f6" />
-              <Text style={styles.contactButtonText}>Contact Tailor</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.callButton}
-              onPress={handleCallTailor}
-            >
-              <Ionicons name="call" size={20} color="#fff" />
-              <Text style={styles.callButtonText}>Call Tailor</Text>
-            </TouchableOpacity>
-          </View>
         </View>
       </SafeAreaView>
     </ProtectedRoute>
@@ -874,86 +856,180 @@ export default function CustomerOrderTimelineScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#f3f4f6",
+    backgroundColor: THEME.soft,
   },
   container: {
     flex: 1,
-    backgroundColor: "#fff",
+    backgroundColor: THEME.soft,
   },
   headerContainer: {
     paddingHorizontal: 16,
     paddingTop: 44,
-    paddingBottom: 16,
-    backgroundColor: "#fff",
-    borderBottomWidth: 1,
-    borderBottomColor: "#e5e7eb",
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  backButton: {
-    marginRight: 12,
-    padding: 8,
+    paddingBottom: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderBottomLeftRadius: 22,
+    borderBottomRightRadius: 22,
+    ...UI.shadow,
   },
   headerContent: {
     flex: 1,
   },
   header: {
     fontSize: 22,
-    fontWeight: "bold",
-    color: "#111827",
+    fontWeight: '900',
+    color: '#fff',
     marginBottom: 2,
   },
   subheader: {
     fontSize: 13,
-    color: "#6b7280",
+    color: 'rgba(255,255,255,0.88)',
+    fontWeight: '600',
   },
   scrollContent: {
-    paddingTop: 32,
+    paddingTop: 14,
     paddingHorizontal: 16,
-    paddingBottom: 16,
+    paddingBottom: 24,
+  },
+  ordersPanelCard: {
+    backgroundColor: '#fff',
+    borderRadius: 22,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: THEME.border,
+    ...UI.softShadow,
+  },
+  panelHeaderIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 14,
+    backgroundColor: THEME.soft,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   ordersPanel: { gap: 12 },
-  panelHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
-  panelEyebrow: { color: '#be185d', fontSize: 12, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.8 },
-  panelTitle: { color: '#111827', fontSize: 18, fontWeight: '900', marginTop: 4 },
-  orderListCard: { backgroundColor: '#fff', borderRadius: 18, borderWidth: 1, borderColor: '#fbcfe8', padding: 14, marginBottom: 12 },
+  panelHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
+  panelEyebrow: { fontSize: 11, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.8 },
+  panelTitle: { color: TEXT_DARK, fontSize: 17, fontWeight: '900', marginTop: 4 },
+  orderListCard: {
+    backgroundColor: THEME.soft,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: THEME.border,
+    padding: 14,
+    marginBottom: 10,
+  },
   orderListTop: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  orderListAvatar: { width: 46, height: 46, borderRadius: 16, backgroundColor: '#ec4899', alignItems: 'center', justifyContent: 'center' },
+  orderListAvatar: {
+    width: 46,
+    height: 46,
+    borderRadius: 16,
+    backgroundColor: THEME.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   orderListAvatarText: { color: '#fff', fontWeight: '900' },
-  orderListTitle: { fontSize: 16, fontWeight: '900', color: '#111827' },
-  orderListSubtitle: { fontSize: 12, color: '#6b7280', marginTop: 2, fontWeight: '600' },
+  orderListTitle: { fontSize: 16, fontWeight: '900', color: TEXT_DARK },
+  orderListSubtitle: { fontSize: 12, marginTop: 2, fontWeight: '700' },
   orderListPriceWrap: { alignItems: 'flex-end' },
-  orderListPriceLabel: { fontSize: 10, color: '#9ca3af', fontWeight: '800' },
-  orderListPrice: { fontSize: 13, color: '#111827', fontWeight: '900' },
+  orderListPriceLabel: { fontSize: 10, color: TEXT_MUTED, fontWeight: '800' },
+  orderListPrice: { fontSize: 13, color: TEXT_DARK, fontWeight: '900' },
   orderListMetaRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 12 },
-  orderListPill: { backgroundColor: '#fdf2f8', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999 },
-  orderListPillText: { color: '#be185d', fontSize: 11, fontWeight: '900' },
-  orderListDate: { color: '#6b7280', fontSize: 12, fontWeight: '600' },
-  tabRow: { flexDirection: 'row', gap: 10, marginHorizontal: 16, marginTop: 10 },
-  tabBtn: { flex: 1, borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 999, paddingVertical: 10, alignItems: 'center', backgroundColor: '#fff' },
-  tabBtnActive: { backgroundColor: '#be185d', borderColor: '#be185d' },
-  tabText: { color: '#374151', fontWeight: '800', fontSize: 12 },
+  orderListPill: { backgroundColor: '#fff', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, borderWidth: 1, borderColor: THEME.border },
+  orderListPillText: { fontSize: 11, fontWeight: '900' },
+  orderListDate: { color: TEXT_MUTED, fontSize: 12, fontWeight: '600' },
+  tabRow: { flexDirection: 'row', gap: 8, marginHorizontal: 16, marginTop: 12, marginBottom: 4 },
+  tabBtn: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: THEME.border,
+    borderRadius: 999,
+    paddingVertical: 11,
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    ...UI.softShadow,
+  },
+  tabText: { color: TEXT_MUTED, fontWeight: '800', fontSize: 12 },
   tabTextActive: { color: '#fff' },
+  orderHeroCard: {
+    backgroundColor: '#fff',
+    borderRadius: 22,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: THEME.border,
+    ...UI.softShadow,
+  },
+  orderHeroHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
+  orderHeroMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 14,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: THEME.border,
+  },
+  orderHeroTailor: { fontSize: 13, fontWeight: '800', marginTop: 4 },
+  tailorRatingCompact: { fontSize: 12, color: TEXT_MUTED, fontWeight: '700' },
+  tailorDetailCard: {
+    backgroundColor: '#fff',
+    borderRadius: 22,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: THEME.border,
+    ...UI.softShadow,
+  },
+  tailorDetailHero: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
+  tailorAvatarLarge: {
+    width: 56,
+    height: 56,
+    borderRadius: 18,
+    backgroundColor: THEME.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tailorAvatarLargeText: { color: '#fff', fontWeight: '900', fontSize: 16 },
+  tailorNameLarge: { fontSize: 18, fontWeight: '900', color: TEXT_DARK },
+  tailorRatingLarge: { fontSize: 13, color: TEXT_MUTED, marginTop: 3, fontWeight: '600' },
+  verifiedPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 8,
+    alignSelf: 'flex-start',
+    backgroundColor: THEME.soft,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 999,
+  },
+  verifiedPillText: { fontSize: 10, fontWeight: '800' },
+  detailInfoGrid: { gap: 10, marginTop: 14, paddingTop: 12, borderTopWidth: 1, borderTopColor: THEME.border },
+  detailInfoItem: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  detailInfoLabel: { fontSize: 10, color: TEXT_MUTED, fontWeight: '800', textTransform: 'uppercase' },
+  detailInfoValue: { fontSize: 13, color: TEXT_DARK, fontWeight: '700', marginTop: 2 },
+  buttonContainerInline: { marginBottom: 8 },
   tailorCard: {
-    backgroundColor: "#fff7fb",
+    backgroundColor: THEME.soft,
     borderRadius: 22,
     padding: 16,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: "#fbcfe8",
+    borderColor: THEME.border,
   },
   tailorHeader: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     marginBottom: 16,
   },
   tailorAvatar: {
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: "#ec4899",
-    justifyContent: "center",
-    alignItems: "center",
+    backgroundColor: THEME.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
     marginRight: 12,
   },
   tailorInfo: {
@@ -961,181 +1037,172 @@ const styles = StyleSheet.create({
   },
   tailorName: {
     fontSize: 18,
-    fontWeight: "700",
-    color: "#111827",
+    fontWeight: '700',
+    color: TEXT_DARK,
   },
   tailorRating: {
     fontSize: 14,
-    color: "#6b7280",
+    color: TEXT_MUTED,
     marginTop: 2,
   },
   statusPill: {
     maxWidth: 110,
     borderRadius: 999,
-    backgroundColor: "#fdf2f8",
+    backgroundColor: THEME.soft,
     paddingHorizontal: 10,
     paddingVertical: 7,
+    borderWidth: 1,
+    borderColor: THEME.border,
   },
   statusPillText: {
-    color: "#be185d",
     fontSize: 11,
-    fontWeight: "800",
-    textAlign: "center",
+    fontWeight: '800',
+    textAlign: 'center',
   },
-  tinyRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: '#fbcfe8' },
-  tinyLabel: { color: '#6b7280', fontSize: 11, fontWeight: '700' },
-  tinyValue: { color: '#111827', fontSize: 11, fontWeight: '800' },
+  tinyRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: THEME.border,
+  },
+  tinyLabel: { color: TEXT_MUTED, fontSize: 11, fontWeight: '700' },
+  tinyValue: { color: TEXT_DARK, fontSize: 11, fontWeight: '800' },
   demoBadge: {
     fontSize: 11,
-    fontWeight: "700",
-    color: "#1d4ed8",
-    backgroundColor: "#dbeafe",
+    fontWeight: '700',
+    backgroundColor: THEME.soft,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 999,
+    borderWidth: 1,
+    borderColor: THEME.border,
   },
   orderDetailsSection: {
     marginBottom: 12,
-  },
-  previewCard: {
-    backgroundColor: '#fff',
-    borderRadius: 18,
-    padding: 13,
-    borderWidth: 1,
-    borderColor: '#fbcfe8',
-    marginTop: 12,
-  },
-  previewViewport: {
-    width: '100%',
-    alignItems: 'center',
-    backgroundColor: '#f8fafc',
-    borderRadius: 12,
-    overflow: 'hidden',
   },
   preview2d: {
     width: '100%',
     height: 220,
   },
-  sectionTitle: {
-    fontSize: 14,
-    fontWeight: "900",
-    color: "#111827",
-  },
-  orderHeroTop: {
-    flexDirection: "row",
-    gap: 12,
-    alignItems: "center",
-  },
-  orderHeroLabel: {
-    color: "#be185d",
-    fontSize: 11,
-    fontWeight: "900",
-    marginBottom: 3,
-  },
-  orderHeroTitle: {
-    color: "#111827",
-    fontSize: 22,
-    fontWeight: "900",
-  },
-  orderHeroDate: {
-    color: "#6b7280",
-    fontSize: 12,
-    fontWeight: "600",
-    marginTop: 4,
-  },
   priceCard: {
-    backgroundColor: "#fff",
+    backgroundColor: THEME.soft,
     borderRadius: 16,
     paddingHorizontal: 12,
     paddingVertical: 10,
-    alignItems: "flex-end",
+    alignItems: 'flex-end',
     borderWidth: 1,
-    borderColor: "#fbcfe8",
+    borderColor: THEME.border,
   },
   priceLabel: {
-    color: "#9ca3af",
+    color: TEXT_MUTED,
     fontSize: 10,
-    fontWeight: "900",
+    fontWeight: '900',
     marginBottom: 2,
   },
   priceValue: {
-    color: "#111827",
+    color: TEXT_DARK,
     fontSize: 15,
-    fontWeight: "900",
+    fontWeight: '900',
   },
   designCard: {
-    backgroundColor: "#fff",
+    backgroundColor: '#fff',
     borderRadius: 18,
-    padding: 13,
+    padding: 14,
     borderWidth: 1,
-    borderColor: "#fbcfe8",
+    borderColor: THEME.border,
     marginTop: 12,
+    ...UI.softShadow,
+  },
+  sectionIconWrap: {
+    width: 30,
+    height: 30,
+    borderRadius: 10,
+    backgroundColor: THEME.soft,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   cardTitleRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
     marginBottom: 12,
   },
   infoGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 8,
   },
   infoChip: {
-    width: "48%",
-    backgroundColor: "#fff7fb",
+    width: '48%',
+    backgroundColor: THEME.soft,
     borderRadius: 14,
     padding: 10,
+    borderWidth: 1,
+    borderColor: THEME.border,
   },
   infoChipLabel: {
-    color: "#9ca3af",
+    color: TEXT_MUTED,
     fontSize: 10,
-    fontWeight: "900",
+    fontWeight: '900',
     marginBottom: 3,
+    textTransform: 'uppercase',
   },
   infoChipValue: {
-    color: "#111827",
+    color: TEXT_DARK,
     fontSize: 12,
-    fontWeight: "800",
-  },
-  detailRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 8,
-  },
-  detailLabel: {
-    fontSize: 13,
-    color: "#6b7280",
-    fontWeight: "500",
-  },
-  detailValue: {
-    fontSize: 13,
-    color: "#111827",
-    fontWeight: "600",
+    fontWeight: '800',
   },
   progressSection: {
-    paddingTop: 12,
+    paddingTop: 14,
+    marginTop: 4,
+    borderTopWidth: 1,
+    borderTopColor: THEME.border,
+  },
+  progressHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  progressBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+  },
+  progressBadgeText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '900',
   },
   progressBar: {
-    height: 8,
-    backgroundColor: "#dbeafe",
-    borderRadius: 4,
+    height: 10,
+    backgroundColor: THEME.soft,
+    borderRadius: 999,
     marginBottom: 8,
-    overflow: "hidden",
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: THEME.border,
   },
   progressFill: {
-    height: "100%",
-    backgroundColor: "#3b82f6",
-    borderRadius: 4,
+    height: '100%',
+    backgroundColor: THEME.primary,
+    borderRadius: 999,
   },
   progressText: {
     fontSize: 12,
-    color: "#6b7280",
-    textAlign: "center",
+    color: TEXT_MUTED,
+    fontWeight: '600',
   },
   timelineSection: {
     marginTop: 8,
+    backgroundColor: '#fff',
+    borderRadius: 18,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: THEME.border,
+    ...UI.softShadow,
   },
   row: {
     flexDirection: "row",
@@ -1146,132 +1213,187 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   circle: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: "#e5e7eb",
-    justifyContent: "center",
-    alignItems: "center",
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: '#e2e8f0',
+    justifyContent: 'center',
+    alignItems: 'center',
     borderWidth: 2,
-    borderColor: "#d1d5db",
+    borderColor: '#cbd5e1',
   },
   completed: {
-    backgroundColor: "#10b981",
-    borderColor: "#059669",
-  },
-  active: {
-    backgroundColor: "#f59e0b",
-    borderColor: "#d97706",
+    backgroundColor: '#10b981',
+    borderColor: '#059669',
   },
   line: {
     width: 3,
     flex: 1,
-    backgroundColor: "#e5e7eb",
+    backgroundColor: '#e2e8f0',
     marginTop: 6,
-  },
-  lineCompleted: {
-    backgroundColor: "#10b981",
+    borderRadius: 2,
   },
   right: {
     flex: 1,
-    marginLeft: 16,
+    marginLeft: 14,
     paddingTop: 2,
   },
   title: {
-    fontSize: 15,
-    color: "#6b7280",
-    fontWeight: "500",
+    fontSize: 14,
+    color: TEXT_MUTED,
+    fontWeight: '600',
   },
   completedText: {
-    color: "#10b981",
-    fontWeight: "600",
-  },
-  activeText: {
-    color: "#f59e0b",
-    fontWeight: "700",
-    fontSize: 16,
+    color: '#10b981',
+    fontWeight: '800',
   },
   sub: {
-    fontSize: 12,
-    color: "#f59e0b",
+    fontSize: 11,
     marginTop: 4,
-    fontWeight: "500",
+    fontWeight: '700',
   },
   subCompleted: {
-    fontSize: 12,
-    color: "#10b981",
+    fontSize: 11,
+    color: '#10b981',
     marginTop: 4,
-    fontWeight: "500",
+    fontWeight: '700',
   },
   subPending: {
-    fontSize: 12,
-    color: "#9ca3af",
+    fontSize: 11,
+    color: '#94a3b8',
     marginTop: 4,
+    fontWeight: '600',
   },
   estimatedDate: {
-    fontSize: 11,
-    color: "#d1d5db",
+    fontSize: 10,
+    color: '#94a3b8',
     marginTop: 6,
-    fontStyle: "italic",
+    fontWeight: '600',
   },
   statusMessageCard: {
-    backgroundColor: "#f9fafb",
-    borderRadius: 12,
-    padding: 20,
-    marginVertical: 20,
-    alignItems: "center",
+    borderRadius: 20,
+    padding: 22,
+    marginTop: 14,
+    alignItems: 'center',
     borderWidth: 1,
-    borderColor: "#e5e7eb",
+    ...UI.softShadow,
+  },
+  statusInProgress: {
+    backgroundColor: THEME.soft,
+    borderColor: THEME.border,
+  },
+  statusComplete: {
+    backgroundColor: '#ecfdf5',
+    borderColor: '#a7f3d0',
+  },
+  statusIconWrap: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
+  },
+  statusIconActive: {
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: THEME.border,
+  },
+  statusIconComplete: {
+    backgroundColor: '#fff',
   },
   statusTitle: {
     fontSize: 18,
-    fontWeight: "700",
-    color: "#111827",
-    marginTop: 12,
+    fontWeight: '900',
+    color: TEXT_DARK,
+    marginTop: 8,
   },
   statusMessage: {
     fontSize: 14,
-    color: "#6b7280",
+    color: TEXT_MUTED,
     marginTop: 8,
-    textAlign: "center",
+    textAlign: 'center',
+    lineHeight: 21,
+    fontWeight: '500',
+  },
+  previewCard: {
+    backgroundColor: '#fff',
+    borderRadius: 18,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: THEME.border,
+    marginTop: 0,
+    ...UI.softShadow,
+  },
+  previewViewport: {
+    width: '100%',
+    alignItems: 'center',
+    backgroundColor: THEME.soft,
+    borderRadius: 14,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: THEME.border,
+  },
+  sectionTitle: {
+    fontSize: 14,
+    fontWeight: '900',
+    color: TEXT_DARK,
+  },
+  orderHeroLabel: {
+    fontSize: 11,
+    fontWeight: '900',
+    marginBottom: 3,
+    letterSpacing: 0.4,
+  },
+  orderHeroTitle: {
+    color: TEXT_DARK,
+    fontSize: 20,
+    fontWeight: '900',
+    lineHeight: 26,
+  },
+  orderHeroDate: {
+    color: TEXT_MUTED,
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: 4,
+  },
+  view3dLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: 12,
+    paddingVertical: 11,
+    borderRadius: 12,
+    backgroundColor: THEME.soft,
+    borderWidth: 1,
+    borderColor: THEME.border,
   },
   buttonContainer: {
-    padding: 16,
-    paddingBottom: 20,
-    backgroundColor: "#fff",
-    borderTopWidth: 1,
-    borderTopColor: "#e5e7eb",
+    padding: 0,
+    paddingBottom: 8,
     gap: 10,
   },
-  contactButton: {
-    flexDirection: "row",
+  profileButton: {
+    flexDirection: 'row',
     paddingVertical: 14,
     paddingHorizontal: 16,
     borderWidth: 2,
-    borderColor: "#3b82f6",
-    borderRadius: 10,
-    alignItems: "center",
-    justifyContent: "center",
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
     gap: 8,
+    backgroundColor: '#fff',
+    ...UI.softShadow,
   },
-  contactButtonText: {
-    color: "#3b82f6",
-    fontSize: 16,
-    fontWeight: "700",
+  profileButtonText: {
+    fontSize: 15,
+    fontWeight: '800',
+    flex: 1,
+    textAlign: 'center',
   },
-  callButton: {
-    flexDirection: "row",
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    backgroundColor: "#3b82f6",
-    borderRadius: 10,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-  },
-  callButtonText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "700",
+  view3dLinkText: {
+    fontSize: 14,
+    fontWeight: '800',
   },
 });

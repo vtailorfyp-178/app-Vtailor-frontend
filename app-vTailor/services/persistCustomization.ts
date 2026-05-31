@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getUserCustomizations, setCustomizationsSnapshot } from '@/services/userDataService';
 import type { TabId } from '@/services/dressGlbResolver';
 
-const TAB_KEYS: TabId[] = ['neck', 'sleeves', 'bottom', 'frock-style', 'colors', 'saree-style'];
+const TAB_KEYS: TabId[] = ['neck', 'sleeves', 'bottom', 'frock-style', 'colors', 'saree-style', 'fabric-print'];
 
 function normalizeSelections(sel: Record<string, string | null | undefined> | null | undefined): Record<TabId, string | null> {
   const out: Record<TabId, string | null> = {
@@ -12,6 +12,7 @@ function normalizeSelections(sel: Record<string, string | null | undefined> | nu
     'frock-style': null,
     colors: null,
     'saree-style': null,
+    'fabric-print': null,
   };
   if (!sel || typeof sel !== 'object') return out;
   for (const k of TAB_KEYS) {

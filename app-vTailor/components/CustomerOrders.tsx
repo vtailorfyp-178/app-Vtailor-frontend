@@ -5,74 +5,27 @@ import { useRouter } from 'expo-router';
 import { SURFACE_MUTED, TEXT_DARK, UI } from '@/constants/ui';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { Ionicons } from '@expo/vector-icons';
-import { dressPreviewFromOrderDescription } from '@/services/orderDressPreview';
+import { DEMO_CUSTOMER_ORDERS, dressPreviewFromOrderDescription } from '@/services/orderDressPreview';
 
 type OrderStatusFilter = 'All' | 'Active' | 'Delivered' | 'Canceled';
 
 const FILTERS: OrderStatusFilter[] = ['All', 'Active', 'Delivered', 'Canceled'];
 
-const orders = [
-  {
-    id: 1,
-    name: 'Long Frock',
-    tailor: 'Ahmad Tailor',
-    status: 'In Progress',
-    date: '2026-12-25',
-    price: 8500,
-    color: 'Red',
-    initials: 'AT',
-    tailorId: 'sample-tailor-aliya-formal',
-    tailorPhone: '+923215560190',
-    rating: '4.8 (245 reviews)',
-    sample: { neck: 'Round Neck', sleeves: 'Bell Sleeves', style: 'Flared Bottom', color: 'Beige' },
-    measurements: { chest: '36 in', waist: '30 in', length: '52 in', shoulder: '15 in' },
-  },
-  {
-    id: 2,
-    name: 'Shalwar Kameez',
-    tailor: 'Master Tailors',
-    status: 'Cutting',
-    date: '2026-12-20',
-    price: 25000,
-    color: 'Blue',
-    initials: 'MT',
-    tailorId: 'sample-tailor-fatima-traditional',
-    tailorPhone: '+923129018820',
-    rating: '4.6 (180 reviews)',
-    sample: { neck: 'V-Neck', sleeves: 'Bell Sleeves', style: 'Straight Style', color: 'Beige' },
-    measurements: { chest: '38 in', waist: '32 in', length: '44 in', shoulder: '16 in' },
-  },
-  {
-    id: 3,
-    name: 'Kurti',
-    tailor: 'Classic Stitches',
-    status: 'Delivered',
-    date: '2026-12-15',
-    price: 3500,
-    color: 'Green',
-    initials: 'CS',
-    tailorId: 'sample-tailor-noor-party',
-    tailorPhone: '+923332198744',
-    rating: '4.7 (132 reviews)',
-    sample: { neck: 'Round Neck', sleeves: 'Bell Sleeves', style: 'Straight Style', color: 'Beige' },
-    measurements: { chest: '35 in', waist: '29 in', length: '40 in', shoulder: '14.5 in' },
-  },
-  {
-    id: 4,
-    name: 'Lehenga',
-    tailor: 'Ahmad Tailor',
-    status: 'Delivered',
-    date: '2026-12-10',
-    price: 6000,
-    color: 'Black',
-    initials: 'AT',
-    tailorId: 'sample-tailor-zainab-bridal',
-    tailorPhone: '+923004102231',
-    rating: '4.8 (245 reviews)',
-    sample: { neck: 'Round Neck', sleeves: 'Bell Sleeves', style: 'Flared Style', color: 'Beige' },
-    measurements: { chest: '37 in', waist: '31 in', length: '54 in', shoulder: '15.5 in' },
-  },
-];
+const orders = DEMO_CUSTOMER_ORDERS.map((o) => ({
+  id: o.id,
+  name: o.name,
+  tailor: o.tailor,
+  status: o.status,
+  date: o.date,
+  price: o.price,
+  color: o.sample.color,
+  initials: o.tailorAvatar,
+  tailorId: o.tailorId,
+  tailorPhone: o.tailorPhone,
+  rating: o.rating.replace('⭐ ', ''),
+  sample: o.sample,
+  measurements: o.measurements,
+}));
 
 const CustomerOrders = () => {
   const router = useRouter();
@@ -190,7 +143,7 @@ const CustomerOrders = () => {
                 </View>
                 <View style={{ flex: 1 }}>
                   <ThemedText style={styles.orderName}>{order.name}</ThemedText>
-                  <ThemedText style={styles.orderTailor}>{order.tailor}</ThemedText>
+                  <ThemedText style={[styles.orderTailor, { color: tint }]}>{order.tailor}</ThemedText>
                 </View>
                 <View style={styles.priceWrap}>
                   <ThemedText style={styles.priceLabel}>Total</ThemedText>
@@ -248,7 +201,7 @@ const styles = StyleSheet.create({
   avatar: { width: 44, height: 44, borderRadius: 15, backgroundColor: '#fdf2f8', alignItems: 'center', justifyContent: 'center' },
   avatarText: { color: '#be185d', fontWeight: '900', fontSize: 12 },
   orderName: { fontSize: 16, fontWeight: '900', color: TEXT_DARK },
-  orderTailor: { fontSize: 12, color: '#6b7280', marginTop: 2, fontWeight: '600' },
+  orderTailor: { fontSize: 12, marginTop: 3, fontWeight: '700' },
   priceWrap: { alignItems: 'flex-end' },
   priceLabel: { color: '#9ca3af', fontSize: 10, fontWeight: '800', marginBottom: 2 },
   orderPrice: { fontSize: 13, fontWeight: '900', color: TEXT_DARK },

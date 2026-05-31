@@ -10,6 +10,16 @@ export type { TabId, DressSelections } from './glb/dressGlbTypes';
 export type { GlbModelPath } from './glb/glbModelUrl';
 
 async function resolveDressGlbPath(s: DressSelections, modelId: string): Promise<string | null> {
+  if (modelId === 'trouser-shirt-bell-bottom') {
+    const { resolveTrouserShirtBellBottomGlb } = await import('./glb/bellBottomDressGlb');
+    return resolveTrouserShirtBellBottomGlb(s, modelId);
+  }
+
+  if (modelId === 'trouser-shirt-tulip-trouser') {
+    const { resolveTrouserShirtTulipTrouserGlb } = await import('./glb/tulipTrouserDressGlb');
+    return resolveTrouserShirtTulipTrouserGlb(s, modelId);
+  }
+
   if (isCasualShortShirtModelId(modelId)) {
     const { resolveCasualPatiyalaShortShirtGlb } = await import('./glb/patiyalaDressGlb');
     const patiyalaModelId =

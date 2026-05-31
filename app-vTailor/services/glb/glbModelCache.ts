@@ -1,7 +1,7 @@
 import { Platform } from 'react-native';
 
-const MAX_CACHE_ENTRIES = Platform.OS === 'web' ? 8 : 10;
-const MAX_CACHE_BYTES = Platform.OS === 'web' ? 48 * 1024 * 1024 : 28 * 1024 * 1024;
+const MAX_CACHE_ENTRIES = Platform.OS === 'web' ? 10 : 4;
+const MAX_CACHE_BYTES = Platform.OS === 'web' ? 48 * 1024 * 1024 : 12 * 1024 * 1024;
 
 type CacheEntry = {
   buffer: ArrayBuffer;

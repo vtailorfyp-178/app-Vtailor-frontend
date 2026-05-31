@@ -1,34 +1,21 @@
 import * as THREE from 'three';
+import {
+  applyCasualFabricBaseMaterial,
+  applyCasualFabricTintToMesh as applyCasualFabricTintToMeshCore,
+  applyChiffonFabricMaterial,
+} from './casualFabricMaterial';
 import { sanitizeGltfMaterialNames } from './sanitizeGltfMaterialNames';
 
 const FABRIC_MESH_SKIP = /mannequin|mannicun|human|skin|hair|face|hand|foot|shoe|eye|lash|body/i;
 /** Patiyala GLBs: only skip mannequin parts; dress panels may be named "body". */
 const PATIYALA_TINT_SKIP = /mannequin|mannicun|human|skin|hair|face|hand|foot|shoe|eye|lash/i;
 
-/** Soft chiffon / lawn — not metallic jewelry or mannequin hardware. */
+/** Soft chiffon / lawn — frill saree uses lighter drape PBR. */
 export function applyChiffonClothMaterial(
   mat: THREE.MeshStandardMaterial,
   isDressFabric: boolean,
 ): void {
-  if (!isDressFabric) {
-    mat.metalness = Math.min(mat.metalness, 0.18);
-    mat.roughness = Math.max(mat.roughness, 0.55);
-    if ('envMapIntensity' in mat) mat.envMapIntensity = 0.45;
-    mat.needsUpdate = true;
-    return;
-  }
-  mat.metalness = 0;
-  const hasBaseMap = Boolean(mat.map);
-  mat.roughness = hasBaseMap ? Math.max(mat.roughness, 0.62) : Math.max(mat.roughness, 0.9);
-  if (!hasBaseMap) {
-    mat.metalnessMap = null;
-    mat.roughnessMap = null;
-  }
-  mat.emissive.setHex(0x000000);
-  mat.emissiveIntensity = 0;
-  if ('envMapIntensity' in mat) mat.envMapIntensity = hasBaseMap ? 0.35 : 0.22;
-  mat.side = THREE.DoubleSide;
-  mat.needsUpdate = true;
+  applyChiffonFabricMaterial(mat, isDressFabric);
 }
 
 export function isFabricDressMesh(meshName: string): boolean {
@@ -41,10 +28,30 @@ export function isPatiyalaTintMesh(meshName: string): boolean {
 
 function fixTextureColorSpace(tex: THREE.Texture | null | undefined): void {
   if (!tex) return;
+  tex.flipY = false;
   if ('colorSpace' in tex) {
     tex.colorSpace = THREE.SRGBColorSpace;
   }
   tex.needsUpdate = true;
+}
+
+function fixDataMapTexture(tex: THREE.Texture | null | undefined): void {
+  if (!tex) return;
+  tex.flipY = false;
+  if ('colorSpace' in tex) {
+    tex.colorSpace = THREE.NoColorSpace;
+  }
+  tex.needsUpdate = true;
+}
+
+function configurePbrMaterialMaps(mat: THREE.MeshStandardMaterial, isDressFabric: boolean): void {
+  fixTextureColorSpace(mat.map);
+  fixTextureColorSpace(mat.emissiveMap);
+  fixDataMapTexture(mat.normalMap);
+  fixDataMapTexture(mat.roughnessMap);
+  fixDataMapTexture(mat.metalnessMap);
+  fixDataMapTexture(mat.aoMap);
+  applyCasualFabricBaseMaterial(mat, isDressFabric);
 }
 
 function copyMapsOntoStandard(
@@ -90,7 +97,7 @@ export function toDisplayStandardMaterial(source: THREE.Material): THREE.MeshSta
     mat.opacity = source.opacity;
     mat.transparent = source.transparent;
     mat.alphaTest = source.alphaTest;
-    mat.envMapIntensity = source.envMapIntensity ?? 1;
+    mat.envMapIntensity = Math.min(source.envMapIntensity ?? 1, 0.4);
     copyMapsOntoStandard(source, mat);
     mat.side = THREE.DoubleSide;
     mat.needsUpdate = true;
@@ -134,56 +141,39 @@ export function applyFabricColorTintToMesh(
   hex: string,
   baseColor: THREE.Color,
 ): void {
-  mat.color.set(hex);
+  void baseColor;
   mat.map = null;
   mat.normalMap = null;
   mat.roughnessMap = null;
   mat.metalnessMap = null;
-  mat.metalness = 0;
-  mat.roughness = 0.9;
-  if ('envMapIntensity' in mat) mat.envMapIntensity = 0.35;
-  mat.emissive.setHex(0x000000);
-  mat.emissiveIntensity = 0;
-  mat.toneMapped = true;
+  applyCasualFabricBaseMaterial(mat, true);
+  mat.color.set(hex);
   mat.needsUpdate = true;
-  void baseColor;
 }
 
 /** Patiyala / shalwar: flat fabric tint (white GLB → customer shade). */
 export function applyPatiyalaFabricTintToMesh(mat: THREE.MeshStandardMaterial, hex: string): void {
-  mat.map = null;
-  mat.color.set(hex);
-  mat.metalness = 0;
-  mat.roughness = 0.82;
-  mat.emissive.setHex(0x000000);
-  mat.emissiveIntensity = 0;
-  if ('envMapIntensity' in mat) mat.envMapIntensity = 0.32;
-  mat.toneMapped = true;
-  mat.needsUpdate = true;
+  applyCasualFabricTintToMesh(mat, hex);
 }
 
-/** Runtime patiyala color — tint every dress mesh (used when fabric shade changes). */
+/**
+ * Patiyala + bell bottom: same fabric PBR. Keeps PBR maps when present (bell bottom embroidery).
+ */
+export function applyCasualFabricTintToMesh(mat: THREE.MeshStandardMaterial, hex: string): void {
+  applyCasualFabricTintToMeshCore(mat, hex);
+}
+
+/** Runtime casual fabric color — patiyala + bell bottom + tulip. */
+export function applyCasualFabricTintToScene(scene: THREE.Object3D, hex: string | null): void {
+  applyDressFabricMaterialsToScene(scene, { fabricColorHex: hex, tintAllDressPanels: true });
+}
+
+/** Runtime patiyala color — same pipeline as bell bottom. */
 export function applyPatiyalaFabricTintToScene(scene: THREE.Object3D, hex: string | null): void {
-  scene.traverse((obj) => {
-    if (!(obj instanceof THREE.Mesh) || !isPatiyalaTintMesh(obj.name)) return;
-    const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
-    for (const source of mats) {
-      const mat =
-        source instanceof THREE.MeshStandardMaterial
-          ? source
-          : toDisplayStandardMaterial(source);
-      if (!(source instanceof THREE.MeshStandardMaterial)) {
-        const idx = mats.indexOf(source);
-        if (idx >= 0) mats[idx] = mat;
-        obj.material = mats.length === 1 ? mats[0] : mats;
-      }
-      applyChiffonClothMaterial(mat, true);
-      if (hex) applyPatiyalaFabricTintToMesh(mat, hex);
-    }
-  });
+  applyCasualFabricTintToScene(scene, hex);
 }
 
-/** Grarah CDN GLBs: no embedded maps — apply wedding shade + fabric PBR on all meshes. */
+/** Grarah CDN GLBs: wedding shade + unified fabric PBR on all meshes. */
 export function applyGrarahWeddingDisplayToScene(scene: THREE.Object3D, hex: string): void {
   scene.traverse((obj) => {
     if (!(obj instanceof THREE.Mesh)) return;
@@ -196,30 +186,82 @@ export function applyGrarahWeddingDisplayToScene(scene: THREE.Object3D, hex: str
       mat.metalnessMap = null;
       mat.roughnessMap = null;
       mat.color.set(hex);
-      mat.metalness = 0.06;
-      mat.roughness = 0.78;
-      mat.emissive.setHex(0x000000);
-      mat.emissiveIntensity = 0;
-      if ('envMapIntensity' in mat) mat.envMapIntensity = 0.42;
-      mat.side = THREE.DoubleSide;
-      mat.needsUpdate = true;
+      applyCasualFabricBaseMaterial(mat, true);
       nextMats.push(mat);
     }
     obj.material = nextMats.length === 1 ? nextMats[0] : nextMats;
   });
 }
 
-/** Keep GLB maps/colors for long frock, saree, lehnga (no chiffon override). */
-function ensureEmbeddedTextureDisplay(scene: THREE.Object3D): void {
+export type DressFabricMaterialOptions = {
+  fabricColorHex?: string | null;
+  /** Patiyala / bell bottom / tulip: include body panels in tint. */
+  tintAllDressPanels?: boolean;
+  /** Frill saree — soft chiffon drape. */
+  chiffon?: boolean;
+};
+
+/**
+ * Unified Three.js fabric PBR for every dress GLB — keeps embroidery maps when present.
+ */
+export function applyDressFabricMaterialsToScene(
+  scene: THREE.Object3D,
+  options?: DressFabricMaterialOptions,
+): void {
+  const hex = options?.fabricColorHex ?? null;
+  const tintAll = options?.tintAllDressPanels ?? false;
+  const chiffon = options?.chiffon ?? false;
+
+  const applyFabricBase = (mat: THREE.MeshStandardMaterial, isDress: boolean): void => {
+    if (chiffon && isDress) applyChiffonFabricMaterial(mat, true);
+    else applyCasualFabricBaseMaterial(mat, isDress);
+  };
+
   scene.traverse((obj) => {
     if (!(obj instanceof THREE.Mesh)) return;
-    const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
-    for (const mat of mats) {
-      if (!(mat instanceof THREE.MeshStandardMaterial)) continue;
-      if (mat.map) fixTextureColorSpace(mat.map);
+    obj.castShadow = true;
+    obj.receiveShadow = true;
+    const isDress = tintAll ? isPatiyalaTintMesh(obj.name) : isFabricDressMesh(obj.name);
+    const sourceMats = Array.isArray(obj.material) ? obj.material : [obj.material];
+    const nextMats: THREE.Material[] = [];
+
+    for (const source of sourceMats) {
+      const mat =
+        source instanceof THREE.MeshStandardMaterial
+          ? source
+          : toDisplayStandardMaterial(source);
+      if (mat.map || mat.normalMap || mat.roughnessMap) {
+        fixTextureColorSpace(mat.map);
+        fixTextureColorSpace(mat.emissiveMap);
+        fixDataMapTexture(mat.normalMap);
+        fixDataMapTexture(mat.roughnessMap);
+        fixDataMapTexture(mat.metalnessMap);
+        fixDataMapTexture(mat.aoMap);
+        applyFabricBase(mat, isDress);
+      } else {
+        applyFabricBase(mat, isDress);
+      }
+      if (hex && isDress) {
+        const hasMaps = Boolean(mat.map || mat.normalMap || mat.roughnessMap);
+        if (hasMaps) applyCasualFabricTintToMesh(mat, hex);
+        else applyFabricColorTintToMesh(mat, hex, mat.color);
+      }
       mat.side = THREE.DoubleSide;
-      mat.needsUpdate = true;
+      nextMats.push(mat);
     }
+    obj.material = nextMats.length === 1 ? nextMats[0] : nextMats;
+  });
+}
+
+/** Keep GLB maps and apply fabric PBR (long frock, saree, lehnga, bell bottom embroidery). */
+function ensureEmbeddedTextureDisplay(
+  scene: THREE.Object3D,
+  fabricColorHex?: string | null,
+  patiyalaTint?: boolean,
+): void {
+  applyDressFabricMaterialsToScene(scene, {
+    fabricColorHex,
+    tintAllDressPanels: patiyalaTint,
   });
 }
 
@@ -245,28 +287,9 @@ function applyMaterialsToScene(
   fabricColorHex?: string | null,
   options?: { patiyalaTint?: boolean },
 ): void {
-  const tintFabric = Boolean(fabricColorHex);
-  const patiyalaTint = options?.patiyalaTint ?? false;
-
-  scene.traverse((obj) => {
-    if (!(obj instanceof THREE.Mesh)) return;
-    const isDressFabric = patiyalaTint
-      ? isPatiyalaTintMesh(obj.name)
-      : isFabricDressMesh(obj.name);
-    const sourceMats = Array.isArray(obj.material) ? obj.material : [obj.material];
-    const nextMats: THREE.Material[] = [];
-
-    for (const source of sourceMats) {
-      const mat = toDisplayStandardMaterial(source);
-      applyChiffonClothMaterial(mat, isDressFabric);
-      if (tintFabric && isDressFabric && fabricColorHex) {
-        if (patiyalaTint) applyPatiyalaFabricTintToMesh(mat, fabricColorHex);
-        else applyFabricColorTintToMesh(mat, fabricColorHex, mat.color);
-      }
-      nextMats.push(mat);
-    }
-
-    obj.material = nextMats.length === 1 ? nextMats[0] : nextMats;
+  applyDressFabricMaterialsToScene(scene, {
+    fabricColorHex,
+    tintAllDressPanels: options?.patiyalaTint ?? false,
   });
 }
 
@@ -287,16 +310,20 @@ export function prepareGltfSceneForDisplay(
     lightweight?: boolean;
     patiyalaTint?: boolean;
     preserveTextures?: boolean;
+    chiffon?: boolean;
   },
 ): THREE.Object3D {
   void options?.lightweight;
   sanitizeGltfMaterialNames(scene);
+  const fabricOpts = {
+    fabricColorHex,
+    tintAllDressPanels: options?.patiyalaTint,
+    chiffon: options?.chiffon,
+  };
   if (options?.preserveTextures) {
-    ensureEmbeddedTextureDisplay(scene);
+    applyDressFabricMaterialsToScene(scene, fabricOpts);
   } else {
-    applyMaterialsToScene(scene, fabricColorHex, {
-      patiyalaTint: options?.patiyalaTint,
-    });
+    applyDressFabricMaterialsToScene(scene, fabricOpts);
   }
   return centerAndScaleScene(scene);
 }

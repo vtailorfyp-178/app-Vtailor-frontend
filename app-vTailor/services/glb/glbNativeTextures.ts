@@ -117,6 +117,7 @@ async function loadTextureFromBytes(bytes: Uint8Array, imageIndex: number): Prom
     new THREE.TextureLoader().load(
       uri,
       (texture) => {
+        texture.flipY = false;
         if ('colorSpace' in texture) {
           texture.colorSpace = THREE.SRGBColorSpace;
         }
@@ -170,6 +171,11 @@ export async function applyNativeGlbTextures(
     if (!mat || !(mat instanceof THREE.MeshStandardMaterial)) continue;
     const tex = await getTexture(binding.imageIndex);
     if (!tex) continue;
+    if (binding.slot === 'map' || binding.slot === 'emissiveMap') {
+      if ('colorSpace' in tex) tex.colorSpace = THREE.SRGBColorSpace;
+    } else if ('colorSpace' in tex) {
+      tex.colorSpace = THREE.NoColorSpace;
+    }
     mat[binding.slot] = tex;
     mat.needsUpdate = true;
   }

@@ -1,15 +1,22 @@
+import { Platform } from 'react-native';
 import type { DressSelections } from '@/services/dressGlbResolver';
 import { resolveBundledDressGlbAsync } from '@/services/dressGlbResolver';
 import { pathForCloudinaryLookup } from '@/services/glb/catalogDisplayPath';
 import { resolveGlbModelUrl, type GlbModelPath } from '@/services/glb/glbModelUrl';
-import { prefetchGltfScene } from '@/services/glb/loadGltfFromUrl';
+import { prefetchGlbBuffer, prefetchGltfScene } from '@/services/glb/loadGltfFromUrl';
 import {
   ensureCloudinaryModelCatalog,
   prefetchCloudinaryModelCatalog,
   shouldRefreshStaleGlbUrl,
 } from '@/services/glb/cloudinaryModelCatalog';
+import {
+  isCasualShortShirtModelId,
+  isTrouserShirtBellBottomModelId,
+  isTrouserShirtTulipTrouserModelId,
+} from '@/services/glb/dressGlbTypes';
+import { with3dPreviewDefaults } from '@/services/glb/threePreviewReadiness';
 
-const URL_CACHE_VERSION = 'display-v28-red-split-swap';
+const URL_CACHE_VERSION = 'display-v38-load-perf';
 
 /** Cloudinary URL lookup path (optimized long frock, mobile grarah/patiyala). */
 export function pathForPreviewUrl(relativePath: GlbModelPath): GlbModelPath {
@@ -27,6 +34,13 @@ const LONG_FROCK_SLEEVES_SPLIT = ['full', 'bell'] as const;
 const SHALWAR_NECKS = ['round', 'v-neck', 'square', 'boat-neck'] as const;
 const SHALWAR_SLEEVES = ['full', 'bell', 'layered', 'balloon'] as const;
 const SAREE_STYLES = ['plain', 'frill'] as const;
+const TROUSER_NECKS = ['round', 'collar', 'keyhole'] as const;
+const BELL_SLEEVES = ['straight', 'puff', 'flared-bell'] as const;
+const TULIP_SLEEVES = ['full', 'bell', 'puff'] as const;
+const PATIYALA_SLEEVES = ['full', 'bell', 'balloon', 'layered'] as const;
+const PATIYALA_NECKS = ['round', 'v-neck', 'square', 'boat-neck'] as const;
+
+let matrixPrefetchTimer: ReturnType<typeof setTimeout> | null = null;
 
 function cacheKey(modelId: string, selections: DressSelections): string {
   return `${URL_CACHE_VERSION}::${modelId}::${JSON.stringify(selections)}`;
@@ -71,7 +85,44 @@ export async function resolveDressGlbUrlCached(
 }
 
 function warmResolvedUrl(hit: ResolvedGlb | null): void {
-  if (hit?.url) prefetchGltfScene(hit.url);
+  if (hit?.url) {
+    prefetchGlbBuffer(hit.url);
+    prefetchGltfScene(hit.url);
+  }
+}
+
+function prefetchMatrixVariants(
+  selections: DressSelections,
+  modelId: string,
+  necks: readonly string[],
+  sleeves: readonly string[],
+  staggerMs = 60,
+): void {
+  let delay = 0;
+  for (const neck of necks) {
+    for (const sleeve of sleeves) {
+      const next = with3dPreviewDefaults(modelId, { ...selections, neck, sleeves: sleeve });
+      setTimeout(() => queueResolve(next, modelId), delay);
+      delay += staggerMs;
+    }
+  }
+}
+
+function prefetchDressMatrixVariants(selections: DressSelections, modelId: string): void {
+  if (isTrouserShirtBellBottomModelId(modelId)) {
+    const necks = selections.neck ? [selections.neck] : TROUSER_NECKS;
+    prefetchMatrixVariants(selections, modelId, necks, BELL_SLEEVES, 50);
+    return;
+  }
+  if (isTrouserShirtTulipTrouserModelId(modelId)) {
+    const necks = selections.neck ? [selections.neck] : TROUSER_NECKS;
+    prefetchMatrixVariants(selections, modelId, necks, TULIP_SLEEVES, 50);
+    return;
+  }
+  if (isCasualShortShirtModelId(modelId) && selections.bottom !== 'straight') {
+    const necks = selections.neck ? [selections.neck] : PATIYALA_NECKS;
+    prefetchMatrixVariants(selections, modelId, necks, PATIYALA_SLEEVES, 70);
+  }
 }
 
 function queueResolve(selections: DressSelections, modelId: string): void {
@@ -114,14 +165,39 @@ function prefetchSiblingVariants(selections: DressSelections, modelId: string): 
   }
 }
 
-/** Warm current GLB immediately; sibling variants after a short pause (avoids network storms). */
+/** Warm current GLB immediately; sibling variants after a short pause (web only — native WebView loads one URL). */
 export function prefetchDressGlbUrl(selections: DressSelections, modelId: string): void {
   queueResolve(selections, modelId);
+  if (Platform.OS !== 'web') return;
+
   if (variantPrefetchTimer) clearTimeout(variantPrefetchTimer);
   variantPrefetchTimer = setTimeout(() => {
     variantPrefetchTimer = null;
     prefetchSiblingVariants(selections, modelId);
-  }, 450);
+  }, 200);
+
+  if (matrixPrefetchTimer) clearTimeout(matrixPrefetchTimer);
+  matrixPrefetchTimer = setTimeout(() => {
+    matrixPrefetchTimer = null;
+    prefetchDressMatrixVariants(selections, modelId);
+  }, 320);
+}
+
+/** Warm default preview before user opens customize (trouser shirt style screen). */
+export function prefetchTrouserShirtEntry(modelId: string): void {
+  prefetchCloudinaryModelCatalog();
+  const base = with3dPreviewDefaults(modelId, {
+    neck: null,
+    sleeves: null,
+    bottom: null,
+    colors: null,
+    'frock-style': null,
+    'saree-style': null,
+  });
+  queueResolve(base, modelId);
+  if (Platform.OS === 'web') {
+    setTimeout(() => prefetchDressMatrixVariants(base, modelId), 400);
+  }
 }
 
 export function clearDressGlbUrlCache(): void {

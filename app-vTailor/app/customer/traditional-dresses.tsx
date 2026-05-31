@@ -8,7 +8,7 @@ import AppBackButton from '@/components/AppBackButton';
 
 const logo = require('../../assets/images/vTailorlogo.jpeg');
 const shalwarKameezImage = require('../../2d model/short-shirt-shalwar.png');
-const shararaImage = require('../../2d model/shrara.jpg');
+const shararaImage = require('../../2d model/shrara.png');
 
 const traditionalDresses = [
   { id: 'shalwar-kameez', name: 'Shalwar Kameez' },

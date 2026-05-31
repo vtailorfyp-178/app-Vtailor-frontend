@@ -15,6 +15,8 @@ const GLB_ICEBLUE_BRIDAL_ROUND_SHORT = '3d model/3d lehnga/Bridal lehnga/mobile/
 const GLB_ICEBLUE_BRIDAL_SWEET_FULL = '3d model/3d lehnga/Bridal lehnga/mobile/ice blue sweet heart neck full sleeves .glb';
 const GLB_ICEBLUE_BRIDAL_SWEET_SHORT = '3d model/3d lehnga/Bridal lehnga/mobile/ice blue sweet heart neck short sleeves .glb';
 const GLB_MAROON_BRIDAL_ROUND_FULL = '3d model/3d lehnga/Bridal lehnga/mobile/mahroon round neck full sleeves .glb';
+const GLB_MAROON_BRIDAL_ROUND_SHORT =
+  '3d model/3d lehnga/Bridal lehnga/optimized/optimized-mahroon-round-neck-short-sleeves-.glb';
 const GLB_MAROON_BRIDAL_SWEET_FULL = '3d model/3d lehnga/Bridal lehnga/mobile/mahroon sweatheart full  sleeves.glb';
 const GLB_MAROON_BRIDAL_SWEET_SHORT = '3d model/3d lehnga/Bridal lehnga/mobile/mahroon sweatheart short sleeves.glb';
 
@@ -57,7 +59,7 @@ const BRIDAL_LEHNGA_SETS: Record<string, BridalComboSet> = {
   },
   maroon: {
     roundFull: GLB_MAROON_BRIDAL_ROUND_FULL,
-    roundShort: GLB_MAROON_BRIDAL_ROUND_FULL,
+    roundShort: GLB_MAROON_BRIDAL_ROUND_SHORT,
     sweetheartFull: GLB_MAROON_BRIDAL_SWEET_FULL,
     sweetheartShort: GLB_MAROON_BRIDAL_SWEET_SHORT,
   },

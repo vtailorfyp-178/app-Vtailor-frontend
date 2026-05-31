@@ -12,6 +12,9 @@ function grarahHasEmbeddedTextures(modelUrl?: string): boolean {
 export function glbNeedsEmbeddedTextures(modelUrl?: string): boolean {
   if (isGrarahModelUrl(modelUrl) && grarahHasEmbeddedTextures(modelUrl)) return true;
   const u = decodeURIComponent(modelUrl ?? '').toLowerCase();
+  if (/bridal-lehnga-optimized|optimized-mahroon|optimized-.*bridal/i.test(u)) return true;
+  if (/bell-bottom\/optimized|trouser-shirt\/bell-bottom/i.test(u)) return true;
+  if (/tulip-trouser\/optimized|trouser-shirt\/tulip-trouser/i.test(u)) return true;
   return /saree|lehnga|bridal|embroid|long[\s-]?frock/i.test(u);
 }
 
