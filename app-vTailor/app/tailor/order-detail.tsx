@@ -210,14 +210,23 @@ export default function OrderDetail() {
             <ThemedText style={styles.sectionTitle}>Next Actions</ThemedText>
             <View style={styles.actionsRow}>
               <Pressable style={[styles.actionBtn, { borderColor: '#111827', borderWidth: 1 }]}
-                onPress={() => router.push({ pathname: '/tailor/measurements', params: { customerId: String(customerId), orderId: order.id, customerName: order.customer } })}>
+                onPress={() =>
+                  router.push({
+                    pathname: order.hasMeasurements ? '/tailor/measurement-detail' : '/tailor/measurements',
+                    params: { orderId: order.id, customerName: order.customer },
+                  })
+                }>
                 <Ionicons name="body" size={18} color="#111827" />
                 <Text style={[styles.actionText, { color: '#111827' }]}>Measurements</Text>
               </Pressable>
               <Pressable style={[styles.actionBtn, { borderColor: '#ec4899', borderWidth: 1 }]}
                 onPress={() => {
                   const c = order.customization;
-                  const baseParams = { customerId: String(customerId), customerName: order.customer };
+                  const baseParams = {
+                    orderId: order.id,
+                    customerId: String(customerId),
+                    customerName: order.customer,
+                  };
                   if (c?.modelId && c.selections) {
                     router.push({
                       pathname: '/tailor/3d-view',
@@ -229,7 +238,7 @@ export default function OrderDetail() {
                       },
                     });
                   } else {
-                    router.push({ pathname: '/tailor/3d-view', params: baseParams });
+                    router.push({ pathname: '/tailor/3d-review' });
                   }
                 }}>
                 <Ionicons name="cube" size={18} color="#ec4899" />
@@ -237,10 +246,17 @@ export default function OrderDetail() {
               </Pressable>
             </View>
             <View style={[styles.actionsRow, { marginTop: 10 }]}>
-              <Pressable style={[styles.actionBtnWide, { backgroundColor: '#111827' }]}
+              <Pressable style={[styles.actionBtn, { borderColor: '#ef4444', borderWidth: 1 }]}
+                onPress={() =>
+                  router.push({ pathname: '/tailor/timeline-detail', params: { orderId: order.id } })
+                }>
+                <Ionicons name="time" size={18} color="#ef4444" />
+                <Text style={[styles.actionText, { color: '#ef4444' }]}>Timeline</Text>
+              </Pressable>
+              <Pressable style={[styles.actionBtn, { backgroundColor: '#111827' }]}
                 onPress={() => router.push({ pathname: '/tailor/chat/[id]', params: { id: String(customerId), returnTo: '/tailor?tab=chat' } })}>
                 <Ionicons name="chatbubbles" size={18} color="#fff" />
-                <Text style={[styles.actionText, { color: '#fff' }]}>Open Chat</Text>
+                <Text style={[styles.actionText, { color: '#fff' }]}>Chat</Text>
               </Pressable>
             </View>
           </View>

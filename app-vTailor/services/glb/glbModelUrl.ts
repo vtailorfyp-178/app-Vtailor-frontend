@@ -80,6 +80,12 @@ export async function resolveGlbModelUrl(relativePath: GlbModelPath): Promise<st
         'Tulip trouser 3D model is not on Cloudinary yet. Run compress:tulip-trouser and upload:tulip-trouser, then sync the catalog.',
       );
     }
+
+    if (Platform.OS !== 'web') {
+      throw new Error(
+        'This 3D dress variant is not in the Cloudinary catalog. Try another color or restart Expo after .env changes.',
+      );
+    }
   }
 
   const origin = await resolveGlbModelsOrigin();

@@ -12,9 +12,9 @@ import {
   applyCasualFabricTextureToMesh,
   clearCasualFabricTextureFromMesh,
 } from '@/services/glb/casualFabricMaterial';
-import { loadFabricTextureForMesh } from '@/services/glb/fabricTextureCache';
+import { loadFabricPrintTexture } from '@/services/glb/fabricTextureCache';
+import { applyFabricPrintToScene } from '@/services/glb/fabricTextureApply';
 import {
-  fabricPrintPatternMeta,
   fabricPrintTileUrl,
 } from '@/services/glb/fabricPrintSelection';
 import { glbNeedsEmbeddedTextures } from '@/services/glb/glbMaterialPolicy';
@@ -148,10 +148,10 @@ function applyFabricColorTint(
 async function applyFabricTextureToSlots(
   slots: FabricMaterialSlot[],
   fabricPrintRaw: string | null | undefined,
+  modelRoot?: THREE.Object3D | null,
+  tintAllDressMeshes = false,
 ): Promise<void> {
-  if (!slots.length) return;
-  const tileUrl = fabricPrintTileUrl(fabricPrintRaw);
-  if (!tileUrl) {
+  if (!fabricPrintRaw?.trim()) {
     for (const { mat, baseColor, isDressFabric } of slots) {
       if (!isDressFabric) continue;
       clearCasualFabricTextureFromMesh(mat);
@@ -160,11 +160,34 @@ async function applyFabricTextureToSlots(
     }
     return;
   }
-  const meta = fabricPrintPatternMeta(fabricPrintRaw);
-  for (const { mat, mesh, isDressFabric } of slots) {
+
+  console.log('[DressGlbViewer] fabric print URL raw', fabricPrintRaw.slice(0, 160));
+  console.log('[DressGlbViewer] tile URL', fabricPrintTileUrl(fabricPrintRaw)?.slice(0, 160));
+
+  if (modelRoot) {
+    const result = await applyFabricPrintToScene(modelRoot, fabricPrintRaw, { tintAllDressMeshes });
+    if (result.applied > 0) return;
+
+    console.warn('[DressGlbViewer] scene apply failed, trying slot fallback', result);
+  }
+
+  const texture = await loadFabricPrintTexture(fabricPrintRaw);
+  if (!texture) {
+    console.error('[DressGlbViewer] texture load failed — preserving base material colors');
+    for (const { mat, baseColor, isDressFabric } of slots) {
+      if (!isDressFabric) continue;
+      if (!mat.map) {
+        mat.color.copy(baseColor);
+        mat.needsUpdate = true;
+      }
+    }
+    return;
+  }
+
+  for (const { mat, isDressFabric } of slots) {
     if (!isDressFabric) continue;
-    const tex = await loadFabricTextureForMesh(tileUrl, mesh, meta);
-    applyCasualFabricTextureToMesh(mat, tex);
+    const ok = applyCasualFabricTextureToMesh(mat, texture);
+    console.log('[DressGlbViewer] slot map assigned', { hasMap: Boolean(mat.map), ok });
   }
 }
 
@@ -345,7 +368,12 @@ export function TraditionalDressGlbViewer({
         tintAllDressMeshes: casualFabric,
       });
       applyFabricColorTint(fabricSlotsRef.current, fabricColorHexRef.current, casualFabric);
-      void applyFabricTextureToSlots(fabricSlotsRef.current, fabricTextureUrlRef.current).then(() => {
+      void applyFabricTextureToSlots(
+        fabricSlotsRef.current,
+        fabricTextureUrlRef.current,
+        model,
+        casualFabric,
+      ).then(() => {
         requestRender();
       });
 
@@ -487,9 +515,14 @@ export function TraditionalDressGlbViewer({
     const casualFabric = isCasualFabricDressGlbUrl(glbUrl);
     const apply = async () => {
       if (fabricTextureUrl) {
-        await applyFabricTextureToSlots(fabricSlotsRef.current, fabricTextureUrl);
+        await applyFabricTextureToSlots(
+          fabricSlotsRef.current,
+          fabricTextureUrl,
+          rootGroupRef.current?.children[0] ?? null,
+          casualFabric,
+        );
       } else {
-        await applyFabricTextureToSlots(fabricSlotsRef.current, null);
+        await applyFabricTextureToSlots(fabricSlotsRef.current, null, null, casualFabric);
         applyFabricColorTint(fabricSlotsRef.current, fabricColorHex, casualFabric);
       }
       requestRender();

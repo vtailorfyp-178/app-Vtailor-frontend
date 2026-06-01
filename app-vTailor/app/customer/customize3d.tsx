@@ -40,6 +40,7 @@ import {
 import {
   prefetchDressGlbUrl,
   prefetchDressModelCatalog,
+  prefetchDressColorGrid,
 } from '@/services/glb/glbUrlResolve';
 import { supportsCustomFabricPrint } from '@/services/glb/casualFabricDress';
 import { safeRouterBack } from '@/utils/safeRouterBack';
@@ -827,9 +828,11 @@ export default function Customize3D() {
   useEffect(() => {
     if (!catalogHas3d || !modelId) return;
     prefetchDressModelCatalog();
+    if (canShowGlb) {
+      prefetchDressColorGrid(selectionsFor3d, modelId);
+    }
   }, [catalogHas3d, modelId]);
 
-  /** Warm URL resolution as soon as selections change (native skips heavy buffer prefetch). */
   useEffect(() => {
     if (!catalogHas3d || !modelId || !canShowGlb) return;
     prefetchDressGlbUrl(selectionsFor3d, modelId);

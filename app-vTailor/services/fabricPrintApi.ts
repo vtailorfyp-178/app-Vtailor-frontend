@@ -20,8 +20,8 @@ export type FabricPrintRecord = {
   uploadDate: string;
 };
 
-/** CDN URL for repeat tile (preserves motif sharpness). */
-export function fabricPrintTextureUrl(cloudinaryUrl: string): string {
+/** CDN URL — full swatch for preview only (preserve pixels for tiles). */
+export function fabricPrintTextureUrl(cloudinaryUrl: string, opts?: { preview?: boolean }): string {
   if (!cloudinaryUrl) return cloudinaryUrl;
   if (!cloudinaryUrl.includes('res.cloudinary.com')) return cloudinaryUrl;
   const marker = '/upload/';
@@ -29,12 +29,15 @@ export function fabricPrintTextureUrl(cloudinaryUrl: string): string {
   if (idx === -1) return cloudinaryUrl;
   const prefix = cloudinaryUrl.slice(0, idx + marker.length);
   const suffix = cloudinaryUrl.slice(idx + marker.length);
-  return `${prefix}q_auto:good,f_auto,c_limit,w_1024/${suffix}`;
+  if (opts?.preview) {
+    return `${prefix}q_auto:good,f_auto,c_limit,w_1200/${suffix}`;
+  }
+  return `${prefix}q_auto:best,f_auto/${suffix}`;
 }
 
 export function fabricPrintSelectionFromRecord(record: FabricPrintRecord): FabricPrintSelection {
   return buildFabricPrintSelectionFromUpload({
-    cloudinaryUrl: fabricPrintTextureUrl(record.cloudinaryUrl),
+    cloudinaryUrl: fabricPrintTextureUrl(record.cloudinaryUrl, { preview: true }),
     tileUrl: record.tileUrl ? fabricPrintTextureUrl(record.tileUrl) : undefined,
     megatileUrl: record.megatileUrl ? fabricPrintTextureUrl(record.megatileUrl) : undefined,
     patternMeta: record.patternMeta,
@@ -115,7 +118,7 @@ export async function listFabricPrints(userId: string): Promise<FabricPrintRecor
     const data = await parseJson<{ prints: FabricPrintRecord[] }>(res);
     return (data.prints || []).map((p) => ({
       ...p,
-      cloudinaryUrl: fabricPrintTextureUrl(p.cloudinaryUrl),
+      cloudinaryUrl: fabricPrintTextureUrl(p.cloudinaryUrl, { preview: true }),
       tileUrl: p.tileUrl ? fabricPrintTextureUrl(p.tileUrl) : undefined,
       megatileUrl: p.megatileUrl ? fabricPrintTextureUrl(p.megatileUrl) : undefined,
     }));
@@ -126,7 +129,7 @@ export async function listFabricPrints(userId: string): Promise<FabricPrintRecor
     const data = await parseJson<{ prints: FabricPrintRecord[] }>(res);
     return (data.prints || []).map((p) => ({
       ...p,
-      cloudinaryUrl: fabricPrintTextureUrl(p.cloudinaryUrl),
+      cloudinaryUrl: fabricPrintTextureUrl(p.cloudinaryUrl, { preview: true }),
       tileUrl: p.tileUrl ? fabricPrintTextureUrl(p.tileUrl) : undefined,
       megatileUrl: p.megatileUrl ? fabricPrintTextureUrl(p.megatileUrl) : undefined,
     }));

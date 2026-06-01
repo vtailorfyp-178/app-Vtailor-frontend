@@ -208,6 +208,29 @@ export async function getCandidateBaseUrls(): Promise<string[]> {
   return [...new Set(urls)];
 }
 
+/** App-level JSON errors should not trigger trying another host (avoids false 401 from Metro proxy). */
+async function isAppLevelErrorResponse(response: Response): Promise<boolean> {
+  const ct = response.headers.get('content-type') || '';
+  if (!ct.includes('application/json')) return false;
+  try {
+    const clone = response.clone();
+    const data = (await clone.json()) as Record<string, unknown>;
+    return typeof data.detail === 'string' || data.configured === false;
+  } catch {
+    return false;
+  }
+}
+
+async function shouldTryNextBase(response: Response): Promise<boolean> {
+  if (response.status !== 404 && response.status !== 502 && response.status !== 503) {
+    return false;
+  }
+  if (await isAppLevelErrorResponse(response)) {
+    return false;
+  }
+  return true;
+}
+
 export async function fetchWithApiFallback(path: string, init?: RequestInit): Promise<Response> {
   const baseUrls = await getCandidateBaseUrls();
   let lastError: unknown = null;
@@ -223,8 +246,11 @@ export async function fetchWithApiFallback(path: string, init?: RequestInit): Pr
           signal: controller.signal,
         });
         lastResponse = response;
-        if (response.status === 404 || response.status === 502 || response.status === 503) {
+        if (await shouldTryNextBase(response)) {
           continue;
+        }
+        if (response.status === 424) {
+          return response;
         }
         if (response.ok) {
           await rememberWorkingApiBase(base);

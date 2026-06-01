@@ -84,23 +84,31 @@ export function applyCasualFabricTintToMesh(mat: THREE.MeshStandardMaterial, hex
   mat.needsUpdate = true;
 }
 
-/** Runtime custom print — replaces/albedo map while keeping PBR normal/roughness when present. */
+/** Runtime custom print — only when texture image loaded. */
 export function applyCasualFabricTextureToMesh(
   mat: THREE.MeshStandardMaterial,
   texture: THREE.Texture,
-): void {
+): boolean {
+  if (!texture?.image) {
+    console.warn('[casualFabricMaterial] skip apply — texture.image is null');
+    return false;
+  }
   applyCasualFabricBaseMaterial(mat, true);
   mat.map = texture;
   mat.color.set('#ffffff');
+  mat.emissive.setHex(0x000000);
+  mat.emissiveIntensity = 0;
+  mat.metalness = CASUAL_FABRIC_METALNESS;
+  mat.metalnessMap = null;
   mat.transparent = false;
   mat.opacity = 1;
   mat.needsUpdate = true;
+  return true;
 }
 
-/** Clear custom print — restore flat white fabric base. */
+/** Clear custom print — restore flat fabric (caller sets color). */
 export function clearCasualFabricTextureFromMesh(mat: THREE.MeshStandardMaterial): void {
   mat.map = null;
-  mat.color.set('#ffffff');
   mat.transparent = false;
   applyCasualFabricBaseMaterial(mat, true);
   mat.needsUpdate = true;

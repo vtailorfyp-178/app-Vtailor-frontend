@@ -156,7 +156,7 @@ export function buildMeasurementViewerShellHtml(): string {
       modelRoot.traverse((obj) => {
         if (!obj.isMesh || !obj.geometry?.attributes?.position) return;
         const pos = obj.geometry.attributes.position;
-        const step = Math.max(1, Math.floor(pos.count / 8000));
+        const step = Math.max(1, Math.floor(pos.count / 1800));
         for (let i = 0; i < pos.count; i += step) {
           sampleVert.fromBufferAttribute(pos, i);
           obj.localToWorld(sampleVert);

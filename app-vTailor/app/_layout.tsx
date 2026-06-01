@@ -1,6 +1,7 @@
 import 'react-native-gesture-handler';
 import 'react-native-reanimated';
 import { useEffect } from 'react';
+import { InteractionManager } from 'react-native';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { Slot } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -12,6 +13,7 @@ import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { prefetchCloudinaryModelCatalog } from '@/services/glb/cloudinaryModelCatalog';
+import { prefetchMeasurementModelAsset } from '@/services/measurement/measurementModelApi';
 import {
   requestNotificationPermissions,
   setupNotificationTapHandler,
@@ -44,8 +46,15 @@ function NotificationBootstrap() {
 }
 
 export default function RootLayout() {
-  prefetchCloudinaryModelCatalog();
   const colorScheme = useColorScheme();
+
+  useEffect(() => {
+    const task = InteractionManager.runAfterInteractions(() => {
+      prefetchCloudinaryModelCatalog();
+      prefetchMeasurementModelAsset().catch(() => {});
+    });
+    return () => task.cancel();
+  }, []);
 
   useEffect(() => {
     void pruneStaleApiBaseUrl();

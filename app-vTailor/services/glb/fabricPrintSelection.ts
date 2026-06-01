@@ -99,13 +99,24 @@ export function buildFabricPrintSelectionFromUpload(record: {
   };
 }
 
-/** Apply picked photo on-device immediately (works offline; no backend required). */
-export function buildLocalFabricPrintSelection(localUri: string): FabricPrintSelection {
+/** Apply picked photo on-device — full swatch URL first (reliable TextureLoader). */
+export async function buildLocalFabricPrintSelection(
+  localUri: string,
+  imageSize?: { width: number; height: number },
+): Promise<FabricPrintSelection> {
   const uri = localUri.trim();
+  const meta =
+    imageSize && imageSize.width > 0 && imageSize.height > 0
+      ? (await import('@/services/glb/fabricTileLocal')).estimatePatternMetaFromImageSize(
+          imageSize.width,
+          imageSize.height,
+        )
+      : { ...DEFAULT_META };
+
   return {
     sourceUrl: uri,
     tileUrl: uri,
     megatileUrl: uri,
-    patternMeta: { ...DEFAULT_META },
+    patternMeta: meta,
   };
 }

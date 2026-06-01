@@ -4,7 +4,7 @@ import { resolveBundledDressGlbAsync } from '@/services/dressGlbResolver';
 import { pathForCloudinaryLookup } from '@/services/glb/catalogDisplayPath';
 import { resolveGlbModelUrl, type GlbModelPath } from '@/services/glb/glbModelUrl';
 import { prefetchGlbBuffer, prefetchGltfScene } from '@/services/glb/loadGltfFromUrl';
-import {
+import { warmGlbDiskCache } from '@/services/glb/glbDiskCache';import {
   ensureCloudinaryModelCatalog,
   prefetchCloudinaryModelCatalog,
   shouldRefreshStaleGlbUrl,
@@ -16,7 +16,9 @@ import {
 } from '@/services/glb/dressGlbTypes';
 import { with3dPreviewDefaults } from '@/services/glb/threePreviewReadiness';
 
-const URL_CACHE_VERSION = 'display-v38-load-perf';
+const URL_CACHE_VERSION = 'display-v40-switch-perf';
+const MAX_WEB_MATRIX_WARMS = 6;
+const MAX_COLOR_WARMS = 4;
 
 /** Cloudinary URL lookup path (optimized long frock, mobile grarah/patiyala). */
 export function pathForPreviewUrl(relativePath: GlbModelPath): GlbModelPath {
@@ -69,8 +71,6 @@ export async function resolveDressGlbUrlCached(
   const peek = peekDressGlbUrlCached(selections, modelId);
   if (peek !== undefined) return peek;
 
-  await ensureCloudinaryModelCatalog();
-
   const relativePath = await resolveBundledDressGlbAsync(selections, modelId);
   if (!relativePath) {
     urlCache.set(key, null);
@@ -85,9 +85,12 @@ export async function resolveDressGlbUrlCached(
 }
 
 function warmResolvedUrl(hit: ResolvedGlb | null): void {
-  if (hit?.url) {
+  if (!hit?.url) return;
+  if (Platform.OS === 'web') {
     prefetchGlbBuffer(hit.url);
     prefetchGltfScene(hit.url);
+  } else {
+    warmGlbDiskCache(hit.url);
   }
 }
 
@@ -96,14 +99,17 @@ function prefetchMatrixVariants(
   modelId: string,
   necks: readonly string[],
   sleeves: readonly string[],
-  staggerMs = 60,
+  staggerMs = 120,
 ): void {
   let delay = 0;
+  let warmed = 0;
   for (const neck of necks) {
     for (const sleeve of sleeves) {
+      if (warmed >= MAX_WEB_MATRIX_WARMS) return;
       const next = with3dPreviewDefaults(modelId, { ...selections, neck, sleeves: sleeve });
       setTimeout(() => queueResolve(next, modelId), delay);
       delay += staggerMs;
+      warmed += 1;
     }
   }
 }
@@ -134,9 +140,12 @@ function prefetchColorVariants(
   modelId: string,
   pickedColor: string | null | undefined,
 ): void {
+  let warmed = 0;
   for (const color of DRESS_COLORS) {
     if (color === pickedColor) continue;
+    if (warmed >= MAX_COLOR_WARMS) break;
     queueResolve({ ...selections, colors: color }, modelId);
+    warmed += 1;
   }
 }
 
@@ -165,22 +174,31 @@ function prefetchSiblingVariants(selections: DressSelections, modelId: string): 
   }
 }
 
-/** Warm current GLB immediately; sibling variants after a short pause (web only — native WebView loads one URL). */
+/** Warm current GLB + likely next taps (colors on native too — disk cache). */
 export function prefetchDressGlbUrl(selections: DressSelections, modelId: string): void {
   queueResolve(selections, modelId);
-  if (Platform.OS !== 'web') return;
 
   if (variantPrefetchTimer) clearTimeout(variantPrefetchTimer);
   variantPrefetchTimer = setTimeout(() => {
     variantPrefetchTimer = null;
     prefetchSiblingVariants(selections, modelId);
-  }, 200);
+  }, Platform.OS === 'web' ? 400 : 80);
 
-  if (matrixPrefetchTimer) clearTimeout(matrixPrefetchTimer);
-  matrixPrefetchTimer = setTimeout(() => {
-    matrixPrefetchTimer = null;
-    prefetchDressMatrixVariants(selections, modelId);
-  }, 320);
+  if (Platform.OS === 'web') {
+    if (matrixPrefetchTimer) clearTimeout(matrixPrefetchTimer);
+    matrixPrefetchTimer = setTimeout(() => {
+      matrixPrefetchTimer = null;
+      prefetchDressMatrixVariants(selections, modelId);
+    }, 900);
+  }
+}
+
+/** Pre-warm all dress colors for current neck/sleeves — call when customize screen opens. */
+export function prefetchDressColorGrid(selections: DressSelections, modelId: string): void {
+  queueResolve(selections, modelId);
+  for (const color of DRESS_COLORS) {
+    queueResolve({ ...selections, colors: color }, modelId);
+  }
 }
 
 /** Warm default preview before user opens customize (trouser shirt style screen). */

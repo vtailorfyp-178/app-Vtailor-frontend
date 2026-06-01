@@ -159,7 +159,7 @@ export async function ensureCloudinaryModelCatalog(force = false): Promise<Map<s
     if (!base) return pathToUrl;
 
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 25_000);
+    const timeout = setTimeout(() => controller.abort(), 10_000);
 
     try {
       const res = await fetch(`${base}/models`, {
@@ -292,6 +292,9 @@ export function prefetchCloudinaryModelCatalog(): void {
   ensureEmbeddedCatalog();
   void ensureCloudinaryModelCatalog().catch(() => {});
 }
+
+// Warm embedded paths synchronously so first 3D screen skips network catalog wait.
+ensureEmbeddedCatalog();
 
 export function shouldRefreshStaleGlbUrl(url: string): boolean {
   if (!useCloudinaryModels() || !isCloudinaryCatalogReady()) return false;

@@ -212,7 +212,7 @@ export function buildModelViewerShellHtml(): string {
         if (gen !== loadGen) return;
         if (mv.model) finishLoad(gen);
         else failLoad(gen);
-      }, 14000);
+      }, 45000);
     }
     mv.addEventListener('load', function () {
       finishLoad(loadGen);
@@ -348,12 +348,25 @@ export function buildModelViewerShellHtml(): string {
       if (!urlIsCasualFabricDress(currentGlbUrl) && !/patiyala|trouser-shirt|bell-bottom|tulip-trouser/i.test(String(currentGlbUrl || ''))) return;
       try {
         var meta = window.__vtailorFabricPatternMeta || {};
-        var rpm = meta.repeatsPerMeter || 10;
-        var motifCm = meta.motifSizeCm || (100 / rpm);
-        var scaleU = Math.max(4, Math.min(22, (100 / motifCm) * 0.38));
-        var tileAspect = (meta.tileWidth && meta.tileHeight) ? meta.tileWidth / meta.tileHeight : 1;
-        var scaleV = scaleU / tileAspect;
-        var texture = await mv.createTexture(texUrl);
+        var megatileUrl = window.__vtailorFabricMegatileUrl || '';
+        var useMega = megatileUrl && megatileUrl !== texUrl;
+        var sampleUrl = useMega ? megatileUrl : texUrl;
+        var motifCm = Math.max(meta.motifSizeCm || 8, 2.5);
+        var garmentW = 0.48;
+        var garmentH = 0.72;
+        var motifsU = garmentW / (motifCm / 100);
+        var motifsV = garmentH / (motifCm / 100);
+        var scaleU, scaleV;
+        if (useMega) {
+          var grid = 6;
+          scaleU = Math.max(0.35, Math.min(5, motifsU / grid));
+          scaleV = Math.max(0.35, Math.min(5, motifsV / grid));
+        } else {
+          scaleU = Math.max(2, Math.min(28, motifsU));
+          var tileAspect = (meta.tileWidth && meta.tileHeight) ? meta.tileWidth / meta.tileHeight : 1;
+          scaleV = Math.max(2, Math.min(28, motifsV / Math.max(tileAspect, 0.01)));
+        }
+        var texture = await mv.createTexture(sampleUrl);
         var rough = fabricRoughnessForUrl(currentGlbUrl);
         mv.model.materials.forEach(function (mat) {
           if (!isDressFabricMaterial(mat.name)) return;
@@ -425,10 +438,12 @@ export function injectModelViewerFabricColorScript(hex: string | null): string {
 export function injectModelViewerFabricTextureScript(
   url: string | null,
   meta?: Record<string, unknown> | null,
+  megatileUrl?: string | null,
 ): string {
   const payload = url ? JSON.stringify(url) : 'null';
   const metaPayload = meta ? JSON.stringify(meta) : 'null';
-  return `(function(){try{window.__vtailorFabricTexUrl=${payload};window.__vtailorFabricPatternMeta=${metaPayload};window.__vtailorSetFabricTexture&&window.__vtailorSetFabricTexture(window.__vtailorFabricTexUrl);}catch(e){}})();true;`;
+  const megaPayload = megatileUrl ? JSON.stringify(megatileUrl) : 'null';
+  return `(function(){try{window.__vtailorFabricTexUrl=${payload};window.__vtailorFabricPatternMeta=${metaPayload};window.__vtailorFabricMegatileUrl=${megaPayload};window.__vtailorSetFabricTexture&&window.__vtailorSetFabricTexture(window.__vtailorFabricTexUrl);}catch(e){}})();true;`;
 }
 
 export function injectModelViewerWeddingColorScript(hex: string | null): string {
@@ -532,8 +547,9 @@ export function buildModelViewerHtml(glbUrl: string): string {
 export function modelViewerBaseUrl(glbUrl: string): string {
   try {
     const u = new URL(glbUrl);
-    return u.origin;
+    if (/^https?:$/i.test(u.protocol)) return u.origin;
   } catch {
-    return 'http://localhost';
+    /* fall through */
   }
+  return 'https://res.cloudinary.com';
 }

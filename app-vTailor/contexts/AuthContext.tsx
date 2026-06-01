@@ -56,6 +56,17 @@ const userCustomizationsKey = (userId: string) => `customizations_${userId}`;
 const userMeasurementsKey = (userId: string) => `measurements_${userId}`;
 const userOrdersKey = (userId: string) => `orders_${userId}`;
 
+const AUTH_STORAGE_KEYS = ['authToken', 'userRole', 'loginEmail', 'userId'] as const;
+
+function isInvalidTokenError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return /invalid or expired token|401|unauthorized/i.test(message);
+}
+
+async function clearStoredAuthSession(): Promise<void> {
+  await AsyncStorage.multiRemove([...AUTH_STORAGE_KEYS]).catch(() => {});
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [acceptedTerms, setAcceptedTerms]       = useState(false);
   const [token, setToken]                       = useState<string | null>(null);
@@ -138,7 +149,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               ).catch((e) => console.warn('[Stream] session-restore connect failed:', e));
             }
           } catch (error) {
-            console.error('Failed to hydrate profile from backend:', error);
+            if (isInvalidTokenError(error)) {
+              await clearStoredAuthSession();
+              setToken(null);
+              setUserId(null);
+              setUserRole(null);
+              setLoginEmail(null);
+              setCustomerProfile(null);
+              setTailorProfile(null);
+              setIsProfileCompleted(false);
+              console.warn('[Auth] Stored session expired — please log in again.');
+            } else {
+              console.warn('[Auth] Could not refresh profile from backend:', error);
+            }
           }
         }
       } catch (error) {

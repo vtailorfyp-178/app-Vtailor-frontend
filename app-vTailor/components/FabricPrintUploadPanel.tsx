@@ -46,7 +46,10 @@ export function FabricPrintUploadPanel({ userId, printUrl, onPrintUrlChange }: P
             : await pickFabricPrintFromGallery();
         if (!prepared) return;
 
-        const localSelection = buildLocalFabricPrintSelection(prepared.uri);
+        const localSelection = await buildLocalFabricPrintSelection(prepared.uri, {
+          width: prepared.width,
+          height: prepared.height,
+        });
         onPrintUrlChange(serializeFabricPrintSelection(localSelection));
 
         try {

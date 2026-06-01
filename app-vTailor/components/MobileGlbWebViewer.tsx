@@ -14,6 +14,7 @@ import { WebView } from 'react-native-webview';
 import { glbAllowsCasualFabricRuntimeTint, glbAllowsRuntimeFabricTexture } from '@/services/glb/casualFabricDress';
 import {
   fabricPrintPatternMeta,
+  fabricPrintMegatileUrl,
   fabricPrintTileUrl,
   type FabricPatternMeta,
 } from '@/services/glb/fabricPrintSelection';
@@ -26,6 +27,12 @@ import {
   injectModelViewerWeddingColorScript,
   modelViewerBaseUrl,
 } from '@/services/glb/modelViewerHtml';
+import {
+  clearDiskCacheForUrl,
+  getDiskCachedGlbFileUrl,
+  waitForDiskCachedGlbFileUrl,
+  warmGlbDiskCache,
+} from '@/services/glb/glbDiskCache';
 
 type Props = {
   glbUrl: string;
@@ -44,7 +51,12 @@ type Props = {
 type LoadState = 'loading' | 'ready' | 'error';
 
 const SHELL_HTML = buildModelViewerShellHtml();
-const INJECT_DEBOUNCE_MS = 48;
+const INJECT_DEBOUNCE_MS = 0;
+const MAX_LOAD_RETRIES = 2;
+
+function remoteGlbUrl(url: string): string | null {
+  return /^https?:\/\//i.test(url) ? url : null;
+}
 
 export const MobileGlbWebViewer = React.memo(function MobileGlbWebViewer({
   glbUrl,
@@ -56,12 +68,13 @@ export const MobileGlbWebViewer = React.memo(function MobileGlbWebViewer({
   weddingColorHex = null,
   fallbackImage,
   style,
-  isUpdating: _isUpdating = false,
+  isUpdating = false,
 }: Props): React.ReactElement {
-  void _isUpdating;
   const webRef = useRef<WebView>(null);
   const shellReadyRef = useRef(false);
   const glbUrlRef = useRef(glbUrl);
+  const displayedUrlRef = useRef<string | null>(null);
+  const retryCountRef = useRef(0);
   const injectGenRef = useRef(0);
   const injectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fabricColorRef = useRef(fabricColorHex);
@@ -72,8 +85,14 @@ export const MobileGlbWebViewer = React.memo(function MobileGlbWebViewer({
   fabricTextureRef.current = fabricTextureUrl ?? null;
   fabricPatternMetaRef.current = fabricPatternMeta;
   weddingColorRef.current = weddingColorHex ?? null;
-  const baseUrl = useMemo(() => modelViewerBaseUrl(glbUrl), [glbUrl]);
+
+  const remoteUrl = useMemo(() => remoteGlbUrl(glbUrl), [glbUrl]);
+  const baseUrl = useMemo(
+    () => (remoteUrl ? modelViewerBaseUrl(remoteUrl) : 'https://res.cloudinary.com'),
+    [remoteUrl],
+  );
   const [state, setState] = useState<LoadState>('loading');
+  const [shownCatalogUrl, setShownCatalogUrl] = useState<string | null>(null);
 
   glbUrlRef.current = glbUrl;
 
@@ -93,10 +112,15 @@ export const MobileGlbWebViewer = React.memo(function MobileGlbWebViewer({
   const injectFabricTexture = useCallback((texRaw: string | null, url: string) => {
     if (!webRef.current || !shellReadyRef.current) return;
     const tileUrl = texRaw ? fabricPrintTileUrl(texRaw) ?? texRaw : null;
+    const megatileUrl = texRaw ? fabricPrintMegatileUrl(texRaw) : null;
     const allowed = tileUrl && glbAllowsRuntimeFabricTexture(url);
     const meta = texRaw ? fabricPrintPatternMeta(texRaw) : fabricPatternMetaRef.current;
     webRef.current.injectJavaScript(
-      injectModelViewerFabricTextureScript(allowed ? tileUrl : null, allowed ? meta : null),
+      injectModelViewerFabricTextureScript(
+        allowed ? tileUrl : null,
+        allowed ? meta : null,
+        allowed ? megatileUrl : null,
+      ),
     );
   }, []);
 
@@ -108,61 +132,101 @@ export const MobileGlbWebViewer = React.memo(function MobileGlbWebViewer({
   }, []);
 
   const scheduleGlbInject = useCallback(
-    (url: string) => {
-      if (!url) return;
+    (catalogUrl: string, injectSrc?: string) => {
+      const httpsUrl = remoteGlbUrl(catalogUrl);
+      if (!httpsUrl) return;
+      const src = injectSrc ?? httpsUrl;
       const gen = (injectGenRef.current += 1);
       if (injectTimerRef.current) clearTimeout(injectTimerRef.current);
       injectTimerRef.current = setTimeout(() => {
-        if (gen !== injectGenRef.current || glbUrlRef.current !== url) return;
+        if (gen !== injectGenRef.current || glbUrlRef.current !== catalogUrl) return;
         if (!shellReadyRef.current) return;
-        setState((s) => (s === 'error' ? 'loading' : s === 'ready' ? s : 'loading'));
-        injectGlb(url);
-        injectFabricTexture(fabricTextureRef.current, url);
-        injectFabricColor(fabricColorRef.current, url);
-        injectWeddingColor(weddingColorRef.current, url);
+        const firstPaint = displayedUrlRef.current == null;
+        if (firstPaint || !isUpdating) {
+          setState((s) => (s === 'error' ? 'loading' : s === 'ready' ? s : 'loading'));
+        }
+        injectGlb(src);
+        injectFabricTexture(fabricTextureRef.current, httpsUrl);
+        injectFabricColor(fabricColorRef.current, httpsUrl);
+        injectWeddingColor(weddingColorRef.current, httpsUrl);
       }, INJECT_DEBOUNCE_MS);
     },
-    [injectGlb, injectFabricColor, injectFabricTexture, injectWeddingColor],
+    [injectGlb, injectFabricColor, injectFabricTexture, injectWeddingColor, isUpdating],
+  );
+
+  const resolveAndInject = useCallback(
+    async (catalogUrl: string) => {
+      const httpsUrl = remoteGlbUrl(catalogUrl);
+      if (!httpsUrl) {
+        setState('error');
+        return;
+      }
+
+      const cachedFile = await getDiskCachedGlbFileUrl(httpsUrl);
+      if (cachedFile) {
+        scheduleGlbInject(catalogUrl, cachedFile);
+        return;
+      }
+
+      warmGlbDiskCache(httpsUrl);
+      scheduleGlbInject(catalogUrl, httpsUrl);
+
+      void waitForDiskCachedGlbFileUrl(httpsUrl, 15_000).then((fileUrl) => {
+        if (!fileUrl || glbUrlRef.current !== catalogUrl) return;
+        if (displayedUrlRef.current === catalogUrl) return;
+        scheduleGlbInject(catalogUrl, fileUrl);
+      });
+    },
+    [scheduleGlbInject],
   );
 
   useEffect(() => {
-    if (!glbUrl) return;
-    setState((s) => (s === 'error' ? 'loading' : s));
-    scheduleGlbInject(glbUrl);
+    retryCountRef.current = 0;
+    if (!remoteUrl) {
+      setState('error');
+      return;
+    }
+    if (!displayedUrlRef.current) {
+      setState('loading');
+    }
+    void resolveAndInject(remoteUrl);
     return () => {
       if (injectTimerRef.current) clearTimeout(injectTimerRef.current);
     };
-  }, [glbUrl, scheduleGlbInject]);
+  }, [remoteUrl, resolveAndInject]);
 
   useEffect(() => {
-    if (!glbUrl || !shellReadyRef.current) return;
-    injectFabricTexture(fabricTextureUrl ?? null, glbUrl);
-    injectFabricColor(fabricColorHex ?? null, glbUrl);
-    injectWeddingColor(weddingColorHex ?? null, glbUrl);
-  }, [fabricColorHex, fabricTextureUrl, weddingColorHex, glbUrl, injectFabricColor, injectFabricTexture, injectWeddingColor]);
+    if (!remoteUrl || !shellReadyRef.current) return;
+    injectFabricTexture(fabricTextureUrl ?? null, remoteUrl);
+    injectFabricColor(fabricColorHex ?? null, remoteUrl);
+    injectWeddingColor(weddingColorHex ?? null, remoteUrl);
+  }, [fabricColorHex, fabricTextureUrl, weddingColorHex, remoteUrl, injectFabricColor, injectFabricTexture, injectWeddingColor]);
 
-  const showOverlay = state === 'loading';
-
-  if (state === 'error') {
-    return (
-      <View style={[styles.wrap, { width, height }, style]}>
-        {fallbackImage ? (
-          <Image source={fallbackImage} style={styles.fallbackImage} resizeMode="contain" />
-        ) : null}
-        <Text style={styles.errText}>
-          3D preview could not load. Check Wi‑Fi and that Cloudinary models are set in .env.
-        </Text>
-      </View>
-    );
-  }
+  const showOverlay = state === 'loading' && displayedUrlRef.current == null;
 
   return (
     <View style={[{ width, height, overflow: 'hidden' }, style]}>
+      {!remoteUrl || state === 'error' ? (
+        <View style={[styles.wrap, StyleSheet.absoluteFill]}>
+          {fallbackImage ? (
+            <Image source={fallbackImage} style={styles.fallbackImage} resizeMode="contain" />
+          ) : null}
+          <Text style={styles.errText}>
+            {!remoteUrl
+              ? '3D model URL is missing. Ensure EXPO_PUBLIC_USE_CLOUDINARY_MODELS=true in .env and restart Expo.'
+              : '3D preview could not load. Check Wi‑Fi (same network as PC) and wait — large models can take up to 45 seconds.'}
+          </Text>
+        </View>
+      ) : null}
+      {remoteUrl && state !== 'error' ? (
       <WebView
         ref={webRef}
         source={{ html: SHELL_HTML, baseUrl }}
         style={styles.webview}
-        originWhitelist={['*']}
+        originWhitelist={['*', 'file://*', 'content://*']}
+        allowFileAccess
+        allowFileAccessFromFileURLs={Platform.OS === 'android'}
+        allowUniversalAccessFromFileURLs={Platform.OS === 'android'}
         cacheEnabled
         cacheMode="LOAD_CACHE_ELSE_NETWORK"
         androidLayerType="hardware"
@@ -178,47 +242,60 @@ export const MobileGlbWebViewer = React.memo(function MobileGlbWebViewer({
         allowsFullscreenVideo
         onLoadEnd={() => {
           shellReadyRef.current = true;
-          scheduleGlbInject(glbUrlRef.current);
+          void resolveAndInject(glbUrlRef.current);
         }}
         onMessage={(event) => {
           try {
             const data = JSON.parse(event.nativeEvent.data) as { type?: string };
             const activeUrl = glbUrlRef.current;
+            const activeHttps = remoteGlbUrl(activeUrl);
             if (data.type === 'ready') {
               shellReadyRef.current = true;
-              scheduleGlbInject(activeUrl);
+              if (activeHttps) void resolveAndInject(activeHttps);
             }
             if (data.type === 'loading') {
               setState((s) => (s === 'error' ? s : 'loading'));
             }
             if (data.type === 'loaded') {
+              retryCountRef.current = 0;
+              displayedUrlRef.current = activeUrl;
+              setShownCatalogUrl(activeUrl);
               setState('ready');
-              injectFabricTexture(fabricTextureUrl ?? null, activeUrl);
-              injectFabricColor(fabricColorHex ?? null, activeUrl);
-              injectWeddingColor(weddingColorHex ?? null, activeUrl);
+              if (activeHttps) {
+                injectFabricTexture(fabricTextureUrl ?? null, activeHttps);
+                injectFabricColor(fabricColorHex ?? null, activeHttps);
+                injectWeddingColor(weddingColorHex ?? null, activeHttps);
+              }
             }
-            if (data.type === 'error') {
-              setTimeout(() => {
-                if (glbUrlRef.current === activeUrl) {
-                  setState((s) => (s === 'loading' ? 'error' : s));
-                }
-              }, 1800);
+            if (data.type === 'error' && activeHttps) {
+              if (retryCountRef.current < MAX_LOAD_RETRIES) {
+                retryCountRef.current += 1;
+                void clearDiskCacheForUrl(activeHttps).finally(() => {
+                  setTimeout(() => {
+                    if (glbUrlRef.current === activeUrl) {
+                      scheduleGlbInject(activeUrl, activeHttps);
+                    }
+                  }, 400);
+                });
+                return;
+              }
+              setState('error');
             }
           } catch {
             /* ignore */
           }
         }}
-        onHttpError={() => {
-          if (glbUrlRef.current === glbUrl) setState('error');
-        }}
-        onError={() => {
-          if (glbUrlRef.current === glbUrl) setState('error');
-        }}
       />
+      ) : null}
       {showOverlay ? (
         <View style={styles.loadingOverlay} pointerEvents="none">
           <ActivityIndicator size="large" color="#64748b" />
           <Text style={styles.loadingText}>Loading 3D dress…</Text>
+        </View>
+      ) : null}
+      {isUpdating && shownCatalogUrl != null && shownCatalogUrl !== glbUrl ? (
+        <View style={styles.updatingBadge} pointerEvents="none">
+          <ActivityIndicator size="small" color="#64748b" />
         </View>
       ) : null}
     </View>
@@ -241,6 +318,14 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#64748b',
     fontWeight: '600',
+  },
+  updatingBadge: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    borderRadius: 999,
+    padding: 8,
   },
   wrap: {
     alignItems: 'center',

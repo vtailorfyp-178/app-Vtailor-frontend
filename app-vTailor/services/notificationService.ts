@@ -3,43 +3,59 @@
  * ----------------------
  * Handles local notifications for the vTailor app.
  *
- * NOTE: Remote push notifications (FCM/APNs) require a development build.
- *       In Expo Go only LOCAL notifications are used; push tokens are skipped.
- *
- * Usage flow:
- *  1. Call requestNotificationPermissions() once on app start.
- *  2. Call setupNotificationTapHandler() to handle user tapping a notification.
- *  3. streamChatService calls scheduleMessageNotification() on message.new events.
- *  4. Call setCurrentOpenChannel(channelId | null) when entering/leaving a chat screen.
+ * NOTE: expo-notifications is NOT imported in Expo Go (SDK 53+ blocks push on import).
+ *       Use a development build for remote push; Expo Go skips notifications entirely.
  */
 
-import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import { router } from 'expo-router';
 import Constants from 'expo-constants';
 
-// ── Detect Expo Go vs dev build ───────────────────────────────────────────────
+type NotificationsModule = typeof import('expo-notifications');
 
 function isExpoGo(): boolean {
   return Constants.appOwnership === 'expo';
 }
 
-// ── Foreground notification handler ──────────────────────────────────────────
-// Must be set before any notification API call, but only when supported
+function notificationsSupported(): boolean {
+  return Platform.OS !== 'web' && !isExpoGo();
+}
 
-try {
-  Notifications.setNotificationHandler({
-    handleNotification: async (): Promise<Notifications.NotificationBehavior> => ({
-      shouldShowAlert: true,
-      shouldPlaySound: true,
-      shouldSetBadge: true,
-      shouldShowBanner: true,
-      shouldShowList: true,
-      priority: Notifications.AndroidNotificationPriority.MAX,
-    }),
-  });
-} catch {
-  // Silently skip on platforms where this is not supported (web)
+let notificationsModule: NotificationsModule | null | undefined;
+let handlerInitialized = false;
+
+async function loadNotifications(): Promise<NotificationsModule | null> {
+  if (!notificationsSupported()) return null;
+  if (notificationsModule !== undefined) return notificationsModule;
+
+  try {
+    const mod = await import('expo-notifications');
+    notificationsModule = mod;
+
+    if (!handlerInitialized) {
+      handlerInitialized = true;
+      try {
+        mod.setNotificationHandler({
+          handleNotification: async (): Promise<import('expo-notifications').NotificationBehavior> => ({
+            shouldShowAlert: true,
+            shouldPlaySound: true,
+            shouldSetBadge: true,
+            shouldShowBanner: true,
+            shouldShowList: true,
+            priority: mod.AndroidNotificationPriority.MAX,
+          }),
+        });
+      } catch {
+        // Ignore on unsupported platforms
+      }
+    }
+
+    return mod;
+  } catch (err) {
+    console.warn('[Notifications] module unavailable:', err);
+    notificationsModule = null;
+    return null;
+  }
 }
 
 // ── Active-channel tracker ────────────────────────────────────────────────────
@@ -54,8 +70,8 @@ export function setCurrentOpenChannel(channelId: string | null): void {
 // ── Permissions ───────────────────────────────────────────────────────────────
 
 export async function requestNotificationPermissions(): Promise<boolean> {
-  // Web: notifications not supported in Expo context
-  if (Platform.OS === 'web') return false;
+  const Notifications = await loadNotifications();
+  if (!Notifications) return false;
 
   try {
     if (Platform.OS === 'android') {
@@ -74,7 +90,7 @@ export async function requestNotificationPermissions(): Promise<boolean> {
     const { status } = await Notifications.requestPermissionsAsync();
     return status === 'granted';
   } catch (err) {
-    console.warn('[Notifications] requestPermissions failed (Expo Go limitation):', err);
+    console.warn('[Notifications] requestPermissions failed:', err);
     return false;
   }
 }
@@ -90,10 +106,10 @@ export async function scheduleMessageNotification(opts: {
   otherUserName: string;
   role?: string;
 }): Promise<void> {
-  // Suppress if the user is already viewing this channel
   if (_currentOpenChannelId && _currentOpenChannelId === opts.channelId) return;
-  // Skip on web — local notifications are not supported
-  if (Platform.OS === 'web') return;
+
+  const Notifications = await loadNotifications();
+  if (!Notifications) return;
 
   try {
     await Notifications.scheduleNotificationAsync({
@@ -112,7 +128,7 @@ export async function scheduleMessageNotification(opts: {
           role: opts.role ?? 'customer',
         } as Record<string, string>,
       },
-      trigger: null, // fire immediately
+      trigger: null,
     });
   } catch (err) {
     console.warn('[Notifications] scheduleMessageNotification failed:', err);
@@ -121,47 +137,51 @@ export async function scheduleMessageNotification(opts: {
 
 // ── Tap handler ───────────────────────────────────────────────────────────────
 
-let _tapHandlerSubscription: Notifications.Subscription | null = null;
+let _tapHandlerSubscription: { remove: () => void } | null = null;
 
 export function setupNotificationTapHandler(): () => void {
-  if (Platform.OS === 'web') return () => {};
+  if (!notificationsSupported()) return () => {};
 
-  try {
-    if (_tapHandlerSubscription) {
-      _tapHandlerSubscription.remove();
-      _tapHandlerSubscription = null;
-    }
+  void (async () => {
+    const Notifications = await loadNotifications();
+    if (!Notifications) return;
 
-    _tapHandlerSubscription = Notifications.addNotificationResponseReceivedListener(
-      (response) => {
-        const data = response.notification.request.content.data as Record<string, string>;
-        if (data?.screen !== 'chat') return;
-
-        try {
-          // Support both customer and tailor roles from the notification data
-          const role = data.role || 'customer';
-          const pathname =
-            role === 'tailor'
-              ? '/tailor/chat/[id]'
-              : '/customer/chat-conversation';
-          router.push({
-            pathname: pathname as any,
-            params: {
-              stream_channel_id: data.channelId ?? '',
-              stream_cid: data.channelCid ?? '',
-              id: data.channelId ?? '',
-              otherUserId: data.otherUserId ?? '',
-              otherUserName: data.otherUserName ?? data.senderName ?? 'User',
-            },
-          });
-        } catch (err) {
-          console.warn('[Notifications] tap navigation failed:', err);
-        }
+    try {
+      if (_tapHandlerSubscription) {
+        _tapHandlerSubscription.remove();
+        _tapHandlerSubscription = null;
       }
-    );
-  } catch (err) {
-    console.warn('[Notifications] setupNotificationTapHandler failed (Expo Go limitation):', err);
-  }
+
+      _tapHandlerSubscription = Notifications.addNotificationResponseReceivedListener(
+        (response) => {
+          const data = response.notification.request.content.data as Record<string, string>;
+          if (data?.screen !== 'chat') return;
+
+          try {
+            const role = data.role || 'customer';
+            const pathname =
+              role === 'tailor'
+                ? '/tailor/chat/[id]'
+                : '/customer/chat-conversation';
+            router.push({
+              pathname: pathname as '/tailor/chat/[id]' | '/customer/chat-conversation',
+              params: {
+                stream_channel_id: data.channelId ?? '',
+                stream_cid: data.channelCid ?? '',
+                id: data.channelId ?? '',
+                otherUserId: data.otherUserId ?? '',
+                otherUserName: data.otherUserName ?? data.senderName ?? 'User',
+              },
+            });
+          } catch (err) {
+            console.warn('[Notifications] tap navigation failed:', err);
+          }
+        }
+      );
+    } catch (err) {
+      console.warn('[Notifications] setupNotificationTapHandler failed:', err);
+    }
+  })();
 
   return () => {
     _tapHandlerSubscription?.remove();
@@ -172,7 +192,9 @@ export function setupNotificationTapHandler(): () => void {
 // ── Clear badge ───────────────────────────────────────────────────────────────
 
 export async function clearBadgeCount(): Promise<void> {
-  if (Platform.OS === 'web') return;
+  const Notifications = await loadNotifications();
+  if (!Notifications) return;
+
   try {
     await Notifications.setBadgeCountAsync(0);
   } catch {

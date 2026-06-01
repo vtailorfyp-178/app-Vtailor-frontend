@@ -3,6 +3,7 @@ import { Slot, useLocalSearchParams, usePathname } from 'expo-router';
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SURFACE_MUTED } from '@/constants/ui';
 
 export default function TailorLayout() {
   const insets = useSafeAreaInsets();
@@ -11,7 +12,7 @@ export default function TailorLayout() {
   const activeTab = getTailorTab(pathname, typeof params?.tab === 'string' ? params.tab : undefined);
 
   return (
-    <View style={[styles.container, { paddingTop: Math.max(insets.top + 8, 20) }]}>
+    <View style={[styles.container, { paddingTop: Math.max(insets.top + 8, 20), backgroundColor: SURFACE_MUTED }]}>
       <View style={styles.content}>
         <Slot />
       </View>

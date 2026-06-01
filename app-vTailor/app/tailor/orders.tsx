@@ -1,6 +1,6 @@
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { ThemedText } from '@/components/themed-text';
-import { SURFACE_MUTED, TEXT_DARK, UI } from '@/constants/ui';
+import { SURFACE_MUTED, TEXT_DARK, UI, ROLE_COLORS } from '@/constants/ui';
 import { Ionicons } from '@expo/vector-icons';
 import { usePathname, useRouter } from 'expo-router';
 import React, { useState } from 'react';
@@ -178,12 +178,12 @@ const styles = StyleSheet.create({
   container: { paddingBottom: 40, paddingHorizontal: 16, paddingTop: 16 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18, backgroundColor: '#fff', borderRadius: 22, padding: 12, ...UI.softShadow },
   headerTextWrap: { flex: 1, alignItems: 'center' },
-  headerEyebrow: { fontSize: 11, color: '#ec4899', fontWeight: '800', letterSpacing: 0.6, textTransform: 'uppercase', marginBottom: 2 },
-  backBtn: { width: 44, height: 44, borderRadius: 16, backgroundColor: '#FCE4F2', alignItems: 'center', justifyContent: 'center' },
+  headerEyebrow: { fontSize: 11, color: ROLE_COLORS.tailor.primary, fontWeight: '800', letterSpacing: 0.6, textTransform: 'uppercase', marginBottom: 2 },
+  backBtn: { width: 44, height: 44, borderRadius: 16, backgroundColor: ROLE_COLORS.tailor.soft, alignItems: 'center', justifyContent: 'center' },
   title: { fontSize: 22, fontWeight: '900', textAlign: 'center', color: TEXT_DARK },
   filters: { flexDirection: 'row', gap: 8, marginBottom: 18, justifyContent: 'space-between' },
   filterBtn: { paddingVertical: 10, paddingHorizontal: 11, borderRadius: 999, backgroundColor: '#fff', borderWidth: 1, borderColor: BORDER },
-  filterActive: { backgroundColor: '#ec4899', borderColor: '#ec4899' },
+  filterActive: { backgroundColor: ROLE_COLORS.tailor.primary, borderColor: ROLE_COLORS.tailor.primary },
   filterText: { color: '#374151', fontWeight: '600', fontSize: 12 },
   filterTextActive: { color: '#fff', fontWeight: '600', fontSize: 12 },
   card: { 

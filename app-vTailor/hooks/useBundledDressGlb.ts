@@ -72,8 +72,8 @@ export function useBundledDressGlb(
         return;
       }
       setActiveGlbLoadUrl(hit.url);
+      prefetchGlbBuffer(hit.url);
       if (Platform.OS === 'web') {
-        prefetchGlbBuffer(hit.url);
         prefetchGltfScene(hit.url);
       }
       setState({
@@ -100,9 +100,11 @@ export function useBundledDressGlb(
 
     const cached = peekDressGlbUrlCached(selections, modelId);
     if (cached !== undefined) {
-      if (cached?.url && Platform.OS === 'web') {
+      if (cached?.url) {
         prefetchGlbBuffer(cached.url);
-        prefetchGltfScene(cached.url);
+        if (Platform.OS === 'web') {
+          prefetchGltfScene(cached.url);
+        }
       }
       applyHit(cached);
       return () => {

@@ -6,6 +6,8 @@ import { ThemedText } from '@/components/themed-text';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { DressGlbPreview } from '@/components/DressGlbPreview';
+import { TailorScreenShell } from '@/components/tailor/TailorScreenShell';
+import { TAILOR, tailorStyles } from '@/components/tailor/tailorUi';
 import {
   fabricColorHexFromId,
   usesCasualShortShirtFabricTint,
@@ -13,6 +15,10 @@ import {
 import { type TabId } from '@/services/dressGlbResolver';
 import { useBundledDressGlb } from '@/hooks/useBundledDressGlb';
 import { with3dPreviewDefaults } from '@/services/glb/threePreviewReadiness';
+import {
+  formatSelectionLines,
+  getOrderById,
+} from '@/services/tailor/tailorOrderCatalog';
 
 const MOCK_3D_TEMPLATES: Record<number, any> = {
   1: {
@@ -72,23 +78,6 @@ function mergeSelections(raw: unknown): Record<TabId, string | null> | null {
   return { ...defaultSelections, ...o };
 }
 
-function selectionLines(sel: Record<TabId, string | null>): string[] {
-  const labels: Partial<Record<TabId, string>> = {
-    neck: 'Neck',
-    sleeves: 'Sleeves',
-    bottom: 'Bottom',
-    'frock-style': 'Frock style',
-    colors: 'Color',
-    'saree-style': 'Saree style',
-  };
-  const lines: string[] = [];
-  (Object.keys(labels) as TabId[]).forEach((k) => {
-    const v = sel[k];
-    if (v) lines.push(`${labels[k]}: ${v}`);
-  });
-  return lines.length ? lines : ['(No variation details)'];
-}
-
 export default function Tailor3DView() {
   const router = useRouter();
   const params = useLocalSearchParams();
@@ -96,7 +85,8 @@ export default function Tailor3DView() {
   const glViewportW = Math.max(280, Math.floor(screenW - 32));
   const glViewportH = 340;
 
-  const customerId = parseInt(String(params.customerId || ''), 10) || 1;
+  const orderIdParam = (params.orderId as string) || '';
+  const customerId = String(params.customerId || '1');
   const customerNameParam = (params.customerName as string) || '';
   const modelIdParam = (params.modelId as string) || '';
   const modelNameParam = (params.modelName as string) || '';
@@ -126,66 +116,76 @@ export default function Tailor3DView() {
         : null
       : null;
 
-  const template = MOCK_3D_TEMPLATES[customerId];
-  const tint = useThemeColor({}, 'tint');
-  const card = useThemeColor({}, 'card');
-  const bg = useThemeColor({}, 'background');
+  const orderFromCatalog = orderIdParam ? getOrderById(orderIdParam) : undefined;
+  const template = MOCK_3D_TEMPLATES[parseInt(customerId, 10) || 1];
   const muted = useThemeColor({}, 'muted');
 
-  const displayName = hasCustomerDesign ? customerNameParam || 'Customer' : template?.customerName || customerNameParam;
-  const garmentLabel = hasCustomerDesign ? modelNameParam || modelIdParam : template?.garment;
+  const displayName =
+    orderFromCatalog?.customerName ||
+    (hasCustomerDesign ? customerNameParam || 'Customer' : template?.customerName || customerNameParam);
+  const garmentLabel =
+    orderFromCatalog?.garment ||
+    (hasCustomerDesign ? modelNameParam || modelIdParam : template?.garment);
 
   const handleApprove = () => {
-    router.push('/tailor/measurements');
+    router.push({
+      pathname: '/tailor/measurement-detail',
+      params: { orderId: orderIdParam || orderFromCatalog?.orderId || 'ORD001' },
+    });
   };
 
   const handleRequestChanges = () => {
-    router.push({ pathname: '/tailor/chat/[id]', params: { id: String(customerId), returnTo: '/tailor' } });
+    router.push({
+      pathname: '/tailor/chat/[id]',
+      params: { id: customerId, returnTo: '/tailor/3d-review' },
+    });
   };
 
   if (!hasCustomerDesign && !template) {
     return (
       <ProtectedRoute requiredRole="tailor">
-        <View style={[styles.container, { backgroundColor: bg }]}>
-          <View style={[styles.header, { backgroundColor: tint }]}>
-            <Pressable onPress={() => router.back()} style={styles.backButton}>
-              <Ionicons name="chevron-back" size={28} color="#fff" />
-            </Pressable>
-            <ThemedText style={[styles.headerTitle, { color: '#fff' }]}>View Not Found</ThemedText>
-            <View style={{ width: 44 }} />
-          </View>
-          <ScrollView contentContainerStyle={styles.content}>
-            <ThemedText style={{ color: muted, padding: 16 }}>
-              No 3D template for this customer. Open 3D Customization Review to pick a saved design, or ensure the order includes design details.
-            </ThemedText>
-          </ScrollView>
-        </View>
+        <TailorScreenShell title="View Not Found" onBack={() => router.back()}>
+          <ThemedText style={{ color: muted, lineHeight: 20 }}>
+            No 3D template for this customer. Open 3D Customization Review to pick a saved design.
+          </ThemedText>
+        </TailorScreenShell>
       </ProtectedRoute>
     );
   }
 
   return (
     <ProtectedRoute requiredRole="tailor">
-      <View style={[styles.container, { backgroundColor: bg }]}>
-        <View style={[styles.header, { backgroundColor: tint }]}>
-          <Pressable onPress={() => router.back()} style={styles.backButton}>
-            <Ionicons name="chevron-back" size={28} color="#fff" />
-          </Pressable>
-          <ThemedText style={[styles.headerTitle, { color: '#fff' }]}>3D Template</ThemedText>
-          <View style={{ width: 44 }} />
-        </View>
-
+      <TailorScreenShell
+        title="3D Template"
+        subtitle={displayName}
+        onBack={() => router.back()}
+        contentStyle={{ paddingHorizontal: 0 }}
+      >
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-          <View style={[styles.infoCard, { backgroundColor: card }]}>
+          <View style={[tailorStyles.card, styles.sidePad]}>
             <ThemedText style={styles.customerNameLarge}>{displayName}</ThemedText>
+            {orderFromCatalog ? (
+              <ThemedText style={[styles.orderMeta, { color: muted }]}>
+                {orderFromCatalog.orderId} • {orderFromCatalog.phone}
+              </ThemedText>
+            ) : null}
             <View style={styles.infoRow}>
               <ThemedText style={[styles.label, { color: muted }]}>Garment:</ThemedText>
               <ThemedText style={styles.value}>{garmentLabel}</ThemedText>
             </View>
+            {orderFromCatalog?.color ? (
+              <View style={styles.infoRow}>
+                <ThemedText style={[styles.label, { color: muted }]}>Color / Fabric:</ThemedText>
+                <ThemedText style={styles.value}>
+                  {orderFromCatalog.color}
+                  {orderFromCatalog.fabric ? ` • ${orderFromCatalog.fabric}` : ''}
+                </ThemedText>
+              </View>
+            ) : null}
             {hasCustomerDesign ? (
               <View style={styles.infoRow}>
                 <ThemedText style={[styles.label, { color: muted }]}>Source:</ThemedText>
-                <ThemedText style={styles.value}>Customer 3D design</ThemedText>
+                <ThemedText style={styles.value}>Customer 3D order design</ThemedText>
               </View>
             ) : (
               <>
@@ -201,7 +201,7 @@ export default function Tailor3DView() {
             )}
           </View>
 
-          <View style={[styles.templateSection, { backgroundColor: card }]}>
+          <View style={[tailorStyles.card, styles.sidePad]}>
             <ThemedText style={styles.sectionTitle}>3D Customized Template</ThemedText>
             {hasCustomerDesign && dressGlb.url != null ? (
               <DressGlbPreview
@@ -222,10 +222,10 @@ export default function Tailor3DView() {
             )}
           </View>
 
-          <View style={[styles.customizationsSection, { backgroundColor: card }]}>
+          <View style={[tailorStyles.card, styles.sidePad]}>
             <ThemedText style={styles.sectionTitle}>Customizations Applied</ThemedText>
             {hasCustomerDesign ? (
-              selectionLines(parsedSelections!).map((line, idx) => (
+              formatSelectionLines(parsedSelections!).map((line, idx) => (
                 <View key={idx} style={styles.customizationItem}>
                   <Ionicons name="checkmark-circle" size={20} color="#10b981" />
                   <ThemedText style={[styles.customizationText, { marginLeft: 10 }]}>{line}</ThemedText>
@@ -241,12 +241,12 @@ export default function Tailor3DView() {
             )}
           </View>
 
-          <View style={styles.actionsSection}>
-            <Pressable style={[styles.approveButton, { backgroundColor: '#10b981' }]} onPress={handleApprove}>
+          <View style={[styles.actionsSection, styles.sidePad]}>
+            <Pressable style={styles.approveButton} onPress={handleApprove}>
               <Ionicons name="checkmark" size={20} color="#fff" />
               <ThemedText style={styles.buttonText}>Approve Template</ThemedText>
             </Pressable>
-            <Pressable style={[styles.rejectButton, { borderColor: '#ef4444' }]} onPress={handleRequestChanges}>
+            <Pressable style={styles.rejectButton} onPress={handleRequestChanges}>
               <Ionicons name="close" size={20} color="#ef4444" />
               <ThemedText style={[styles.buttonText, { color: '#ef4444' }]}>Request Changes</ThemedText>
             </Pressable>
@@ -254,32 +254,45 @@ export default function Tailor3DView() {
 
           <View style={styles.spacer} />
         </ScrollView>
-      </View>
+      </TailorScreenShell>
     </ProtectedRoute>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, paddingTop: 40 },
-  backButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { flex: 1, textAlign: 'center', fontSize: 20, fontWeight: '700' },
-  content: { padding: 16, paddingBottom: 100 },
-  infoCard: { padding: 16, borderRadius: 12, marginBottom: 16, borderWidth: 1, borderColor: '#e5e7eb' },
-  customerNameLarge: { fontSize: 18, fontWeight: '700', marginBottom: 12 },
+  sidePad: { marginHorizontal: 16 },
+  content: { paddingBottom: 100 },
+  customerNameLarge: { fontSize: 18, fontWeight: '800', marginBottom: 4, color: TAILOR.text },
+  orderMeta: { fontSize: 12, marginBottom: 10, color: TAILOR.textMuted },
   infoRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
-  label: { fontSize: 13, fontWeight: '600' },
-  value: { fontSize: 13, fontWeight: '700' },
-  templateSection: { marginBottom: 16, borderRadius: 12, overflow: 'hidden', borderWidth: 1, borderColor: '#e5e7eb' },
-  sectionTitle: { fontSize: 16, fontWeight: '700', padding: 16, paddingBottom: 12 },
-  templateImage: { width: '100%', height: 300, backgroundColor: '#f3f4f6' },
-  fallbackBox: { marginHorizontal: 12, marginBottom: 12, borderRadius: 12, borderWidth: 1 },
-  customizationsSection: { padding: 16, borderRadius: 12, marginBottom: 16, borderWidth: 1, borderColor: '#e5e7eb' },
+  label: { fontSize: 13, fontWeight: '600', color: TAILOR.textMuted },
+  value: { fontSize: 13, fontWeight: '700', color: TAILOR.text },
+  sectionTitle: { fontSize: 16, fontWeight: '800', marginBottom: 12, color: TAILOR.text },
+  templateImage: { width: '100%', height: 300, backgroundColor: '#f3f4f6', borderRadius: 14 },
+  fallbackBox: { marginBottom: 4, borderRadius: 12, borderWidth: 1, borderColor: TAILOR.border },
   customizationItem: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
-  customizationText: { fontSize: 13, fontWeight: '500' },
-  actionsSection: { gap: 10 },
-  approveButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 12, borderRadius: 10, gap: 8 },
-  rejectButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 12, borderRadius: 10, borderWidth: 2 },
-  buttonText: { fontSize: 14, fontWeight: '700', color: '#fff' },
+  customizationText: { fontSize: 13, fontWeight: '600', color: TAILOR.text },
+  actionsSection: { gap: 10, marginTop: 4 },
+  approveButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    borderRadius: 14,
+    gap: 8,
+    backgroundColor: '#10b981',
+  },
+  rejectButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    borderRadius: 14,
+    borderWidth: 2,
+    borderColor: '#ef4444',
+    backgroundColor: '#fff',
+    gap: 8,
+  },
+  buttonText: { fontSize: 14, fontWeight: '800', color: '#fff' },
   spacer: { height: 40 },
 });

@@ -21,10 +21,43 @@ let _jwtToken: string | null = null;
 // ── Stream token endpoint ──────────────────────────────────────────────────────
 
 export type StreamTokenResult = {
+  configured: boolean;
   token: string;
   api_key: string;
   user_id: string;
 };
+
+export class StreamTokenError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+    readonly notConfigured = false
+  ) {
+    super(message);
+    this.name = "StreamTokenError";
+  }
+}
+
+let _streamServerConfigured: boolean | null = null;
+let _connectInFlight: Promise<StreamChat | null> | null = null;
+let _notConfiguredLogged = false;
+
+export function isStreamChatAvailable(): boolean {
+  return _streamServerConfigured !== false;
+}
+
+export async function probeStreamAvailability(): Promise<boolean> {
+  if (_streamServerConfigured !== null) return _streamServerConfigured;
+  try {
+    const res = await fetchWithApiFallback("/stream/status");
+    if (!res.ok) return true;
+    const data = (await res.json()) as { configured?: boolean };
+    _streamServerConfigured = data.configured !== false;
+    return _streamServerConfigured;
+  } catch {
+    return true;
+  }
+}
 
 export async function fetchStreamToken(jwtToken: string): Promise<StreamTokenResult> {
   const res = await fetchWithApiFallback("/stream/token", {
@@ -33,11 +66,47 @@ export async function fetchStreamToken(jwtToken: string): Promise<StreamTokenRes
       Authorization: `Bearer ${jwtToken}`,
     },
   });
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Stream token request failed [${res.status}]: ${text}`);
+  const text = await res.text();
+  let data: StreamTokenResult & { message?: string };
+  try {
+    data = JSON.parse(text) as StreamTokenResult & { message?: string };
+  } catch {
+    throw new StreamTokenError(
+      `Stream token request failed [${res.status}]: ${text}`,
+      res.status,
+      res.status === 503 || res.status === 424
+    );
   }
-  return (await res.json()) as StreamTokenResult;
+
+  if (data.configured === false) {
+    _streamServerConfigured = false;
+    return {
+      configured: false,
+      token: "",
+      api_key: "",
+      user_id: data.user_id ?? "",
+    };
+  }
+
+  if (!res.ok) {
+    const notConfigured =
+      res.status === 503 ||
+      res.status === 424 ||
+      text.includes("Stream Chat is not configured");
+    throw new StreamTokenError(
+      `Stream token request failed [${res.status}]: ${text}`,
+      res.status,
+      notConfigured
+    );
+  }
+
+  _streamServerConfigured = true;
+  return {
+    configured: true,
+    token: data.token ?? "",
+    api_key: data.api_key ?? "",
+    user_id: data.user_id ?? "",
+  };
 }
 
 export type StreamChannelResult = {
@@ -52,6 +121,10 @@ export async function fetchOrCreateStreamChannel(
   tailorId: string,
   customerId: string
 ): Promise<StreamChannelResult> {
+  if (_streamServerConfigured === false) {
+    throw new StreamTokenError("Stream Chat is not configured on the server.", 424, true);
+  }
+
   const res = await fetchWithApiFallback("/stream/channel", {
     method: "POST",
     headers: {
@@ -131,9 +204,56 @@ export async function connectStreamUser(
   phone?: string,
   email?: string
 ): Promise<StreamChat | null> {
+  if (_streamServerConfigured === false) {
+    return null;
+  }
+
+  if (_connectedUserId === userId && _client?.user) {
+    return _client;
+  }
+
+  if (_connectInFlight) {
+    return _connectInFlight;
+  }
+
+  _connectInFlight = _connectStreamUserImpl(
+    jwtToken,
+    userId,
+    displayName,
+    role,
+    phone,
+    email
+  ).finally(() => {
+    _connectInFlight = null;
+  });
+
+  return _connectInFlight;
+}
+
+async function _connectStreamUserImpl(
+  jwtToken: string,
+  userId: string,
+  displayName: string,
+  role?: string,
+  phone?: string,
+  email?: string
+): Promise<StreamChat | null> {
   try {
-    const { token, api_key } = await fetchStreamToken(jwtToken);
-    _jwtToken = jwtToken; // store so global listener can call backend
+    if (_streamServerConfigured === null) {
+      await probeStreamAvailability();
+      if (_streamServerConfigured === false) return null;
+    }
+
+    const { configured, token, api_key } = await fetchStreamToken(jwtToken);
+    if (!configured) {
+      if (!_notConfiguredLogged) {
+        _notConfiguredLogged = true;
+        console.warn("[Stream] Chat disabled — add STREAM_API_KEY/SECRET in Folder/.env (optional).");
+      }
+      return null;
+    }
+
+    _jwtToken = jwtToken;
 
     if (!api_key) {
       console.warn("[Stream] api_key not returned — Stream not configured on server");
@@ -174,7 +294,21 @@ export async function connectStreamUser(
     console.log(`[Stream] Connected as ${userId}`);
     return _client;
   } catch (err) {
-    console.error("[Stream] connectStreamUser failed:", err);
+    if (err instanceof StreamTokenError) {
+      if (err.notConfigured) {
+        _streamServerConfigured = false;
+        if (!_notConfiguredLogged) {
+          _notConfiguredLogged = true;
+          console.warn("[Stream] Chat disabled — add STREAM_API_KEY/SECRET in Folder/.env (optional).");
+        }
+      } else if (err.status === 401) {
+        console.warn("[Stream] Skipped — session expired, log in again.");
+      } else {
+        console.warn("[Stream] connectStreamUser failed:", err.message);
+      }
+    } else {
+      console.warn("[Stream] connectStreamUser failed:", err);
+    }
     return null;
   }
 }
@@ -186,6 +320,9 @@ export async function disconnectStreamUser(): Promise<void> {
   _globalListenerUnsub?.();
   _globalListenerUnsub = null;
   _jwtToken = null;
+  _connectInFlight = null;
+  _streamServerConfigured = null;
+  _notConfiguredLogged = false;
   if (_client) {
     try {
       await _client.disconnectUser();

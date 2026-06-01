@@ -1,5 +1,5 @@
 import { ThemedText } from '@/components/themed-text';
-import { SURFACE_MUTED, UI } from '@/constants/ui';
+import { SURFACE_MUTED, UI, ROLE_COLORS } from '@/constants/ui';
 import { useAuth } from '@/contexts/AuthContext';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { updateTailorAvailability, updateTailorLocation } from '@/services/tailorsApi';
@@ -69,7 +69,8 @@ export default function TailorHome() {
   const router = useRouter();
   const card = useThemeColor({}, 'card');
   const inputBorder = useThemeColor({}, 'inputBorder');
-  const tint = '#f9c8d8';
+  const tint = ROLE_COLORS.tailor.primary;
+  const tailorSoft = ROLE_COLORS.tailor.soft;
   const [penaltiesMap, setPenaltiesMap] = useState<Record<string, number>>({});
   const [isOpen, setIsOpen] = useState<boolean>(false);
   const [syncingPresence, setSyncingPresence] = useState(false);
@@ -239,19 +240,19 @@ export default function TailorHome() {
       <View style={styles.quickRow}>
         <Pressable style={[styles.quickCard, { borderColor: inputBorder }]} onPress={() => router.push('/tailor/3d-review')}>
           <View style={styles.quickIconWrap}>
-            <Ionicons name="cube-outline" size={22} color="#ec4899" />
+            <Ionicons name="cube-outline" size={22} color={tint} />
           </View>
           <Text style={styles.quickLabel}>3D Review</Text>
         </Pressable>
         <Pressable style={[styles.quickCard, { borderColor: inputBorder }]} onPress={() => router.push('/tailor/measurements')}>
           <View style={styles.quickIconWrap}>
-            <Ionicons name="body-outline" size={22} color="#ec4899" />
+            <Ionicons name="body-outline" size={22} color={tint} />
           </View>
           <Text style={styles.quickLabel}>Measurements</Text>
         </Pressable>
         <Pressable style={[styles.quickCard, { borderColor: inputBorder }]} onPress={() => router.push('/tailor/timeline')}>
           <View style={styles.quickIconWrap}>
-            <Ionicons name="time-outline" size={22} color="#ec4899" />
+            <Ionicons name="time-outline" size={22} color={tint} />
           </View>
           <Text style={styles.quickLabel}>Stitching Timeline</Text>
         </Pressable>
@@ -263,8 +264,8 @@ export default function TailorHome() {
         onPress={() => router.push('/tailor/requests' as any)}
         activeOpacity={0.8}
       >
-        <View style={[styles.requestsTabIconWrap, { backgroundColor: pendingOrders.length > 0 ? '#fff0e6' : '#FCE4F2' }]}>
-          <Ionicons name="people-outline" size={22} color={pendingOrders.length > 0 ? '#ea580c' : '#ec4899'} />
+        <View style={[styles.requestsTabIconWrap, { backgroundColor: pendingOrders.length > 0 ? '#fff0e6' : tailorSoft }]}>
+          <Ionicons name="people-outline" size={22} color={pendingOrders.length > 0 ? '#ea580c' : tint} />
           {pendingOrders.length > 0 && (
             <View style={styles.requestsTabDot} />
           )}
@@ -455,11 +456,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     ...UI.softShadow,
   },
-  quickIconWrap: { width: 40, height: 40, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FCE4F2', marginBottom: 8 },
+  quickIconWrap: { width: 40, height: 40, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: ROLE_COLORS.tailor.soft, marginBottom: 8 },
   quickLabel: { fontWeight: '700', fontSize: 12, color: '#111827' },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
   sectionTitle: { fontWeight: '800', fontSize: 16 },
-  link: { color: '#ec4899', fontWeight: '700', fontSize: 12 },
+  link: { color: ROLE_COLORS.tailor.primary, fontWeight: '700', fontSize: 12 },
   orderCard: {
     padding: 16,
     borderRadius: 18,

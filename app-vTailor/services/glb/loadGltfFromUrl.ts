@@ -22,6 +22,7 @@ import { isCasualFabricDressGlbUrl, isFrillSareeGlbUrl } from './casualFabricDre
 import { glbNeedsEmbeddedTextures } from './glbMaterialPolicy';
 import { diagnoseGlbBuffer, logGlbMaterialDiagnostics } from './glbDiagnostics';
 import { runExclusiveGlbTask } from './glbLoadMutex';
+import { warmGlbDiskCache } from './glbDiskCache';
 import { glbUsesDracoCompression, readGlbChunks } from './glbJsonUtils';
 import {
   applyNativeGlbTextures,
@@ -36,6 +37,7 @@ const LONG_FROCK_FALLBACK_PATH: GlbModelPath =
   '3d model/3d long frock/mobile/white round neck full sleeves flarred.glb';
 
 let webFetchGeneration = 0;
+const inflightDownloads = new Map<string, Promise<ArrayBuffer>>();
 
 let sharedDracoLoader: DRACOLoader | null = null;
 
@@ -120,7 +122,15 @@ export async function fetchGlbBuffer(url: string): Promise<ArrayBuffer> {
   const cached = getCachedGlbBuffer(url);
   if (cached) return cached;
 
-  const buf = await downloadGlbBuffer(url);
+  let inflight = inflightDownloads.get(url);
+  if (!inflight) {
+    inflight = downloadGlbBuffer(url).finally(() => {
+      inflightDownloads.delete(url);
+    });
+    inflightDownloads.set(url, inflight);
+  }
+
+  const buf = await inflight;
 
   if (buf.byteLength < 80 || !isGlbArrayBuffer(buf)) {
     throw new Error('Model file is missing or not a valid GLB (check backend 3dModels folder).');
@@ -131,12 +141,14 @@ export async function fetchGlbBuffer(url: string): Promise<ArrayBuffer> {
   return buf;
 }
 
-/** Warm GLB download for web Three.js — native WebView loads the URL itself. */
+/** Warm GLB download — memory cache (Three.js) + disk cache (native WebView). */
 export function prefetchGlbBuffer(url: string): void {
-  if (Platform.OS !== 'web') return;
   if (!url || getCachedGlbBuffer(url)) return;
   if (!/^https?:\/\//i.test(url)) return;
   void fetchGlbBuffer(url).catch(() => {});
+  if (Platform.OS !== 'web') {
+    warmGlbDiskCache(url);
+  }
 }
 
 let prefetchParseChain: Promise<void> = Promise.resolve();
