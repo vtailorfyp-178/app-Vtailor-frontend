@@ -210,22 +210,20 @@ export default function FindTailorsWebScreen() {
       });
       const results = data.results || [];
       setTailors(results);
-      // If no GPS results, fall back to DB search automatically
-      if (results.length === 0 && token) {
+      // Always fetch all registered DB tailors for the scroll-down section
+      if (token) {
         setDbLoading(true);
-        searchUsers(token, query, 'tailor', 30)
+        searchUsers(token, query, 'tailor', 50)
           .then(setDbTailors)
           .catch(() => setDbTailors([]))
           .finally(() => setDbLoading(false));
-      } else {
-        setDbTailors([]);
       }
     } catch {
       setErrorText('Unable to load nearby tailors. Showing all tailors from database.');
       // On error, still try DB search
       if (token) {
         setDbLoading(true);
-        searchUsers(token, query, 'tailor', 30)
+        searchUsers(token, query, 'tailor', 50)
           .then(setDbTailors)
           .catch(() => setDbTailors([]))
           .finally(() => setDbLoading(false));
@@ -244,7 +242,7 @@ export default function FindTailorsWebScreen() {
   useEffect(() => {
     if (!token) return;
     setDbLoading(true);
-    searchUsers(token, query, 'tailor', 30)
+    searchUsers(token, query, 'tailor', 50)
       .then(setDbTailors)
       .catch(() => setDbTailors([]))
       .finally(() => setDbLoading(false));
@@ -464,32 +462,69 @@ export default function FindTailorsWebScreen() {
         </View>
       )}
 
-      {!loading && !errorText && displayTailors.length > 0 && tailors.length > 0 && (
-        <FlatList
-          data={displayTailors}
-          keyExtractor={(item) => item.user_id}
-          renderItem={renderTailorCard}
-          contentContainerStyle={{ paddingHorizontal: 12, paddingBottom: 16 }}
-          onRefresh={() => loadTailors(true)}
-          refreshing={refreshing}
-        />
-      )}
-
-      {!loading && tailors.length === 0 && (
+      {!loading && !errorText && (
         <FlatList
           data={displayTailors}
           keyExtractor={(item) => item.user_id}
           renderItem={renderTailorCard}
           ListHeaderComponent={
-            dbTailors.length > 0 ? (
-              <View style={[styles.dbSectionHeader, { borderColor: inputBorder }]}>
+            displayTailors.length > 0 ? (
+              <View style={styles.listHeader}>
+                <ThemedText style={styles.listTitle}>
+                  {tailors.length > 0 ? 'Nearby tailors' : 'Featured tailors'}
+                </ThemedText>
+                <ThemedText style={{ color: muted, fontSize: 12 }}>
+                  {displayTailors.length} result{displayTailors.length === 1 ? '' : 's'}
+                </ThemedText>
+              </View>
+            ) : null
+          }
+          ListFooterComponent={
+            <View style={[styles.dbSectionHeader, { borderColor: inputBorder, marginTop: 8 }]}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                 <Ionicons name="people-circle-outline" size={16} color={tint} />
                 <ThemedText style={[styles.dbSectionTitle, { color: tint }]}>
-                  {query ? `Tailors matching "${query}" in database` : 'All registered tailors'}
+                  {query ? `Matching "${query}" in database` : 'All registered tailors'}
                 </ThemedText>
                 {dbLoading && <ActivityIndicator size="small" color={tint} style={{ marginLeft: 6 }} />}
               </View>
-            ) : null
+              {!dbLoading && dbTailors.length === 0 && (
+                <ThemedText style={{ color: muted, fontSize: 13, paddingTop: 8, paddingBottom: 12 }}>
+                  No registered tailor accounts found yet.
+                </ThemedText>
+              )}
+              {dbTailors.map((tailor) => (
+                <View
+                  key={tailor.user_id}
+                  style={[styles.dbCard, { backgroundColor: card, borderColor: inputBorder }]}
+                >
+                  <View style={[styles.dbAvatar, { backgroundColor: `${tint}22` }]}>
+                    <ThemedText style={[styles.dbAvatarText, { color: tint }]}>
+                      {initials(tailor.name || tailor.email || '?')}
+                    </ThemedText>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <ThemedText style={{ fontWeight: '700', fontSize: 14 }}>
+                      {tailor.name || '(No name)'}
+                    </ThemedText>
+                    <ThemedText style={{ color: muted, fontSize: 12 }} numberOfLines={1}>
+                      {tailor.email || tailor.phone || tailor.user_id}
+                    </ThemedText>
+                    {tailor.specialization.length > 0 && (
+                      <ThemedText style={{ color: tint, fontSize: 12 }} numberOfLines={1}>
+                        {tailor.specialization.join(' • ')}
+                      </ThemedText>
+                    )}
+                  </View>
+                  <Pressable
+                    style={[styles.msgBtn, { backgroundColor: tint }]}
+                    onPress={() => onMessagePressDb(tailor)}
+                  >
+                    <Ionicons name="chatbubble-ellipses-outline" size={16} color="#fff" />
+                  </Pressable>
+                </View>
+              ))}
+            </View>
           }
           contentContainerStyle={{ paddingHorizontal: 12, paddingBottom: 24 }}
           onRefresh={() => loadTailors(true)}
@@ -567,10 +602,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   dbSectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 16,
+    flexDirection: 'column',
+    paddingHorizontal: 8,
     paddingTop: 16,
     paddingBottom: 10,
     borderTopWidth: 1,
@@ -590,4 +623,28 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   actionText: { fontWeight: '700' },
+  listHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+    paddingVertical: 10,
+  },
+  listTitle: { fontWeight: '700', fontSize: 15 },
+  dbAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+  dbAvatarText: { fontWeight: '700', fontSize: 14 },
+  msgBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 });

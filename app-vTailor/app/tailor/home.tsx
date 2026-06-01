@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { updateTailorAvailability, updateTailorLocation } from '@/services/tailorsApi';
 import { getUnreadCount } from '@/services/notificationsApi';
+import { getOrders, type Order as ApiOrder } from '@/services/ordersApi';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
@@ -74,10 +75,21 @@ export default function TailorHome() {
   const [syncingPresence, setSyncingPresence] = useState(false);
   const [lastSyncAt, setLastSyncAt] = useState<string | null>(null);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [pendingOrders, setPendingOrders] = useState<ApiOrder[]>([]);
+  const [loadingRequests, setLoadingRequests] = useState(false);
 
   useEffect(() => {
     if (!token) return;
     getUnreadCount(token).then(setUnreadCount).catch(() => {});
+  }, [token]);
+
+  useEffect(() => {
+    if (!token) return;
+    setLoadingRequests(true);
+    getOrders(token)
+      .then((orders) => setPendingOrders(orders.filter((o) => o.status === 'pending')))
+      .catch(() => {})
+      .finally(() => setLoadingRequests(false));
   }, [token]);
 
   const getStatusStyle = (status: string) => {
@@ -245,6 +257,27 @@ export default function TailorHome() {
         </Pressable>
       </View>
 
+      {/* ── Customer Requests tab ───────────────────────────────────── */}
+      <Pressable
+        style={[styles.requestsTab, { borderColor: pendingOrders.length > 0 ? '#ea580c' : inputBorder }]}
+        onPress={() => router.push('/tailor/requests' as any)}
+        activeOpacity={0.8}
+      >
+        <View style={[styles.requestsTabIconWrap, { backgroundColor: pendingOrders.length > 0 ? '#fff0e6' : '#FCE4F2' }]}>
+          <Ionicons name="people-outline" size={22} color={pendingOrders.length > 0 ? '#ea580c' : '#ec4899'} />
+          {pendingOrders.length > 0 && (
+            <View style={styles.requestsTabDot} />
+          )}
+        </View>
+        <Text style={styles.requestsTabLabel}>Customer Requests</Text>
+        {pendingOrders.length > 0 && (
+          <View style={styles.requestsTabBadge}>
+            <Text style={styles.requestsTabBadgeText}>{pendingOrders.length}</Text>
+          </View>
+        )}
+      </Pressable>
+
+      {/* ── Current Customers ────────────────────────────────────────── */}
       <View style={styles.sectionHeader}>
         <ThemedText style={styles.sectionTitle}>Current Customers</ThemedText>
         <Pressable onPress={() => router.push('/tailor/orders')}><Text style={styles.link}>View all →</Text></Pressable>
@@ -483,4 +516,27 @@ const styles = StyleSheet.create({
   primaryText: { color: '#fff', fontWeight: '800', fontSize: 12 },
   secondaryBtn: { flex: 1, paddingVertical: 12, borderRadius: 14, borderWidth: 1, alignItems: 'center', backgroundColor: '#fff' },
   secondaryText: { fontWeight: '800', color: '#111827', fontSize: 12 },
+  // ── Customer Requests tab ──────────────────────────────────────────────────
+  requestsTab: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: '#fff', borderWidth: 1, borderRadius: 18,
+    paddingHorizontal: 16, paddingVertical: 14,
+    marginBottom: 16, ...UI.softShadow,
+  },
+  requestsTabIconWrap: {
+    width: 44, height: 44, borderRadius: 14,
+    alignItems: 'center', justifyContent: 'center', position: 'relative',
+  },
+  requestsTabDot: {
+    position: 'absolute', top: 4, right: 4,
+    width: 9, height: 9, borderRadius: 5,
+    backgroundColor: '#ea580c', borderWidth: 1.5, borderColor: '#fff',
+  },
+  requestsTabLabel: { flex: 1, fontSize: 14, fontWeight: '800', color: '#111827' },
+  requestsTabBadge: {
+    backgroundColor: '#ea580c', borderRadius: 10,
+    minWidth: 24, height: 24, paddingHorizontal: 7,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  requestsTabBadgeText: { color: '#fff', fontSize: 12, fontWeight: '800' },
 });

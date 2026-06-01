@@ -10,6 +10,7 @@ import {
   Keyboard,
   useWindowDimensions,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MeasurementModelViewer } from '@/components/MeasurementModelViewer';
 import { buildBasicMeasurementValues } from '@/services/measurement/measurementLabelConfig';
 import { useRouter } from 'expo-router';
@@ -268,6 +269,7 @@ export default function MeasurementForm() {
             showsHorizontalScrollIndicator={false}
             style={styles.stepPillsScroll}
             contentContainerStyle={[styles.stepPills, { borderColor: inputBorder, backgroundColor: card }]}
+          >
             <ThemedText style={[styles.stepPill, step === 'basic' && styles.stepPillActive]}>1 Basic</ThemedText>
             <ThemedText style={{ color: muted }}>→</ThemedText>
             <ThemedText style={[styles.stepPill, step === 'shirt' && styles.stepPillActive]}>2 Shirt</ThemedText>

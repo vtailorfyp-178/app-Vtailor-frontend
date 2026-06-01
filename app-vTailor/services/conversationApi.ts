@@ -6,7 +6,6 @@
 // streamChatService.ts and the Stream SDK.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import * as FileSystem from "expo-file-system/legacy";
 import { getCandidateBaseUrls, REQUEST_TIMEOUT_MS } from "@/services/apiBase";
 
 let authToken: string | null = null;

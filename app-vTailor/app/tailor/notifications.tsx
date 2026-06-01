@@ -18,29 +18,33 @@ import {
 
 function typeIcon(type: string): React.ComponentProps<typeof Ionicons>['name'] {
   switch (type) {
-    case 'chat_message':    return 'chatbubble-outline';
-    case 'chat_started':    return 'mail-unread-outline';
-    case 'wallet_pending':  return 'time-outline';
-    case 'wallet_confirmed':return 'wallet-outline';
-    case 'wallet_failed':   return 'warning-outline';
-    case 'order_requested': return 'receipt-outline';
-    case 'order_accepted':  return 'checkmark-circle-outline';
-    case 'order_declined':  return 'close-circle-outline';
-    default:                return 'notifications-outline';
+    case 'chat_message':       return 'chatbubble-outline';
+    case 'chat_started':       return 'mail-unread-outline';
+    case 'wallet_pending':     return 'time-outline';
+    case 'wallet_confirmed':   return 'wallet-outline';
+    case 'wallet_failed':      return 'warning-outline';
+    case 'order_requested':    return 'receipt-outline';
+    case 'order_accepted':     return 'checkmark-circle-outline';
+    case 'order_declined':     return 'close-circle-outline';
+    case 'order_confirmed':    return 'checkmark-done-circle-outline';
+    case 'order_price_rejected': return 'close-circle-outline';
+    default:                   return 'notifications-outline';
   }
 }
 
 function typeColor(type: string): string {
   switch (type) {
-    case 'wallet_confirmed':return '#059669';
-    case 'wallet_failed':   return '#d97706';
-    case 'wallet_pending':  return '#7c3aed';
-    case 'chat_message':    return '#3b82f6';
-    case 'chat_started':    return '#8b5cf6';
-    case 'order_requested': return '#f97316';
-    case 'order_accepted':  return '#059669';
-    case 'order_declined':  return '#ef4444';
-    default:                return ROLE_COLORS.tailor.primary;
+    case 'wallet_confirmed':   return '#059669';
+    case 'wallet_failed':      return '#d97706';
+    case 'wallet_pending':     return '#7c3aed';
+    case 'chat_message':       return '#3b82f6';
+    case 'chat_started':       return '#8b5cf6';
+    case 'order_requested':    return '#f97316';
+    case 'order_accepted':     return '#059669';
+    case 'order_declined':     return '#ef4444';
+    case 'order_confirmed':    return '#059669';
+    case 'order_price_rejected': return '#ef4444';
+    default:                   return ROLE_COLORS.tailor.primary;
   }
 }
 
@@ -52,6 +56,12 @@ const DEMO_NOTIFICATIONS: AppNotification[] = [
     title: 'New Order Request',
     message: 'Fatima Khan sent a request for "Long Frock". Budget: Rs. 8,500.',
     data: {}, created_at: new Date(Date.now() - 30 * 60_000).toISOString(),
+  },
+  {
+    id: 'demo-t1b', user_id: '', type: 'order_confirmed', is_read: false,
+    title: 'Order Confirmed!',
+    message: 'Aisha Ahmed approved your Rs. 7,000 price for "Shalwar Kameez". Order is placed.',
+    data: {}, created_at: new Date(Date.now() - 2 * 3600_000).toISOString(),
   },
   {
     id: 'demo-t2', user_id: '', type: 'wallet_confirmed', is_read: true,
@@ -119,15 +129,26 @@ export default function TailorNotifications() {
 
   useEffect(() => { load(); }, [load]);
 
-  const handleTap = async (notif: AppNotification) => {
-    if (!token) return;
-    if (!notif.is_read) {
-      await markNotificationRead(token, notif.id);
+  const handleTap = async (notif: AppNotification, isDemo = false) => {
+    if (!isDemo && token && !notif.is_read) {
+      await markNotificationRead(token, notif.id).catch(() => {});
       setNotifications((prev) =>
         prev.map((n) => (n.id === notif.id ? { ...n, is_read: true } : n))
       );
     }
     const data = notif.data as Record<string, string>;
+
+    // Order notifications → go to requests screen
+    if (
+      notif.type === 'order_requested' ||
+      notif.type === 'order_confirmed' ||
+      notif.type === 'order_price_rejected'
+    ) {
+      (router as any).push('/tailor/requests');
+      return;
+    }
+
+    // Chat notifications → go to the specific conversation
     if ((notif.type === 'chat_message' || notif.type === 'chat_started') && data.channelId) {
       router.push({
         pathname: '/tailor/chat/[id]' as any,
@@ -190,12 +211,19 @@ export default function TailorNotifications() {
             {/* Show real notifications; fall back to demo ones when empty */}
             {(notifications.length > 0 ? notifications : DEMO_NOTIFICATIONS).map((n) => {
               const isReal = notifications.length > 0;
+              const isOrderType = n.type === 'order_requested' || n.type === 'order_confirmed' || n.type === 'order_price_rejected';
+              const isTappable  = isReal || isOrderType;
               return (
-                <Pressable key={n.id} onPress={() => isReal ? handleTap(n) : undefined}>
+                <Pressable
+                  key={n.id}
+                  onPress={() => isTappable ? handleTap(n, !isReal) : undefined}
+                  style={({ pressed }) => [{ opacity: pressed && isTappable ? 0.75 : 1 }]}
+                >
                   <View style={[
                     styles.card,
                     { backgroundColor: card, borderColor: n.is_read ? '#eaeaea' : '#c4b5fd' },
                     !n.is_read && styles.cardUnread,
+                    isOrderType && styles.cardOrder,
                   ]}>
                     <View style={styles.row}>
                       <View style={[styles.iconBox, { backgroundColor: `${typeColor(n.type)}22` }]}>
@@ -207,7 +235,17 @@ export default function TailorNotifications() {
                           {!n.is_read && <View style={[styles.dot, { backgroundColor: typeColor(n.type) }]} />}
                         </View>
                         <ThemedText style={[styles.nMessage, { color: muted }]}>{n.message}</ThemedText>
-                        <ThemedText style={[styles.nTime, { color: muted }]}>{relativeTime(n.created_at)}</ThemedText>
+                        <View style={styles.nFooter}>
+                          <ThemedText style={[styles.nTime, { color: muted }]}>{relativeTime(n.created_at)}</ThemedText>
+                          {isOrderType && (
+                            <View style={[styles.viewHint, { backgroundColor: `${typeColor(n.type)}18` }]}>
+                              <ThemedText style={[styles.viewHintText, { color: typeColor(n.type) }]}>
+                                View Request
+                              </ThemedText>
+                              <Ionicons name="chevron-forward" size={12} color={typeColor(n.type)} />
+                            </View>
+                          )}
+                        </View>
                       </View>
                     </View>
                   </View>
@@ -245,5 +283,9 @@ const styles = StyleSheet.create({
   nTitle:     { fontSize: 14, fontWeight: '800', marginBottom: 4, color: TEXT_DARK },
   nMessage:   { fontSize: 13, lineHeight: 18 },
   nTime:      { fontSize: 11, marginTop: 6 },
+  nFooter:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 6 },
+  viewHint:   { flexDirection: 'row', alignItems: 'center', gap: 2, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
+  viewHintText: { fontSize: 11, fontWeight: '700' },
+  cardOrder:  { borderLeftWidth: 3, borderLeftColor: '#f97316' },
   emptyDesc:  { fontSize: 13 },
 });

@@ -273,20 +273,20 @@ export default function FindTailorsNativeScreen() {
           setSelectedTailorId((prev) => (prev && results.some((item) => item.user_id === prev) ? prev : results[0].user_id));
         } else {
           setSelectedTailorId(null);
-          // No GPS results — fetch from DB
-          if (token) {
-            setDbLoading(true);
-            searchUsers(token, query, 'tailor', 30)
-              .then(setDbTailors)
-              .catch(() => setDbTailors([]))
-              .finally(() => setDbLoading(false));
-          }
+        }
+        // Always fetch registered DB tailors so they appear in the scroll-down section
+        if (token) {
+          setDbLoading(true);
+          searchUsers(token, query, 'tailor', 50)
+            .then(setDbTailors)
+            .catch(() => setDbTailors([]))
+            .finally(() => setDbLoading(false));
         }
       } catch {
         setErrorText('Unable to load nearby tailors. Showing database results below.');
         if (token) {
           setDbLoading(true);
-          searchUsers(token, query, 'tailor', 30)
+          searchUsers(token, query, 'tailor', 50)
             .then(setDbTailors)
             .catch(() => setDbTailors([]))
             .finally(() => setDbLoading(false));
@@ -731,6 +731,55 @@ export default function FindTailorsNativeScreen() {
               </ThemedText>
             </View>
           }
+          ListFooterComponent={
+            <View style={[styles.dbSection, { borderColor: inputBorder }]}>
+              <View style={styles.dbSectionHeader}>
+                <Ionicons name="people-circle-outline" size={15} color={tint} />
+                <ThemedText style={[styles.dbSectionTitle, { color: tint }]}>
+                  {query ? `Matching "${query}" in database` : 'All registered tailors'}
+                </ThemedText>
+                {dbLoading && <ActivityIndicator size="small" color={tint} style={{ marginLeft: 6 }} />}
+              </View>
+              {!dbLoading && dbTailors.length === 0 && (
+                <ThemedText style={{ color: muted, fontSize: 13, paddingHorizontal: 16, paddingBottom: 12 }}>
+                  No registered tailor accounts found yet.
+                </ThemedText>
+              )}
+              {dbTailors.map((tailor) => (
+                <View
+                  key={tailor.user_id}
+                  style={[styles.dbCard, { backgroundColor: card, borderColor: inputBorder }]}
+                >
+                  <View style={[styles.dbAvatar, { backgroundColor: `${tint}22` }]}>
+                    <ThemedText style={[styles.dbAvatarText, { color: tint }]}>
+                      {initials(tailor.name || tailor.email || '?')}
+                    </ThemedText>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <ThemedText style={{ fontWeight: '700', fontSize: 14 }}>
+                      {tailor.name || '(No name)'}
+                    </ThemedText>
+                    <ThemedText style={{ color: muted, fontSize: 12 }} numberOfLines={1}>
+                      {tailor.email || tailor.phone || tailor.user_id}
+                    </ThemedText>
+                    {tailor.specialization.length > 0 && (
+                      <ThemedText style={{ color: tint, fontSize: 12 }} numberOfLines={1}>
+                        {tailor.specialization.join(' • ')}
+                      </ThemedText>
+                    )}
+                  </View>
+                  <View style={styles.dbActions}>
+                    <Pressable
+                      style={[styles.msgBtn, { backgroundColor: tint }]}
+                      onPress={() => onMessagePressDb(tailor)}
+                    >
+                      <Ionicons name="chatbubble-ellipses-outline" size={16} color="#fff" />
+                    </Pressable>
+                  </View>
+                </View>
+              ))}
+            </View>
+          }
           contentContainerStyle={{ paddingHorizontal: 12, paddingBottom: 24 }}
           onRefresh={() => loadTailors(true)}
           refreshing={refreshing}
@@ -740,55 +789,6 @@ export default function FindTailorsNativeScreen() {
             }, 100);
           }}
         />
-      )}
-
-      {/* DB search results — only shown when NO GPS/nearby results are available */}
-      {tailors.length === 0 && (
-        <View style={[styles.dbSection, { borderColor: inputBorder }]}>
-          <View style={styles.dbSectionHeader}>
-            <Ionicons name="people-circle-outline" size={15} color={tint} />
-            <ThemedText style={[styles.dbSectionTitle, { color: tint }]}>
-              {query ? `Tailors matching "${query}" in database` : 'All registered tailors'}
-            </ThemedText>
-            {dbLoading && <ActivityIndicator size="small" color={tint} style={{ marginLeft: 6 }} />}
-          </View>
-          {!dbLoading && dbTailors.length === 0 && (
-            <ThemedText style={{ color: muted, fontSize: 13, paddingHorizontal: 16, paddingBottom: 12 }}>
-              No tailor accounts found.{' '}Register a tailor account to test chat.
-            </ThemedText>
-          )}
-          {dbTailors.map((tailor) => (
-            <View
-              key={tailor.user_id}
-              style={[styles.dbCard, { backgroundColor: card, borderColor: inputBorder }]}
-            >
-              <View style={[styles.dbAvatar, { backgroundColor: `${tint}22` }]}>
-                <ThemedText style={[styles.dbAvatarText, { color: tint }]}>
-                  {initials(tailor.name || tailor.email || '?')}
-                </ThemedText>
-              </View>
-              <View style={{ flex: 1 }}>
-                <ThemedText style={{ fontWeight: '700', fontSize: 14 }}>
-                  {tailor.name || '(No name)'}
-                </ThemedText>
-                <ThemedText style={{ color: muted, fontSize: 12 }} numberOfLines={1}>
-                  {tailor.email || tailor.phone || tailor.user_id}
-                </ThemedText>
-                {tailor.specialization.length > 0 && (
-                  <ThemedText style={{ color: tint, fontSize: 12 }} numberOfLines={1}>
-                    {tailor.specialization.join(' • ')}
-                  </ThemedText>
-                )}
-              </View>
-              <Pressable
-                style={[styles.msgBtn, { backgroundColor: tint }]}
-                onPress={() => onMessagePressDb(tailor)}
-              >
-                <Ionicons name="chatbubble-ellipses-outline" size={16} color="#fff" />
-              </Pressable>
-            </View>
-          ))}
-        </View>
       )}
     </ThemedView>
   );
@@ -966,6 +966,11 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  dbActions: {
+    flexDirection: 'row',
+    gap: 6,
+    alignItems: 'center',
   },
   actionText: { fontWeight: '700' },
   markerBubble: {

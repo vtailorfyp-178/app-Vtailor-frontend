@@ -6,10 +6,10 @@ import { useThemeColor } from '@/hooks/use-theme-color';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { dressPreviewFromOrderDescription } from '@/services/orderDressPreview';
+import { ActivityIndicator, Alert, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { DEMO_CUSTOMER_ORDERS, dressPreviewFromOrderDescription } from '@/services/orderDressPreview';
 import { useAuth } from '@/contexts/AuthContext';
-import { getOrders, type Order as ApiOrder } from '@/services/ordersApi';
+import { getOrders, confirmOrder, rejectPrice, type Order as ApiOrder } from '@/services/ordersApi';
 
 type OrderStatusFilter = 'All' | 'Active' | 'Delivered' | 'Canceled';
 
@@ -32,26 +32,30 @@ const FILTERS: OrderStatusFilter[] = ['All', 'Active', 'Delivered', 'Canceled'];
 // Status helpers shared for both sample and real orders
 const getStatusColors = (status: string) => {
   switch (status) {
-    case 'Delivered':   return { bg: '#ecfdf5', color: '#059669' };
-    case 'In Progress': return { bg: '#e0f2fe', color: '#0e7490' };
-    case 'Cutting':     return { bg: '#fffbeb', color: '#b45309' };
+    case 'Delivered':      return { bg: '#ecfdf5', color: '#059669' };
+    case 'In Progress':    return { bg: '#e0f2fe', color: '#0e7490' };
+    case 'Cutting':        return { bg: '#fffbeb', color: '#b45309' };
     case 'Canceled':
-    case 'declined':    return { bg: '#fee2e2', color: '#dc2626' };
-    case 'pending':     return { bg: '#fef3c7', color: '#b45309' };
-    case 'accepted':    return { bg: '#ecfdf5', color: '#059669' };
-    default:            return { bg: '#f3f4f6', color: '#6b7280' };
+    case 'declined':       return { bg: '#fee2e2', color: '#dc2626' };
+    case 'pending':        return { bg: '#fef3c7', color: '#b45309' };
+    case 'accepted':
+    case 'confirmed':      return { bg: '#ecfdf5', color: '#059669' };
+    case 'price_proposed': return { bg: '#fff7ed', color: '#c2410c' };
+    default:               return { bg: '#f3f4f6', color: '#6b7280' };
   }
 };
 
 function apiStatusLabel(s: string) {
-  if (s === 'pending')  return 'Pending';
-  if (s === 'accepted') return 'Accepted';
-  if (s === 'declined') return 'Declined';
+  if (s === 'pending')        return 'Pending';
+  if (s === 'accepted')       return 'Accepted';
+  if (s === 'declined')       return 'Declined';
+  if (s === 'price_proposed') return 'Price Proposed';
+  if (s === 'confirmed')      return 'Confirmed ✓';
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
 function isActiveStatus(s: string) {
-  return s === 'In Progress' || s === 'Cutting' || s === 'pending' || s === 'accepted';
+  return s === 'In Progress' || s === 'Cutting' || s === 'pending' || s === 'accepted' || s === 'price_proposed' || s === 'confirmed';
 }
 function isDeliveredStatus(s: string) {
   return s === 'Delivered';
@@ -71,6 +75,7 @@ export default function CustomerOrders() {
   const [selectedFilter, setSelectedFilter] = useState<OrderStatusFilter>('All');
   const [apiOrders, setApiOrders]   = useState<ApiOrder[]>([]);
   const [loadingApi, setLoadingApi] = useState(false);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   const loadApiOrders = useCallback(async () => {
     if (!token) return;
@@ -86,6 +91,58 @@ export default function CustomerOrders() {
   }, [token]);
 
   useEffect(() => { loadApiOrders(); }, [loadApiOrders]);
+
+  const handleConfirm = async (order: ApiOrder) => {
+    if (!token) return;
+    Alert.alert(
+      'Approve Price',
+      `Approve Rs. ${order.proposed_price?.toLocaleString()} for "${order.description}"?\n\nThis will confirm the order.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Approve',
+          onPress: async () => {
+            setActionLoading(order.id);
+            try {
+              const updated = await confirmOrder(token, order.id);
+              setApiOrders((prev) => prev.map((o) => (o.id === order.id ? updated : o)));
+              Alert.alert('Order Confirmed!', 'The tailor has been notified. Your order is now placed.');
+            } catch (e: any) {
+              Alert.alert('Error', e?.message || 'Failed to confirm order');
+            } finally {
+              setActionLoading(null);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleRejectPrice = async (order: ApiOrder) => {
+    if (!token) return;
+    Alert.alert(
+      'Reject Price',
+      `Reject the Rs. ${order.proposed_price?.toLocaleString()} proposal for "${order.description}"?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Reject',
+          style: 'destructive',
+          onPress: async () => {
+            setActionLoading(order.id);
+            try {
+              const updated = await rejectPrice(token, order.id);
+              setApiOrders((prev) => prev.map((o) => (o.id === order.id ? updated : o)));
+            } catch (e: any) {
+              Alert.alert('Error', e?.message || 'Failed to reject price');
+            } finally {
+              setActionLoading(null);
+            }
+          },
+        },
+      ]
+    );
+  };
 
   // ── sample orders filter ────────────────────────────────────────────────────
   const filteredSamples = useMemo(() => {
@@ -205,11 +262,24 @@ export default function CustomerOrders() {
 
           {filteredApi.map((order) => {
             const s = getStatusColors(order.status);
+            const isPriceProposed = order.status === 'price_proposed';
+            const isActioning = actionLoading === order.id;
             return (
-              <View key={order.id} style={[styles.card, { backgroundColor: card, borderColor: '#d1fae5' }]}>
+              <View key={order.id} style={[
+                styles.card,
+                { backgroundColor: card, borderColor: isPriceProposed ? '#f97316' : '#d1fae5' },
+              ]}>
+                {isPriceProposed && (
+                  <View style={styles.priceProposedBanner}>
+                    <Ionicons name="pricetag" size={14} color="#c2410c" />
+                    <Text style={styles.priceProposedBannerText}>
+                      Tailor proposed a new price — action required!
+                    </Text>
+                  </View>
+                )}
                 <View style={styles.cardTop}>
-                  <View style={[styles.avatar, { backgroundColor: '#d1fae5' }]}>
-                    <Text style={[styles.avatarText, { color: '#059669' }]}>
+                  <View style={[styles.avatar, { backgroundColor: isPriceProposed ? '#fff7ed' : '#d1fae5' }]}>
+                    <Text style={[styles.avatarText, { color: isPriceProposed ? '#c2410c' : '#059669' }]}>
                       {order.tailor_name.charAt(0).toUpperCase()}
                     </Text>
                   </View>
@@ -227,9 +297,11 @@ export default function CustomerOrders() {
                     <Text style={[styles.statusText, { color: s.color }]}>{apiStatusLabel(order.status)}</Text>
                   </View>
                   {order.proposed_price != null && (
-                    <View style={styles.metaChip}>
-                      <Ionicons name="pricetag-outline" size={13} color="#059669" />
-                      <Text style={[styles.metaChipText, { color: '#059669' }]}>Rs. {order.proposed_price.toLocaleString()}</Text>
+                    <View style={[styles.metaChip, isPriceProposed ? { backgroundColor: '#fff7ed' } : {}]}>
+                      <Ionicons name="pricetag-outline" size={13} color={isPriceProposed ? '#c2410c' : '#059669'} />
+                      <Text style={[styles.metaChipText, { color: isPriceProposed ? '#c2410c' : '#059669' }]}>
+                        Rs. {order.proposed_price.toLocaleString()}
+                      </Text>
                     </View>
                   )}
                   {order.delivery_days != null && (
@@ -241,6 +313,49 @@ export default function CustomerOrders() {
                 </View>
                 {!!order.note && (
                   <Text style={[styles.tailorName, { marginTop: 4, fontStyle: 'italic' }]}>"{order.note}"</Text>
+                )}
+
+                {/* Approve / Reject buttons for price_proposed orders */}
+                {isPriceProposed && (
+                  <View style={styles.priceActionRow}>
+                    <TouchableOpacity
+                      onPress={() => handleRejectPrice(order)}
+                      disabled={isActioning}
+                      style={styles.rejectPriceBtn}
+                      activeOpacity={0.7}
+                    >
+                      {isActioning
+                        ? <ActivityIndicator size="small" color="#dc2626" />
+                        : <>
+                            <Ionicons name="close-circle-outline" size={18} color="#dc2626" />
+                            <Text style={styles.rejectPriceBtnText}>Reject</Text>
+                          </>
+                      }
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => handleConfirm(order)}
+                      disabled={isActioning}
+                      style={styles.approvePriceBtn}
+                      activeOpacity={0.7}
+                    >
+                      {isActioning
+                        ? <ActivityIndicator size="small" color="#fff" />
+                        : <>
+                            <Ionicons name="checkmark-circle-outline" size={18} color="#fff" />
+                            <Text style={styles.approvePriceBtnText}>Approve</Text>
+                          </>
+                      }
+                    </TouchableOpacity>
+                  </View>
+                )}
+
+                {order.status === 'confirmed' && (
+                  <View style={styles.confirmedRow}>
+                    <Ionicons name="checkmark-circle" size={16} color="#059669" />
+                    <Text style={{ color: '#059669', fontWeight: '700', fontSize: 12 }}>
+                      Order placed at Rs. {order.proposed_price?.toLocaleString() ?? order.budget.toLocaleString()}
+                    </Text>
+                  </View>
                 )}
               </View>
             );
@@ -363,4 +478,27 @@ const styles = StyleSheet.create({
   sectionHeader: { marginBottom: 8, marginTop: 4 },
   sectionPill: { flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20 },
   sectionPillText: { color: '#fff', fontSize: 11, fontWeight: '800' },
+  priceProposedBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: '#fff7ed', borderRadius: 8, padding: 8, marginBottom: 10,
+  },
+  priceProposedBannerText: { color: '#c2410c', fontSize: 12, fontWeight: '700', flex: 1 },
+  priceActionRow: {
+    flexDirection: 'row', gap: 8, marginTop: 12, paddingTop: 12,
+    borderTopWidth: 1, borderTopColor: '#fed7aa',
+  },
+  rejectPriceBtn: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 5, paddingVertical: 11, borderRadius: 12, borderWidth: 1.5, borderColor: '#dc2626',
+  },
+  rejectPriceBtnText: { color: '#dc2626', fontWeight: '700', fontSize: 13 },
+  approvePriceBtn: {
+    flex: 1.5, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 5, paddingVertical: 11, borderRadius: 12, backgroundColor: '#059669',
+  },
+  approvePriceBtnText: { color: '#fff', fontWeight: '700', fontSize: 13 },
+  confirmedRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: '#f0fdf4', borderRadius: 8, padding: 8, marginTop: 8,
+  },
 })

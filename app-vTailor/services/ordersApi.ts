@@ -8,7 +8,7 @@ import { fetchWithApiFallback } from './apiBase';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-export type OrderStatus = 'pending' | 'accepted' | 'declined' | 'negotiating';
+export type OrderStatus = 'pending' | 'accepted' | 'declined' | 'negotiating' | 'price_proposed' | 'confirmed';
 
 export type Order = {
   id: string;
@@ -95,6 +95,50 @@ export async function declineOrder(
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error((err as any).detail || `declineOrder failed [${res.status}]`);
+  }
+  return res.json();
+}
+
+/** Tailor proposes a custom price — customer must approve or reject. */
+export async function proposePrice(
+  token: string,
+  orderId: string,
+  params: { proposed_price: number; delivery_days: number; note?: string }
+): Promise<Order> {
+  const res = await fetchWithApiFallback(`/orders/${orderId}/propose-price`, {
+    method: 'PATCH',
+    headers: authHeaders(token),
+    body: JSON.stringify(params),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err as any).detail || `proposePrice failed [${res.status}]`);
+  }
+  return res.json();
+}
+
+/** Customer approves the tailor's proposed price → order confirmed. */
+export async function confirmOrder(token: string, orderId: string): Promise<Order> {
+  const res = await fetchWithApiFallback(`/orders/${orderId}/confirm`, {
+    method: 'PATCH',
+    headers: authHeaders(token),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err as any).detail || `confirmOrder failed [${res.status}]`);
+  }
+  return res.json();
+}
+
+/** Customer rejects the tailor's proposed price → order declined. */
+export async function rejectPrice(token: string, orderId: string): Promise<Order> {
+  const res = await fetchWithApiFallback(`/orders/${orderId}/reject-price`, {
+    method: 'PATCH',
+    headers: authHeaders(token),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err as any).detail || `rejectPrice failed [${res.status}]`);
   }
   return res.json();
 }
