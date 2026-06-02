@@ -89,6 +89,33 @@ function resolveBridalLehngaGlb(s: Record<TabId, string | null>): string | null 
   return null;
 }
 
+type GrarahComboSet = {
+  roundBell: string;
+  roundFull: string;
+  vBell: string;
+  vFull: string;
+};
+
+function resolveGrarahCombo(s: Record<TabId, string | null>, set: GrarahComboSet): string | null {
+  const { neck, sleeves } = s;
+  if (neck === 'round' && sleeves === 'bell') return set.roundBell;
+  if (neck === 'round' && sleeves === 'full') return set.roundFull;
+  if (neck === 'v-neck' && sleeves === 'bell') return set.vBell;
+  if (neck === 'v-neck' && sleeves === 'full') return set.vFull;
+  if (neck === 'round') return sleeves === 'bell' ? set.roundBell : set.roundFull;
+  if (neck === 'v-neck') return sleeves === 'bell' ? set.vBell : set.vFull;
+  return null;
+}
+
+function resolveGrarahByColor(s: Record<TabId, string | null>, sets: Record<string, GrarahComboSet>): string | null {
+  const col = s.colors;
+  if (col === 'red') return resolveGrarahCombo(s, sets.red);
+  if (col === 'black') return resolveGrarahCombo(s, sets.black);
+  if (col === 'blue') return resolveGrarahCombo(s, sets.blue);
+  if (col === 'white' || col == null) return resolveGrarahCombo(s, sets.white);
+  return null;
+}
+
 const CIRCULAR_LEHNGA_SETS: Record<string, GrarahComboSet> = {
   white: {
     roundBell: GLB_WHITE_CIRCULAR_ROUND_BELL,
@@ -115,39 +142,6 @@ const CIRCULAR_LEHNGA_SETS: Record<string, GrarahComboSet> = {
     vFull: GLB_BLUE_CIRCULAR_V_FULL,
   },
 };
-
-function resolveCircularLehngaGlb(s: Record<TabId, string | null>): string | null {
-  return resolveGrarahByColor(s, CIRCULAR_LEHNGA_SETS);
-}
-
-
-
-type BridalComboSet = {
-  roundFull: string;
-  roundShort: string;
-  sweetheartFull: string;
-  sweetheartShort: string;
-};
-
-function resolveBridalCombo(s: Record<TabId, string | null>, set: BridalComboSet): string | null {
-  const { neck, sleeves } = s;
-  if (neck === 'round' && sleeves === 'full') return set.roundFull;
-  if (neck === 'round' && sleeves === 'short') return set.roundShort;
-  if (neck === 'sweetheart' && sleeves === 'full') return set.sweetheartFull;
-  if (neck === 'sweetheart' && sleeves === 'short') return set.sweetheartShort;
-  if (neck === 'round') return sleeves === 'short' ? set.roundShort : set.roundFull;
-  if (neck === 'sweetheart') return sleeves === 'short' ? set.sweetheartShort : set.sweetheartFull;
-  return null;
-}
-
-function resolveBridalLehngaGlb(s: Record<TabId, string | null>): string | null {
-  const col = s.colors;
-  if (col === 'red') return resolveBridalCombo(s, BRIDAL_LEHNGA_SETS.red);
-  if (col === 'maroon') return resolveBridalCombo(s, BRIDAL_LEHNGA_SETS.maroon);
-  if (col === 'iceblue') return resolveBridalCombo(s, BRIDAL_LEHNGA_SETS.iceblue);
-  if (col === 'peach' || col == null) return resolveBridalCombo(s, BRIDAL_LEHNGA_SETS.peach);
-  return null;
-}
 
 function resolveCircularLehngaGlb(s: Record<TabId, string | null>): string | null {
   return resolveGrarahByColor(s, CIRCULAR_LEHNGA_SETS);

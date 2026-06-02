@@ -167,7 +167,8 @@ export default function ProfileSetup() {
       </View>
 
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }} keyboardVerticalOffset={0}>
-        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">        <View style={[styles.avatarRow, { backgroundColor: '#fff', borderColor: roleBorder }]}>
+        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+        <View style={[styles.avatarRow, { backgroundColor: '#fff', borderColor: roleBorder }]}>
           <View style={[styles.avatarPlaceholder, { backgroundColor: avatarBg, borderColor: rolePrimary, borderWidth: 2 }]}>
             {profileImage ? <Image source={{ uri: profileImage }} style={styles.avatarImage} /> : <Ionicons name="person-outline" size={34} color={roleText} />}
           </View>

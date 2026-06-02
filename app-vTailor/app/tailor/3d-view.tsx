@@ -70,6 +70,7 @@ const defaultSelections: Record<TabId, string | null> = {
   'frock-style': null,
   colors: null,
   'saree-style': null,
+  'fabric-print': null,
 };
 
 function mergeSelections(raw: unknown): Record<TabId, string | null> | null {

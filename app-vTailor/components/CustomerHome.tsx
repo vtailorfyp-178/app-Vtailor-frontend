@@ -1,5 +1,5 @@
 import { useAuth } from '@/contexts/AuthContext';
-import { SURFACE_MUTED, TEXT_DARK, UI } from '@/constants/ui';
+import { SURFACE_MUTED, TEXT_DARK, UI, ROLE_COLORS } from '@/constants/ui';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -18,6 +18,9 @@ const CustomerHome = () => {
   const inputBorder = useThemeColor({}, 'inputBorder');
   const iconBg = useThemeColor({}, 'iconBg');
   const textColor = useThemeColor({}, 'text');
+  const customerSoft = ROLE_COLORS.customer.soft;
+  const customerBorder = ROLE_COLORS.customer.border;
+  const customerDark = ROLE_COLORS.customer.primaryDark;
 
   const [unreadCount, setUnreadCount] = useState(0);
 
@@ -159,15 +162,18 @@ const CustomerHome = () => {
           </View>
         </View>
 
-        <Pressable onPress={() => (router as any).push('/customer/ai-assistant')} style={[styles.aiCard, { backgroundColor: card, borderColor: inputBorder }]}> 
-          <View style={[styles.sideIconBox, { backgroundColor: iconBg }]}>
-            <Ionicons name="sparkles-outline" size={22} color={tint} />
+        <Pressable
+          onPress={() => (router as any).push('/customer/ai-assistant')}
+          style={[styles.aiAssistantCard, { backgroundColor: customerSoft, borderColor: customerBorder }]}
+        >
+          <View style={[styles.aiAssistantIcon, { backgroundColor: tint }]}>
+            <Ionicons name="sparkles" size={22} color="#fff" />
           </View>
           <View style={styles.aiContent}>
-            <ThemedText style={styles.aiTitle}>AI Style Assistant</ThemedText>
+            <ThemedText style={[styles.aiAssistantTitle, { color: customerDark }]}>AI Style Assistant</ThemedText>
             <ThemedText style={[styles.aiDesc, { color: muted }]}>Get personalized suggestions</ThemedText>
           </View>
-          <ThemedText style={styles.arrow}>→</ThemedText>
+          <Ionicons name="chevron-forward" size={20} color={tint} />
         </Pressable>
 
         <Pressable onPress={() => (router as any).push('/customer/order-timeline')} style={[styles.aiCard, { backgroundColor: card, borderColor: inputBorder }]}> 
@@ -234,6 +240,25 @@ const styles = StyleSheet.create({
   daysLeft: { fontSize: 12, color: '#6b7280' },
   price: { fontSize: 12, fontWeight: '600' },
   aiCard: { flexDirection: 'row', alignItems: 'center', padding: 16, borderRadius: 18, borderWidth: 1, marginTop: 18, marginBottom: 12, ...UI.softShadow },
+  aiAssistantCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 20,
+    borderWidth: 1,
+    marginTop: 18,
+    marginBottom: 12,
+    ...UI.shadow,
+  },
+  aiAssistantIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 14,
+  },
+  aiAssistantTitle: { fontSize: 15, fontWeight: '800' },
   sideIconBox: { width: 44, height: 44, borderRadius: 16, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
   aiContent: { flex: 1 },
   aiTitle: { fontSize: 15, fontWeight: '800', color: TEXT_DARK },

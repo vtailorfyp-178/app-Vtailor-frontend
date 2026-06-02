@@ -1,8 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, ScrollView, TextInput, Pressable, StyleSheet, KeyboardAvoidingView, Platform, ActivityIndicator, Alert, Keyboard } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { View, ScrollView, TextInput, Pressable, StyleSheet, Platform, Alert, Keyboard } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Clipboard from 'expo-clipboard';
+import * as Haptics from 'expo-haptics';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useThemeColor } from '@/hooks/use-theme-color';
@@ -16,6 +17,7 @@ import {
   type ChatMessage,
 } from '@/services/fashionChatbotApi';
 import { Ionicons } from '@expo/vector-icons';
+import { useKeyboardInset } from '@/hooks/useKeyboardInset';
 
 type Message = {
   id: string;
@@ -51,7 +53,6 @@ export default function AIStyleAssistant() {
   const router = useRouter();
   const params = useLocalSearchParams<{ sessionId?: string }>();
   const { user, loginEmail } = useAuth();
-  const insets = useSafeAreaInsets();
   const tint = useThemeColor({}, 'tint');
   const muted = useThemeColor({}, 'muted');
   const card = useThemeColor({}, 'card');
@@ -60,7 +61,7 @@ export default function AIStyleAssistant() {
 
   const [message, setMessage] = useState('');
   const [messages, setMessages] = useState<Message[]>([welcomeMessage]);
-  const [keyboardVisible, setKeyboardVisible] = useState(false);
+  const { bottomInset } = useKeyboardInset({ extraOffset: 40 });
   const [sessionId, setSessionId] = useState<string | null>(
     typeof params.sessionId === 'string' ? params.sessionId : null
   );
@@ -72,6 +73,7 @@ export default function AIStyleAssistant() {
   const [activeChatId, setActiveChatId] = useState(createChatId);
   const [savedChats, setSavedChats] = useState<StoredAiChat[]>([]);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [copiedHint, setCopiedHint] = useState<string | null>(null);
 
   const scrollRef = useRef<ScrollView | null>(null);
   const userId = (user?.email || loginEmail || 'guest').trim().toLowerCase();
@@ -84,15 +86,11 @@ export default function AIStyleAssistant() {
 
   useEffect(() => {
     const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
-    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
     const showSub = Keyboard.addListener(showEvent, () => {
-      setKeyboardVisible(true);
       setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 150);
     });
-    const hideSub = Keyboard.addListener(hideEvent, () => setKeyboardVisible(false));
     return () => {
       showSub.remove();
-      hideSub.remove();
     };
   }, []);
 
@@ -246,10 +244,56 @@ export default function AIStyleAssistant() {
 
       setMessages((p) => [...p, aiMsg]);
     } catch (e: any) {
-      setError(e?.message || 'Something went wrong. Please try again.');
+      const raw: string = e?.message || '';
+      if (/network request failed|failed to fetch|aborted|failed to connect/i.test(raw)) {
+        setError('Cannot reach server. Make sure the backend is running on the same Wi-Fi and try again.');
+      } else {
+        setError(raw || 'Something went wrong. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
+  };
+
+  const copyMessageText = async (text: string) => {
+    try {
+      await Clipboard.setStringAsync(text);
+      setCopiedHint('Copied to clipboard');
+      setTimeout(() => setCopiedHint(null), 2000);
+    } catch {
+      Alert.alert('Copy failed', 'Could not copy this message. Please try again.');
+    }
+  };
+
+  const getPromptToResend = (msg: Message, index: number): string | null => {
+    if (msg.sender === 'user') return msg.text.trim() || null;
+    for (let i = index - 1; i >= 0; i -= 1) {
+      const prior = messages[i];
+      if (prior?.sender === 'user' && prior.text.trim()) return prior.text.trim();
+    }
+    return null;
+  };
+
+  const handleMessageLongPress = (msg: Message, index: number) => {
+    if (msg.id === 'welcome-1' || !msg.text.trim()) return;
+
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+
+    const resendText = getPromptToResend(msg, index);
+    const buttons: Array<{ text: string; onPress?: () => void; style?: 'cancel' | 'default' | 'destructive' }> = [
+      { text: 'Copy', onPress: () => { void copyMessageText(msg.text); } },
+    ];
+
+    if (resendText && !loading) {
+      buttons.push({
+        text: msg.sender === 'user' ? 'Resend prompt' : 'Resend last prompt',
+        onPress: () => { void handleSend(resendText); },
+      });
+    }
+
+    buttons.push({ text: 'Cancel', style: 'cancel' });
+
+    Alert.alert('Message options', undefined, buttons);
   };
 
   const resetChat = async () => {
@@ -365,29 +409,31 @@ export default function AIStyleAssistant() {
         </View>
       </View>
 
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardArea}
-        keyboardVerticalOffset={0}
-      >
-        {historyLoading ? (
-          <View style={[styles.messages, styles.loaderWrap]}>
-            <ActivityIndicator color={tint} />
-          </View>
-        ) : (
-          <ScrollView
+      <View style={styles.keyboardArea}>
+        <ScrollView
             ref={scrollRef}
             contentContainerStyle={styles.messages}
             style={{ flex: 1 }}
             keyboardShouldPersistTaps="handled"
           >
-            {messages.map((m) => (
+            {messages.map((m, index) => (
               <View key={m.id} style={[styles.messageRow, m.sender === 'user' ? styles.messageRowUser : styles.messageRowAi]}>
                 {m.sender === 'ai' && <View style={[styles.avatar, { backgroundColor: iconBg }]}><Ionicons name="sparkles-outline" size={17} color={tint} /></View>}
-                <View style={[styles.bubble, { backgroundColor: m.sender === 'user' ? tint : card, borderColor: m.sender === 'ai' ? '#e6e7eb' : tint }]}> 
+                <Pressable
+                  onLongPress={() => handleMessageLongPress(m, index)}
+                  delayLongPress={450}
+                  style={({ pressed }) => [
+                    styles.bubble,
+                    {
+                      backgroundColor: m.sender === 'user' ? tint : card,
+                      borderColor: m.sender === 'ai' ? '#e6e7eb' : tint,
+                    },
+                    pressed && m.id !== 'welcome-1' && styles.bubblePressed,
+                  ]}
+                >
                   <ThemedText style={{ color: m.sender === 'user' ? '#fff' : text }}>{m.text}</ThemedText>
-                  <ThemedText style={styles.ts}>{m.timestamp}</ThemedText>
-                </View>
+                  <ThemedText style={[styles.ts, { color: m.sender === 'user' ? '#fff' : text }]}>{m.timestamp}</ThemedText>
+                </Pressable>
                 {m.sender === 'user' && <View style={[styles.avatar, { backgroundColor: '#f3f4f6' }]}><Ionicons name="person-outline" size={17} color={muted} /></View>}
               </View>
             ))}
@@ -400,44 +446,52 @@ export default function AIStyleAssistant() {
               </View>
             )}
           </ScrollView>
-        )}
 
-        {showQuickPrompts && (
-          <View style={styles.quickWrap}>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 12 }} keyboardShouldPersistTaps="handled">
-              {FASHION_QUICK_PROMPTS.map((q) => (
-                <Pressable key={q} onPress={() => handleSend(q)} style={[styles.suggestion, { borderColor: tint }]}> 
-                  <ThemedText style={{ color: tint }}>{q}</ThemedText>
-                </Pressable>
-              ))}
-            </ScrollView>
+        <View style={[styles.inputFooter, { paddingBottom: bottomInset }]}>
+          {showQuickPrompts && (
+            <View style={styles.quickWrap}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 12 }} keyboardShouldPersistTaps="handled">
+                {FASHION_QUICK_PROMPTS.map((q) => (
+                  <Pressable key={q} onPress={() => handleSend(q)} style={[styles.suggestion, { borderColor: tint }]}>
+                    <ThemedText style={{ color: tint }}>{q}</ThemedText>
+                  </Pressable>
+                ))}
+              </ScrollView>
+            </View>
+          )}
+
+          {error && (
+            <View style={styles.errorWrap}>
+              <ThemedText style={{ color: '#b91c1c', fontSize: 12 }}>{error}</ThemedText>
+            </View>
+          )}
+
+          {copiedHint ? (
+            <View style={styles.copiedWrap}>
+              <Ionicons name="checkmark-circle-outline" size={14} color="#15803d" />
+              <ThemedText style={styles.copiedText}>{copiedHint}</ThemedText>
+            </View>
+          ) : null}
+
+          <View style={[styles.inputShell, { backgroundColor: card }]}>
+            <TextInput
+              value={message}
+              onChangeText={setMessage}
+              placeholder="Ask Anything (English or Urdu)"
+              placeholderTextColor={muted}
+              style={[styles.input, { color: text }]}
+              onSubmitEditing={() => handleSend()}
+              returnKeyType="send"
+              blurOnSubmit={false}
+              editable={!loading}
+              onFocus={() => setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 120)}
+            />
+            <Pressable onPress={() => handleSend()} disabled={loading || !message.trim()} style={[styles.sendBtn, { backgroundColor: tint, opacity: loading || !message.trim() ? 0.6 : 1 }]}>
+              <Ionicons name="send" size={18} color="#fff" />
+            </Pressable>
           </View>
-        )}
-
-        {error && (
-          <View style={styles.errorWrap}>
-            <ThemedText style={{ color: '#b91c1c', fontSize: 12 }}>{error}</ThemedText>
-          </View>
-        )}
-
-        <View style={[styles.inputShell, { backgroundColor: card, marginBottom: keyboardVisible ? 10 : Math.max(insets.bottom, 10) }]}> 
-          <TextInput
-            value={message}
-            onChangeText={setMessage}
-            placeholder="Kuch bhi poochhein... (English ya Urdu)"
-            placeholderTextColor={muted}
-            style={[styles.input, { color: text }]}
-            onSubmitEditing={() => handleSend()}
-            returnKeyType="send"
-            blurOnSubmit={false}
-            editable={!loading}
-            onFocus={() => setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 120)}
-          />
-          <Pressable onPress={() => handleSend()} disabled={loading || !message.trim()} style={[styles.sendBtn, { backgroundColor: tint, opacity: loading || !message.trim() ? 0.6 : 1 }]}>
-            <Ionicons name="send" size={18} color="#fff" />
-          </Pressable>
         </View>
-      </KeyboardAvoidingView>
+      </View>
     </ThemedView>
   );
 }
@@ -470,12 +524,30 @@ const styles = StyleSheet.create({
   messageRowUser: { justifyContent: 'flex-end' },
   avatar: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', marginHorizontal: 6 },
   bubble: { maxWidth: '80%', padding: 12, borderRadius: 16, borderWidth: 1 },
+  bubblePressed: { opacity: 0.88 },
   ts: { fontSize: 10, marginTop: 6, opacity: 0.8 },
   loaderWrap: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   quickWrap: { paddingVertical: 8, borderTopWidth: 1, borderColor: '#e6e7eb', backgroundColor: SURFACE_MUTED },
   suggestion: { paddingHorizontal: 14, paddingVertical: 8, marginHorizontal: 6, borderRadius: 999, borderWidth: 1 },
   errorWrap: { paddingHorizontal: 12, paddingVertical: 6, borderTopWidth: 1, borderColor: '#fee2e2', backgroundColor: '#fef2f2' },
-  inputShell: { flexDirection: 'row', alignItems: 'center', padding: 10, marginHorizontal: 12, borderRadius: 22, borderWidth: 1, borderColor: '#f1d6e2', ...UI.shadow },
+  copiedWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderTopWidth: 1,
+    borderColor: '#dcfce7',
+    backgroundColor: '#f0fdf4',
+  },
+  copiedText: { fontSize: 12, color: '#15803d', fontWeight: '700' },
+  inputFooter: {
+    borderTopWidth: 1,
+    borderColor: '#e6e7eb',
+    backgroundColor: SURFACE_MUTED,
+  },
+  inputShell: { flexDirection: 'row', alignItems: 'center', padding: 10, marginHorizontal: 12, marginTop: 2, marginBottom: 0, borderRadius: 22, borderWidth: 1, borderColor: '#f1d6e2', ...UI.shadow },
   input: { flex: 1, minHeight: 44, paddingHorizontal: 14, borderRadius: 16, backgroundColor: '#f8fafc', fontSize: 15, color: TEXT_DARK },
   sendBtn: { width: 44, height: 44, borderRadius: 16, marginLeft: 8, alignItems: 'center', justifyContent: 'center' },
 });

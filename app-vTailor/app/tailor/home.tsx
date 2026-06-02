@@ -5,9 +5,10 @@ import { useThemeColor } from '@/hooks/use-theme-color';
 import { updateTailorAvailability, updateTailorLocation } from '@/services/tailorsApi';
 import { getUnreadCount } from '@/services/notificationsApi';
 import { getOrders, type Order as ApiOrder } from '@/services/ordersApi';
+import { getWalletSummary } from '@/services/walletApi';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Location from 'expo-location';
 import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
@@ -64,20 +65,95 @@ const orders = [
   },
 ];
 
+function avatarLetters(name: string): string {
+  return (
+    name
+      .split(' ')
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0]?.toUpperCase() ?? '')
+      .join('') || 'ST'
+  );
+}
+
+function formatEarned(amount: number): string {
+  if (amount >= 1000) {
+    const k = amount / 1000;
+    return k >= 10 ? `${Math.round(k)}k` : `${k.toFixed(1)}k`;
+  }
+  return String(Math.round(amount));
+}
+
+type StatCardProps = {
+  icon: keyof typeof Ionicons.glyphMap;
+  value: string;
+  label: string;
+  tint: string;
+  soft: string;
+};
+
+function StatCard({ icon, value, label, tint, soft }: StatCardProps) {
+  return (
+    <View style={styles.statCard}>
+      <View style={[styles.statIconWrap, { backgroundColor: soft }]}>
+        <Ionicons name={icon} size={15} color={tint} />
+      </View>
+      <Text style={styles.statValue}>{value}</Text>
+      <Text style={styles.statLabel}>{label}</Text>
+    </View>
+  );
+}
+
+type QuickActionProps = {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  onPress: () => void;
+  tint: string;
+  soft: string;
+  highlight?: boolean;
+  badge?: number;
+};
+
+function QuickActionCard({ icon, label, onPress, tint, soft, highlight, badge }: QuickActionProps) {
+  return (
+    <Pressable
+      style={[
+        styles.actionCard,
+        highlight ? styles.actionCardHighlight : null,
+      ]}
+      onPress={onPress}
+    >
+      <View style={[styles.actionIconWrap, { backgroundColor: highlight ? '#fff0e6' : soft }]}>
+        <Ionicons name={icon} size={22} color={highlight ? '#ea580c' : tint} />
+        {highlight && badge ? (
+          <View style={styles.actionBadge}>
+            <Text style={styles.actionBadgeText}>{badge > 99 ? '99+' : String(badge)}</Text>
+          </View>
+        ) : null}
+      </View>
+      <Text style={styles.actionLabel} numberOfLines={2}>
+        {label}
+      </Text>
+    </Pressable>
+  );
+}
+
 export default function TailorHome() {
   const { user, token, userRole } = useAuth();
   const router = useRouter();
   const card = useThemeColor({}, 'card');
-  const inputBorder = useThemeColor({}, 'inputBorder');
+  const muted = useThemeColor({}, 'muted');
   const tint = ROLE_COLORS.tailor.primary;
   const tailorSoft = ROLE_COLORS.tailor.soft;
+  const tailorBorder = ROLE_COLORS.tailor.border;
+  const tailorDark = ROLE_COLORS.tailor.primaryDark;
   const [penaltiesMap, setPenaltiesMap] = useState<Record<string, number>>({});
   const [isOpen, setIsOpen] = useState<boolean>(false);
   const [syncingPresence, setSyncingPresence] = useState(false);
-  const [lastSyncAt, setLastSyncAt] = useState<string | null>(null);
   const [unreadCount, setUnreadCount] = useState(0);
   const [pendingOrders, setPendingOrders] = useState<ApiOrder[]>([]);
-  const [loadingRequests, setLoadingRequests] = useState(false);
+  const [apiOrderCount, setApiOrderCount] = useState(0);
+  const [walletBalance, setWalletBalance] = useState(0);
 
   useEffect(() => {
     if (!token) return;
@@ -86,12 +162,45 @@ export default function TailorHome() {
 
   useEffect(() => {
     if (!token) return;
-    setLoadingRequests(true);
     getOrders(token)
-      .then((orders) => setPendingOrders(orders.filter((o) => o.status === 'pending')))
-      .catch(() => {})
-      .finally(() => setLoadingRequests(false));
+      .then((list) => {
+        setApiOrderCount(list.length);
+        setPendingOrders(list.filter((o) => o.status === 'pending'));
+      })
+      .catch(() => {});
+    getWalletSummary(token, 5)
+      .then((summary) => setWalletBalance(summary.balance ?? 0))
+      .catch(() => {});
   }, [token]);
+
+  const displayName = user?.name?.trim() || 'Sehrish Tailor';
+  const initials = avatarLetters(displayName);
+  const todayLabel = new Date().toLocaleDateString('en-US', {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+  });
+  const activeOrderCount = useMemo(
+    () => orders.filter((o) => o.status !== 'ready').length + apiOrderCount,
+    [apiOrderCount],
+  );
+  const totalOrders = Math.max(orders.length, apiOrderCount) || orders.length;
+  const pendingCount = pendingOrders.length || orders.filter((o) => o.status === 'pending').length;
+
+  const demoEarned = useMemo(() => orders.reduce((sum, o) => sum + o.amount, 0), []);
+  const stats = useMemo(
+    () => [
+      { icon: 'cube-outline' as const, value: String(totalOrders), label: 'Orders' },
+      {
+        icon: 'cash-outline' as const,
+        value: formatEarned(walletBalance > 0 ? walletBalance : demoEarned),
+        label: 'Earned',
+      },
+      { icon: 'trending-up-outline' as const, value: String(pendingCount), label: 'Pending' },
+      { icon: 'star-outline' as const, value: '4.9', label: 'Rating' },
+    ],
+    [totalOrders, walletBalance, pendingCount, demoEarned],
+  );
 
   const getStatusStyle = (status: string) => {
     if (status === 'ready') return { backgroundColor: '#ecfdf3', color: '#15803d' };
@@ -157,6 +266,9 @@ export default function TailorHome() {
         const permission = await Location.requestForegroundPermissionsAsync();
         if (permission.status !== 'granted') return;
 
+        const servicesEnabled = await Location.hasServicesEnabledAsync();
+        if (!servicesEnabled) return;
+
         const current = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
         if (!active) return;
 
@@ -165,15 +277,14 @@ export default function TailorHome() {
           longitude: current.coords.longitude,
           is_available: typeof availability === 'boolean' ? availability : isOpen,
         });
-        setLastSyncAt(new Date().toLocaleTimeString());
       } catch {
         // ignore background sync errors and keep dashboard responsive
       }
     };
 
-    syncLocation();
+    void syncLocation().catch(() => {});
     intervalId = setInterval(() => {
-      syncLocation();
+      void syncLocation().catch(() => {});
     }, 45000);
 
     return () => {
@@ -190,15 +301,17 @@ export default function TailorHome() {
       await updateTailorAvailability(token, nextValue);
       const permission = await Location.requestForegroundPermissionsAsync();
       if (permission.status === 'granted') {
-        const current = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-        await updateTailorLocation(token, {
-          latitude: current.coords.latitude,
-          longitude: current.coords.longitude,
-          is_available: nextValue,
-        });
+        const servicesEnabled = await Location.hasServicesEnabledAsync();
+        if (servicesEnabled) {
+          const current = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+          await updateTailorLocation(token, {
+            latitude: current.coords.latitude,
+            longitude: current.coords.longitude,
+            is_available: nextValue,
+          });
+        }
       }
       setIsOpen(nextValue);
-      setLastSyncAt(new Date().toLocaleTimeString());
     } catch {
       // no-op, keep previous status if API fails
     } finally {
@@ -208,74 +321,122 @@ export default function TailorHome() {
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.container}>
-      <View style={[styles.headerWrap, { backgroundColor: tint }]}> 
-        <View style={styles.welcomeBox}>
-          <Text style={styles.welcome}>Welcome,</Text>
-          <Text style={styles.name}>{user?.name || 'Sehrish Naseer'}</Text>
+      <View style={styles.heroBlock}>
+        <View style={[styles.headerWrap, { backgroundColor: tint }]}>
+          <View style={styles.headerRow}>
+            <View style={styles.avatarCircle}>
+              <Text style={styles.avatarText}>{initials}</Text>
+            </View>
+            <View style={styles.headerCenter}>
+              <Text style={styles.welcome}>Welcome back,</Text>
+              <Text style={styles.name} numberOfLines={1}>
+                {displayName}
+              </Text>
+              <Text style={styles.headerMeta}>
+                {todayLabel} · {activeOrderCount} active order{activeOrderCount === 1 ? '' : 's'}
+              </Text>
+            </View>
+            <Pressable style={styles.bellWrap} onPress={() => router.push('/tailor/notifications')}>
+              <Ionicons name="notifications-outline" size={22} color="#fff" />
+              {unreadCount > 0 ? (
+                <View style={styles.badge}>
+                  <Text style={styles.badgeText}>{unreadCount > 99 ? '99+' : String(unreadCount)}</Text>
+                </View>
+              ) : null}
+            </Pressable>
+          </View>
         </View>
-        <Pressable style={styles.bellWrap} onPress={() => router.push('/tailor/notifications')}>
-          <Ionicons name="notifications-outline" size={22} color="#111" />
-          <View style={styles.badge}>{unreadCount > 0 && <Text style={styles.badgeText}>{unreadCount > 99 ? '99+' : String(unreadCount)}</Text>}</View>
-        </Pressable>
+
+        <View style={styles.statsRow}>
+          {stats.map((item) => (
+            <StatCard
+              key={item.label}
+              icon={item.icon}
+              value={item.value}
+              label={item.label}
+              tint={tint}
+              soft={tailorSoft}
+            />
+          ))}
+        </View>
       </View>
 
-      <View style={[styles.presenceCard, { borderColor: inputBorder, backgroundColor: card }]}>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.presenceTitle}>Shop Status</Text>
-          <Text style={[styles.presenceSubtitle, { color: isOpen ? '#15803d' : '#6b7280' }]}>
-            {isOpen ? 'Open and visible on customer map' : 'Closed and hidden from open-only filter'}
-          </Text>
-          <Text style={styles.syncMeta}>
-            {syncingPresence ? 'Syncing status...' : `Location auto-sync every 45s${lastSyncAt ? ` • Last ${lastSyncAt}` : ''}`}
+      <View style={[styles.presenceCard, { borderColor: tailorBorder, backgroundColor: card }]}>
+        <View style={[styles.presenceIconWrap, { backgroundColor: tailorSoft }]}>
+          <Ionicons name="storefront-outline" size={16} color={tint} />
+        </View>
+        <View style={styles.presenceText}>
+          <View style={styles.presenceTitleRow}>
+            <Text style={styles.presenceTitle}>Shop Status</Text>
+            <View style={[styles.presencePill, { backgroundColor: isOpen ? '#ecfdf3' : '#f3f4f6' }]}>
+              <Text style={[styles.presencePillText, { color: isOpen ? '#15803d' : '#6b7280' }]}>
+                {isOpen ? 'Open' : 'Closed'}
+              </Text>
+            </View>
+          </View>
+          <Text style={styles.presenceSubtitle} numberOfLines={1}>
+            {syncingPresence
+              ? 'Syncing…'
+              : isOpen
+                ? 'Visible on customer map'
+                : 'Hidden from open-only filter'}
           </Text>
         </View>
         <Switch
           value={isOpen}
           onValueChange={handleAvailabilityToggle}
           thumbColor="#ffffff"
-          trackColor={{ false: '#d1d5db', true: '#22c55e' }}
+          trackColor={{ false: '#d1d5db', true: tint }}
+          style={styles.presenceSwitch}
         />
       </View>
 
-      <View style={styles.quickRow}>
-        <Pressable style={[styles.quickCard, { borderColor: inputBorder }]} onPress={() => router.push('/tailor/3d-review')}>
-          <View style={styles.quickIconWrap}>
-            <Ionicons name="cube-outline" size={22} color={tint} />
-          </View>
-          <Text style={styles.quickLabel}>3D Review</Text>
-        </Pressable>
-        <Pressable style={[styles.quickCard, { borderColor: inputBorder }]} onPress={() => router.push('/tailor/measurements')}>
-          <View style={styles.quickIconWrap}>
-            <Ionicons name="body-outline" size={22} color={tint} />
-          </View>
-          <Text style={styles.quickLabel}>Measurements</Text>
-        </Pressable>
-        <Pressable style={[styles.quickCard, { borderColor: inputBorder }]} onPress={() => router.push('/tailor/timeline')}>
-          <View style={styles.quickIconWrap}>
-            <Ionicons name="time-outline" size={22} color={tint} />
-          </View>
-          <Text style={styles.quickLabel}>Stitching Timeline</Text>
-        </Pressable>
+      <Text style={styles.sectionLabel}>Quick Actions</Text>
+      <View style={styles.actionGrid}>
+        <QuickActionCard
+          icon="cube-outline"
+          label="3D Review"
+          tint={tint}
+          soft={tailorSoft}
+          onPress={() => router.push('/tailor/3d-review')}
+        />
+        <QuickActionCard
+          icon="body-outline"
+          label="Measurements"
+          tint={tint}
+          soft={tailorSoft}
+          onPress={() => router.push('/tailor/measurements')}
+        />
+        <QuickActionCard
+          icon="time-outline"
+          label="Stitching Timeline"
+          tint={tint}
+          soft={tailorSoft}
+          onPress={() => router.push('/tailor/timeline')}
+        />
+        <QuickActionCard
+          icon="people-outline"
+          label="Customer Requests"
+          tint={tint}
+          soft={tailorSoft}
+          highlight={pendingOrders.length > 0}
+          badge={pendingOrders.length}
+          onPress={() => router.push('/tailor/requests' as any)}
+        />
       </View>
 
-      {/* ── Customer Requests tab ───────────────────────────────────── */}
       <Pressable
-        style={[styles.requestsTab, { borderColor: pendingOrders.length > 0 ? '#ea580c' : inputBorder }]}
-        onPress={() => router.push('/tailor/requests' as any)}
-        activeOpacity={0.8}
+        style={[styles.aiCard, { backgroundColor: tailorSoft, borderColor: tailorBorder }]}
+        onPress={() => router.push('/tailor/ai-assistant' as any)}
       >
-        <View style={[styles.requestsTabIconWrap, { backgroundColor: pendingOrders.length > 0 ? '#fff0e6' : tailorSoft }]}>
-          <Ionicons name="people-outline" size={22} color={pendingOrders.length > 0 ? '#ea580c' : tint} />
-          {pendingOrders.length > 0 && (
-            <View style={styles.requestsTabDot} />
-          )}
+        <View style={[styles.aiIconWrap, { backgroundColor: tint }]}>
+          <Ionicons name="sparkles" size={22} color="#fff" />
         </View>
-        <Text style={styles.requestsTabLabel}>Customer Requests</Text>
-        {pendingOrders.length > 0 && (
-          <View style={styles.requestsTabBadge}>
-            <Text style={styles.requestsTabBadgeText}>{pendingOrders.length}</Text>
-          </View>
-        )}
+        <View style={styles.aiContent}>
+          <Text style={[styles.aiTitle, { color: tailorDark }]}>AI Style Assistant</Text>
+          <Text style={[styles.aiDesc, { color: muted }]}>Get design and fabric suggestions</Text>
+        </View>
+        <Ionicons name="chevron-forward" size={20} color={tint} />
       </Pressable>
 
       {/* ── Current Customers ────────────────────────────────────────── */}
@@ -287,102 +448,60 @@ export default function TailorHome() {
       {orders.slice(0, 2).map((order) => {
         const statusStyle = getStatusStyle(order.status);
         const penaltyAmount = penaltiesMap[order.id] ?? order.penalty ?? 0;
-        const deliveryDate = order.deliveryDate ? new Date(order.deliveryDate) : null;
-        let daysUntilDelivery: number | null = null;
-        if (deliveryDate) {
-          const msPerDay = 1000 * 60 * 60 * 24;
-          daysUntilDelivery = Math.ceil((deliveryDate.getTime() - new Date().getTime()) / msPerDay);
-        }
         return (
-          <Pressable key={order.id} style={[styles.orderCard, { backgroundColor: card, borderColor: order.urgent ? '#fca5a5' : inputBorder, shadowColor: '#000' }]}> 
-            <View style={styles.orderRow}>
-              <View style={styles.customerInfo}>
-                <Text style={styles.customer}>{String(order.customer)}</Text>
-                <Text style={styles.orderMeta}>{order.id}</Text>
-              </View>
-
-              <View style={[styles.statusPill, { backgroundColor: statusStyle.backgroundColor }]}>
-                <Text style={[styles.statusText, { color: statusStyle.color }]}>{order.status}</Text>
-              </View>
-
-              <View style={styles.priceTimeWrapper}>
-                <View style={styles.priceCol}>
-                  <Text style={styles.label}>Price</Text>
-                  <Text style={styles.amount}>Rs {order.amount.toLocaleString()}</Text>
-                </View>
-                <View style={styles.timeCol}>
-                  <Text style={styles.label}>Time Left</Text>
-                  <Text style={styles.time}>{order.timeLeft}</Text>
-                </View>
-              </View>
-            </View>
-            {/* Warning when delivery within 2 days and not ready */}
-            {typeof daysUntilDelivery === 'number' && daysUntilDelivery <= 2 && order.status !== 'ready' ? (
-              <View style={{ padding: 10, backgroundColor: '#fffbeb', borderRadius: 10, marginBottom: 10 }}>
-                <Text style={{ color: '#92400e', fontWeight: '700' }}>⚠️ Delivery due in {daysUntilDelivery} day(s). Late delivery will incur {order.occasion ? '10% (occasion)' : '2%'} per day penalty deducted from your payout.</Text>
-              </View>
-            ) : null}
-
-            {/* Penalty details - separate section per order */}
-            <View style={{ padding: 10, backgroundColor: '#fff7f7', borderRadius: 10, marginBottom: 10 }}>
-              <Text style={{ fontWeight: '800', marginBottom: 6 }}>Penalty Details</Text>
-              <Text style={{ color: '#6b7280', marginBottom: 4 }}>Per-day rate: {order.occasion ? '10% (occasion)' : '2%'}</Text>
-              <Text style={{ color: penaltyAmount ? '#b91c1c' : '#6b7280', fontWeight: penaltyAmount ? '800' : '600' }}>{penaltyAmount ? `Current penalty: Rs ${penaltyAmount}` : 'Current penalty: None'}</Text>
-            </View>
-
-            <View style={styles.detailsRow}>
-              <View style={styles.detailCol}>
-                <Text style={styles.label}>Garment</Text>
-                <Text style={styles.detailValue}>{order.garment}</Text>
-              </View>
-              <View style={styles.detailCol}>
-                <Text style={styles.label}>Contact</Text>
-                <Text style={styles.detailValue}>{order.phone}</Text>
-              </View>
-              <View style={styles.detailCol}>
-                <Text style={styles.label}>Penalty</Text>
-                <Text style={[styles.detailValue, penaltyAmount ? styles.penalty : null]}>
-                  {penaltyAmount ? `Rs ${penaltyAmount}` : 'None'}
+          <Pressable
+            key={order.id}
+            style={[
+              styles.orderCardCompact,
+              {
+                backgroundColor: card,
+                borderColor: order.urgent ? '#fca5a5' : tailorBorder,
+              },
+            ]}
+            onPress={() => router.push({ pathname: '/tailor/order-detail', params: { orderId: order.id } })}
+          >
+            <View style={styles.orderCompactTop}>
+              <View style={styles.orderCompactMain}>
+                <Text style={styles.orderCompactName} numberOfLines={1}>
+                  {String(order.customer)}
+                </Text>
+                <Text style={styles.orderCompactMeta} numberOfLines={1}>
+                  {order.garment} · Rs {order.amount.toLocaleString()}
                 </Text>
               </View>
-              <View style={styles.detailCol}>
-                <Text style={styles.label}>Delivery</Text>
-                <Text style={styles.detailValue}>{order.delivery}</Text>
+              <View style={[styles.statusPillCompact, { backgroundColor: statusStyle.backgroundColor }]}>
+                <Text style={[styles.statusTextCompact, { color: statusStyle.color }]}>{order.status}</Text>
               </View>
             </View>
-
-            <View style={styles.actionsRow}>
-              <Pressable
-                style={styles.primaryBtn}
-                onPress={() => router.push({ pathname: '/tailor/order-detail', params: { orderId: order.id } })}
+            <View style={styles.orderCompactBottom}>
+              <Text
+                style={[styles.orderCompactTime, order.urgent ? styles.orderCompactUrgent : null]}
+                numberOfLines={1}
               >
-                <Text style={styles.primaryText}>View Order</Text>
-              </Pressable>
-              <Pressable
-                style={[styles.secondaryBtn, { borderColor: inputBorder }]}
-                onPress={() => router.push('/tailor/measurements')}
-              >
-                <Text style={styles.secondaryText}>
-                  {order.hasMeasurements ? 'Measurements' : 'Take Measurements'}
-                </Text>
-              </Pressable>
+                {order.timeLeft}
+                {penaltyAmount > 0 ? ` · Penalty Rs ${penaltyAmount.toLocaleString()}` : ''}
+              </Text>
+              <Ionicons name="chevron-forward" size={16} color={tint} />
             </View>
           </Pressable>
         );
       })}
 
-      {/* Penalty summary card below Current Customers */}
-      <View style={[styles.orderCard, { backgroundColor: '#fff7f7', borderColor: inputBorder }]}>
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-          <ThemedText style={{ fontWeight: '800' }}>Penalty Center</ThemedText>
-          <Text style={{ color: '#6b7280', fontSize: 12 }}>Auto-updated</Text>
+      <Pressable
+        style={[styles.penaltyCardCompact, { borderColor: tailorBorder, backgroundColor: '#fff7f7' }]}
+        onPress={() => router.push('/tailor/penalty')}
+      >
+        <View style={[styles.penaltyIconWrap, { backgroundColor: '#fee2e2' }]}>
+          <Ionicons name="alert-circle-outline" size={18} color="#b91c1c" />
         </View>
-        <Text style={{ color: '#6b7280', marginBottom: 8 }}>Total pending penalty</Text>
-        <Text style={{ fontWeight: '900', fontSize: 18, color: '#b91c1c', marginBottom: 12 }}>Rs {Object.values(penaltiesMap).reduce((s, v) => s + (v || 0), 0).toLocaleString()}</Text>
-        <Pressable style={styles.primaryBtn} onPress={() => router.push('/tailor/penalty')}>
-          <Text style={styles.primaryText}>View Penalty Details</Text>
-        </Pressable>
-      </View>
+        <View style={styles.penaltyCompactText}>
+          <Text style={styles.penaltyCompactTitle}>Penalty Center</Text>
+          <Text style={styles.penaltyCompactAmount}>
+            Rs {Object.values(penaltiesMap).reduce((s, v) => s + (v || 0), 0).toLocaleString()} pending
+          </Text>
+        </View>
+        <Ionicons name="chevron-forward" size={16} color={tint} />
+      </Pressable>
 
       <View style={{ height: 120 }} />
     </ScrollView>
@@ -391,39 +510,47 @@ export default function TailorHome() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: SURFACE_MUTED },
-  container: { paddingBottom: 40, paddingHorizontal: 16, paddingTop: 16 },
+  container: { paddingBottom: 40, paddingHorizontal: 16, paddingTop: 8 },
+  heroBlock: { marginBottom: 4 },
   headerWrap: {
     borderRadius: 28,
-    paddingHorizontal: 22,
-    paddingVertical: 24,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 18,
+    overflow: 'hidden',
     ...UI.shadow,
   },
-  welcomeBox: {
-    flex: 1,
-    minWidth: '76%',
-    paddingRight: 14,
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 18,
+    paddingVertical: 22,
+    gap: 12,
   },
-  welcome: { color: '#4b5563', fontSize: 13, marginBottom: 4 },
-  name: { color: '#111827', fontWeight: '800', fontSize: 21 },
+  avatarCircle: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: 'rgba(255,255,255,0.28)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarText: { color: '#fff', fontWeight: '900', fontSize: 17, letterSpacing: 0.5 },
+  headerCenter: { flex: 1, minWidth: 0 },
+  welcome: { color: 'rgba(255,255,255,0.92)', fontSize: 13, marginBottom: 2, fontWeight: '600' },
+  name: { color: '#fff', fontWeight: '900', fontSize: 22, letterSpacing: 0.2 },
+  headerMeta: { color: 'rgba(255,255,255,0.88)', fontSize: 12, marginTop: 4, fontWeight: '600' },
   bellWrap: {
-    width: 50,
-    height: 50,
-    borderRadius: 18,
-    backgroundColor: '#fff',
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: 'rgba(255,255,255,0.28)',
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
-    ...UI.softShadow,
   },
   badge: {
     position: 'absolute',
-    top: 6,
-    right: 6,
-    backgroundColor: '#ef4444',
+    top: 2,
+    right: 2,
+    backgroundColor: '#fff',
     borderRadius: 10,
     minWidth: 18,
     height: 18,
@@ -431,113 +558,190 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  badgeText: { color: '#fff', fontSize: 11, fontWeight: '700' },
+  badgeText: { color: ROLE_COLORS.tailor.primaryDark, fontSize: 10, fontWeight: '800' },
+  statsRow: {
+    flexDirection: 'row',
+    gap: 6,
+    marginTop: 12,
+    paddingHorizontal: 6,
+    marginBottom: 16,
+  },
+  statCard: {
+    flex: 1,
+    backgroundColor: '#fff',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: ROLE_COLORS.tailor.border,
+    paddingVertical: 10,
+    paddingHorizontal: 2,
+    alignItems: 'center',
+    ...UI.softShadow,
+  },
+  statIconWrap: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 5,
+  },
+  statValue: { fontSize: 15, fontWeight: '900', color: '#111827', marginBottom: 1 },
+  statLabel: { fontSize: 10, fontWeight: '600', color: '#6b7280' },
   presenceCard: {
     borderWidth: 1,
-    borderRadius: 18,
-    padding: 14,
+    borderRadius: 14,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
     marginBottom: 14,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 10,
     ...UI.softShadow,
   },
-  presenceTitle: { fontSize: 14, fontWeight: '800', color: '#111827', marginBottom: 4 },
-  presenceSubtitle: { fontSize: 12, fontWeight: '600', marginBottom: 4 },
-  syncMeta: { fontSize: 11, color: '#6b7280' },
-  quickRow: { flexDirection: 'row', gap: 10, marginBottom: 16 },
-  quickCard: {
-    flex: 1,
-    paddingVertical: 14,
-    paddingHorizontal: 8,
+  presenceIconWrap: {
+    width: 34,
+    height: 34,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  presenceText: { flex: 1, minWidth: 0 },
+  presenceTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 2 },
+  presenceTitle: { fontSize: 13, fontWeight: '800', color: '#111827' },
+  presencePill: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999 },
+  presencePillText: { fontSize: 10, fontWeight: '800' },
+  presenceSubtitle: { fontSize: 11, fontWeight: '500', color: '#6b7280' },
+  presenceSwitch: { transform: [{ scaleX: 0.9 }, { scaleY: 0.9 }] },
+  sectionLabel: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#374151',
+    marginBottom: 10,
+    letterSpacing: 0.2,
+  },
+  actionGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    rowGap: 10,
+    marginBottom: 18,
+  },
+  actionCard: {
+    width: '48%',
+    paddingVertical: 16,
+    paddingHorizontal: 12,
     borderRadius: 18,
     borderWidth: 1,
+    borderColor: ROLE_COLORS.tailor.border,
     backgroundColor: '#fff',
     alignItems: 'center',
     ...UI.softShadow,
   },
-  quickIconWrap: { width: 40, height: 40, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: ROLE_COLORS.tailor.soft, marginBottom: 8 },
-  quickLabel: { fontWeight: '700', fontSize: 12, color: '#111827' },
-  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
+  actionCardHighlight: {
+    borderColor: '#fdba74',
+    backgroundColor: '#fffaf5',
+  },
+  actionIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 10,
+    position: 'relative',
+  },
+  actionBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    backgroundColor: '#ea580c',
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    paddingHorizontal: 5,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#fff',
+  },
+  actionBadgeText: { color: '#fff', fontSize: 10, fontWeight: '800' },
+  actionLabel: {
+    fontWeight: '700',
+    fontSize: 12,
+    color: '#111827',
+    textAlign: 'center',
+    lineHeight: 16,
+  },
+  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, marginTop: 4 },
   sectionTitle: { fontWeight: '800', fontSize: 16 },
   link: { color: ROLE_COLORS.tailor.primary, fontWeight: '700', fontSize: 12 },
-  orderCard: {
-    padding: 16,
-    borderRadius: 18,
+  orderCardCompact: {
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    marginBottom: 10,
+    ...UI.softShadow,
+  },
+  orderCompactTop: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 10,
+    marginBottom: 8,
+  },
+  orderCompactMain: { flex: 1, minWidth: 0 },
+  orderCompactName: { fontSize: 14, fontWeight: '800', color: '#111827', marginBottom: 2 },
+  orderCompactMeta: { fontSize: 12, fontWeight: '600', color: '#6b7280' },
+  statusPillCompact: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999 },
+  statusTextCompact: { fontWeight: '700', fontSize: 10, textTransform: 'capitalize' },
+  orderCompactBottom: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  orderCompactTime: { flex: 1, fontSize: 11, fontWeight: '600', color: '#6b7280' },
+  orderCompactUrgent: { color: '#dc2626', fontWeight: '700' },
+  penaltyCardCompact: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 14,
     borderWidth: 1,
     marginBottom: 12,
     ...UI.softShadow,
   },
-  orderRow: { 
-    flexDirection: 'row', 
+  penaltyIconWrap: {
+    width: 34,
+    height: 34,
+    borderRadius: 12,
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 10,
-    gap: 10,
+    justifyContent: 'center',
   },
-  customerInfo: { 
-    flex: 1,
-    minWidth: 100,
-    maxWidth: '60%',
+  penaltyCompactText: { flex: 1, minWidth: 0 },
+  penaltyCompactTitle: { fontSize: 13, fontWeight: '800', color: '#111827', marginBottom: 2 },
+  penaltyCompactAmount: { fontSize: 12, fontWeight: '700', color: '#b91c1c' },
+  aiCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 20,
+    borderWidth: 1,
+    marginBottom: 20,
+    ...UI.shadow,
   },
-  customer: { fontSize: 16, fontWeight: '900', color: '#111827', letterSpacing: 0.3 },
-  orderMeta: { color: '#6b7280', fontSize: 11, marginTop: 2 },
-  statusPill: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999, minWidth: 80, alignItems: 'center' },
-  statusText: { fontWeight: '700', fontSize: 11, textTransform: 'capitalize' },
-  priceTimeWrapper: { 
-    flexDirection: 'row', 
-    gap: 12,
-    flex: 1,
-    minWidth: 140,
+  aiIconWrap: {
+    width: 48,
+    height: 48,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 14,
   },
-  priceCol: { 
-    flex: 1,
-    alignItems: 'flex-end',
-  },
-  timeCol: { 
-    flex: 1,
-    alignItems: 'flex-end',
-  },
-  label: { color: '#6b7280', fontSize: 10, fontWeight: '600', marginBottom: 2 },
-  amount: { fontWeight: '800', fontSize: 14, color: '#111827' },
-  time: { color: '#ef4444', fontWeight: '700', fontSize: 12 },
-  detailsRow: { 
-    flexDirection: 'row', 
-    gap: 10,
-    marginBottom: 12,
-    justifyContent: 'space-between',
-  },
-  detailCol: { 
-    flex: 1,
-  },
-  detailValue: { fontWeight: '700', fontSize: 12, color: '#111827' },
-  penalty: { color: '#b91c1c' },
-  actionsRow: { flexDirection: 'row', gap: 10 },
-  primaryBtn: { flex: 1, backgroundColor: '#111827', paddingVertical: 12, borderRadius: 14, alignItems: 'center' },
-  primaryText: { color: '#fff', fontWeight: '800', fontSize: 12 },
-  secondaryBtn: { flex: 1, paddingVertical: 12, borderRadius: 14, borderWidth: 1, alignItems: 'center', backgroundColor: '#fff' },
-  secondaryText: { fontWeight: '800', color: '#111827', fontSize: 12 },
-  // ── Customer Requests tab ──────────────────────────────────────────────────
-  requestsTab: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: '#fff', borderWidth: 1, borderRadius: 18,
-    paddingHorizontal: 16, paddingVertical: 14,
-    marginBottom: 16, ...UI.softShadow,
-  },
-  requestsTabIconWrap: {
-    width: 44, height: 44, borderRadius: 14,
-    alignItems: 'center', justifyContent: 'center', position: 'relative',
-  },
-  requestsTabDot: {
-    position: 'absolute', top: 4, right: 4,
-    width: 9, height: 9, borderRadius: 5,
-    backgroundColor: '#ea580c', borderWidth: 1.5, borderColor: '#fff',
-  },
-  requestsTabLabel: { flex: 1, fontSize: 14, fontWeight: '800', color: '#111827' },
-  requestsTabBadge: {
-    backgroundColor: '#ea580c', borderRadius: 10,
-    minWidth: 24, height: 24, paddingHorizontal: 7,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  requestsTabBadgeText: { color: '#fff', fontSize: 12, fontWeight: '800' },
+  aiContent: { flex: 1 },
+  aiTitle: { fontSize: 15, fontWeight: '800' },
+  aiDesc: { fontSize: 12, marginTop: 3, fontWeight: '500' },
 });

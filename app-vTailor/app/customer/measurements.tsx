@@ -5,12 +5,11 @@ import {
   TextInput,
   Pressable,
   StyleSheet,
-  KeyboardAvoidingView,
   Platform,
   Keyboard,
   useWindowDimensions,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useKeyboardInset } from '@/hooks/useKeyboardInset';
 import { MeasurementModelViewer } from '@/components/MeasurementModelViewer';
 import { buildBasicMeasurementValues } from '@/services/measurement/measurementLabelConfig';
 import { useRouter } from 'expo-router';
@@ -77,7 +76,7 @@ export default function MeasurementForm() {
   const card = useThemeColor({}, 'card');
   const inputBorder = useThemeColor({}, 'inputBorder');
   const muted = useThemeColor({}, 'muted');
-  const insets = useSafeAreaInsets();
+  const { keyboardHeight, keyboardVisible, bottomInset } = useKeyboardInset({ extraOffset: 12 });
 
   const [step, setStep] = useState<Step>('basic');
   const [basic, setBasic] = useState<Record<string, string>>({});
@@ -85,7 +84,6 @@ export default function MeasurementForm() {
   const [trouser, setTrouser] = useState<Record<string, string>>({});
   const [other, setOther] = useState<Record<string, string>>({});
   const [focusedField, setFocusedField] = useState<string | null>(null);
-  const [keyboardVisible, setKeyboardVisible] = useState(false);
   const { width: windowWidth } = useWindowDimensions();
   const viewerWidth = Math.max(280, windowWidth - 56);
   const viewerHeight = 420;
@@ -130,21 +128,23 @@ export default function MeasurementForm() {
   const scrollToField = (fieldKey: string) => {
     setTimeout(() => {
       const y = fieldOffsets.current[fieldKey] ?? 0;
-      scrollRef.current?.scrollTo({ y: Math.max(0, y - 220), animated: true });
-    }, 120);
+      const scrollOffset = keyboardHeight > 0 ? keyboardHeight + 120 : 220;
+      scrollRef.current?.scrollTo({ y: Math.max(0, y - scrollOffset), animated: true });
+    }, Platform.OS === 'ios' ? 80 : 120);
   };
 
   useEffect(() => {
     const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
-    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
-    const showSub = Keyboard.addListener(showEvent, () => setKeyboardVisible(true));
-    const hideSub = Keyboard.addListener(hideEvent, () => setKeyboardVisible(false));
-
+    const showSub = Keyboard.addListener(showEvent, () => {
+      if (focusedField) {
+        const active = activeFields.find((f) => f.label === focusedField);
+        if (active) scrollToField(getFieldKey(active.id, step));
+      }
+    });
     return () => {
       showSub.remove();
-      hideSub.remove();
     };
-  }, []);
+  }, [focusedField, step, keyboardHeight, activeFields]);
 
   const focusNextField = (index: number) => {
     const next = activeFields[index + 1];
@@ -230,14 +230,10 @@ export default function MeasurementForm() {
         <ThemedText style={styles.headerTitle}>{STEP_TITLE[step]}</ThemedText>
       </View>
 
-      <KeyboardAvoidingView
-        behavior="padding"
-        style={styles.keyboardArea}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 8 : 0}
-      >
+      <View style={styles.keyboardArea}>
         <ScrollView
           ref={scrollRef}
-          contentContainerStyle={[styles.scroll, { paddingBottom: keyboardVisible ? 96 : 16 }]}
+          contentContainerStyle={[styles.scroll, { paddingBottom: keyboardVisible ? bottomInset + 88 : 16 }]}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
           showsVerticalScrollIndicator={false}
@@ -304,7 +300,7 @@ export default function MeasurementForm() {
           </View>
         </ScrollView>
 
-        <View style={[styles.footer, { borderTopColor: inputBorder, backgroundColor: card }]}>
+        <View style={[styles.footer, { borderTopColor: inputBorder, backgroundColor: card, paddingBottom: bottomInset }]}>
           {step === 'basic' ? (
             <Pressable
               onPress={() => basicComplete && setStep('shirt')}
@@ -342,7 +338,7 @@ export default function MeasurementForm() {
             </View>
           )}
         </View>
-      </KeyboardAvoidingView>
+      </View>
     </ThemedView>
   );
 }
@@ -392,7 +388,7 @@ const styles = StyleSheet.create({
   },
   input: { flex: 1, paddingVertical: 8, fontSize: 15 },
   unitText: { fontSize: 12, fontWeight: '800', marginLeft: 6 },
-  footer: { padding: 12 },
+  footer: { paddingTop: 12, paddingHorizontal: 12 },
   footerStack: { gap: 8 },
   proceed: { padding: 14, borderRadius: 12, alignItems: 'center' },
   skipBtn: { padding: 10, alignItems: 'center' },

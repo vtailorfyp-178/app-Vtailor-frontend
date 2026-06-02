@@ -211,6 +211,7 @@ export function prefetchTrouserShirtEntry(modelId: string): void {
     colors: null,
     'frock-style': null,
     'saree-style': null,
+    'fabric-print': null,
   });
   queueResolve(base, modelId);
   if (Platform.OS === 'web') {

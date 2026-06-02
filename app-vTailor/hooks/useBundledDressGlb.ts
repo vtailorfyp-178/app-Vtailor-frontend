@@ -138,7 +138,7 @@ export function useBundledDressGlb(
 
     return () => {
       cancelled = true;
-      clearTimeout(timer);
+      if (timer != null) clearTimeout(timer);
     };
   }, [modelId, selectionKey, enabled]);
 

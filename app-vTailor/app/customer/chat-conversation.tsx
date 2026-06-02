@@ -5,7 +5,6 @@ import {
   TextInput,
   Pressable,
   FlatList,
-  KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
   Alert,
@@ -23,6 +22,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import AppBackButton from '@/components/AppBackButton';
+import { useKeyboardInset } from '@/hooks/useKeyboardInset';
 import {
   getStreamClient,
   getOrCreateChannel,
@@ -98,12 +98,15 @@ function buildDemoMessages(
 // â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function mapStreamMessage(msg: MessageResponse, myUserId: string): ChatMessage {
-  const readByOthers = msg.readBy
-    ? Object.keys(msg.readBy).some((uid) => uid !== myUserId)
+  const readBy = (msg as MessageResponse & { readBy?: Record<string, unknown> }).readBy;
+  const readByOthers = readBy
+    ? Object.keys(readBy).some((uid) => uid !== myUserId)
     : false;
 
-  const imageAttachment = msg.attachments?.find((a: any) => a.type === 'image');
-  const videoAttachment = msg.attachments?.find((a: any) => a.type === 'video');
+  const imageAttachment = msg.attachments?.find((a) => a.type === 'image');
+  const videoAttachment = msg.attachments?.find((a) => a.type === 'video');
+  const videoAssetUrl = videoAttachment?.asset_url
+    ?? (videoAttachment as { file?: string } | undefined)?.file;
 
   return {
     id: msg.id,
@@ -115,7 +118,7 @@ function mapStreamMessage(msg: MessageResponse, myUserId: string): ChatMessage {
       ? (readByOthers ? 'read' : (msg.status ?? 'sent'))
       : undefined,
     imageUrl: (imageAttachment?.image_url ?? imageAttachment?.asset_url) as string | undefined,
-    videoUrl: (videoAttachment?.asset_url ?? videoAttachment?.file) as string | undefined,
+    videoUrl: videoAssetUrl as string | undefined,
   };
 }
 
@@ -140,6 +143,7 @@ export default function ChatConversation() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const insets = useSafeAreaInsets();
+  const { bottomInset } = useKeyboardInset({ extraOffset: 12 });
 
   const streamChannelId = params.stream_channel_id as string | undefined;
   const demoChannelId = params.demo_channel_id as string | undefined;
@@ -176,7 +180,6 @@ export default function ChatConversation() {
   const [inputText, setInputText] = useState('');
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
-  const [keyboardVisible, setKeyboardVisible] = useState(false);
   const [imageViewerUri, setImageViewerUri] = useState<string | null>(null);
   const [showAttachMenu, setShowAttachMenu] = useState(false);
   // demoMode = true ONLY for explicit demo sessions
@@ -197,16 +200,12 @@ export default function ChatConversation() {
 
   useEffect(() => {
     const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
-    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
     const showSub = Keyboard.addListener(showEvent, () => {
-      setKeyboardVisible(true);
       setShowAttachMenu(false);
       setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 150);
     });
-    const hideSub = Keyboard.addListener(hideEvent, () => setKeyboardVisible(false));
     return () => {
       showSub.remove();
-      hideSub.remove();
     };
   }, []);
 
@@ -635,10 +634,10 @@ export default function ChatConversation() {
             ]}
           >
             {timestamp}
-            {isOwn && item.status === 'sending' && ' Â·Â·Â·'}
-            {isOwn && item.status === 'sent' && ' âœ“'}
-            {isOwn && item.status === 'delivered' && ' âœ“âœ“'}
-            {isOwn && item.status === 'read' && ' âœ“âœ“'}
+            {isOwn && item.status === 'sending' ? ' ...' : ''}
+            {isOwn && item.status === 'sent' ? ' ✓' : ''}
+            {isOwn && item.status === 'delivered' ? ' ✓✓' : ''}
+            {isOwn && item.status === 'read' ? ' ✓✓' : ''}
           </ThemedText>
         </View>
       </View>
@@ -720,11 +719,7 @@ export default function ChatConversation() {
         </View>
       )}
 
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={{ flex: 1 }}
-        keyboardVerticalOffset={0}
-      >
+      <View style={{ flex: 1 }}>
         {/* Empty state for real chats with no messages yet */}
         {!demoMode && !streamError && messages.length === 0 && (
           <View style={styles.emptyState}>
@@ -751,7 +746,7 @@ export default function ChatConversation() {
         />
 
         {/* Input â€” disabled when Stream error for real users */}
-        <View style={[styles.inputArea, { backgroundColor: card, borderTopColor: muted, paddingBottom: keyboardVisible ? 18 : Math.max(insets.bottom, 12) }]}>
+        <View style={[styles.inputArea, { backgroundColor: card, borderTopColor: muted, paddingBottom: bottomInset }]}>
           {/* Attach menu popup */}
           {showAttachMenu && (
             <View style={[styles.attachMenu, { backgroundColor: card }]}>
@@ -810,7 +805,7 @@ export default function ChatConversation() {
             )}
           </Pressable>
         </View>
-      </KeyboardAvoidingView>
+      </View>
 
       {/* Full-screen image viewer */}
       <Modal

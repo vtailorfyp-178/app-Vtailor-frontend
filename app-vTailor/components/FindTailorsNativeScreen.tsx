@@ -312,22 +312,38 @@ export default function FindTailorsNativeScreen() {
   useEffect(() => {
     let mounted = true;
     (async () => {
-      const permission = await Location.requestForegroundPermissionsAsync();
-      if (permission.status !== 'granted') {
+      try {
+        const permission = await Location.requestForegroundPermissionsAsync();
+        if (permission.status !== 'granted') {
+          if (mounted) {
+            setErrorText(null);
+            setLocationReady(true);
+          }
+          return;
+        }
+
+        const servicesEnabled = await Location.hasServicesEnabledAsync();
+        if (!servicesEnabled) {
+          if (mounted) {
+            setErrorText(null);
+            setLocationReady(true);
+          }
+          return;
+        }
+
+        const current = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+        if (!mounted) return;
+
+        const nextRegion = toRegion(current.coords.latitude, current.coords.longitude);
+        setSearchRegion((current) => (isSameArea(current, nextRegion) ? current : nextRegion));
+        mapRef.current?.animateToRegion(nextRegion, 450);
+        setLocationReady(true);
+      } catch {
         if (mounted) {
           setErrorText(null);
           setLocationReady(true);
         }
-        return;
       }
-
-      const current = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-      if (!mounted) return;
-
-      const nextRegion = toRegion(current.coords.latitude, current.coords.longitude);
-      setSearchRegion((current) => (isSameArea(current, nextRegion) ? current : nextRegion));
-      mapRef.current?.animateToRegion(nextRegion, 450);
-      setLocationReady(true);
     })();
 
     return () => {

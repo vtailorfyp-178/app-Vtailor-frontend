@@ -123,11 +123,12 @@ function cleanDisplayName(raw: string): string {
 function getOtherMember(channel: Channel, myUserId: string) {
   const members = Object.values(channel.state.members) as ChannelMemberResponse[];
   const other = members.find((m) => m.user?.id !== myUserId);
+  const otherUser = other?.user as { id?: string; name?: string; email?: string; phone?: string } | undefined;
   return {
-    id: other?.user?.id ?? "",
-    name: cleanDisplayName((other?.user?.name as string) ?? "Unknown"),
-    email: (other?.user?.email as string) ?? "",
-    phone: (other?.user?.phone as string) ?? "",
+    id: otherUser?.id ?? "",
+    name: cleanDisplayName(otherUser?.name ?? "Unknown"),
+    email: otherUser?.email ?? "",
+    phone: otherUser?.phone ?? "",
   };
 }
 
@@ -322,7 +323,7 @@ export default function ConversationListScreen() {
   const router = useRouter();
   const { userId, userRole, token } = useAuth();
   const [channels, setChannels] = useState<ChannelItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [isDemoMode, setIsDemoMode] = useState(false);
@@ -359,8 +360,14 @@ export default function ConversationListScreen() {
     [userId]
   );
 
-  const loadChannels = useCallback(async () => {
+  const loadChannels = useCallback(async (isRefresh = false) => {
     const client = getStreamClient();
+
+    // Always show demo channels immediately so there's no blank screen
+    if (!isRefresh && channels.length === 0) {
+      setChannels(buildDemoChannels(userId ?? "", userRole));
+    }
+
     if (!client || !userId) {
       setIsDemoMode(true);
       setChannels(buildDemoChannels(userId ?? "", userRole));
@@ -368,42 +375,43 @@ export default function ConversationListScreen() {
       setRefreshing(false);
       return;
     }
-      setIsDemoMode(false);
-      try {
-        const filter = { type: "messaging", members: { $in: [userId] } };
-        const sort = [{ last_message_at: -1 as const }];
-        const rawChannels = await client.queryChannels(filter, sort, {
-          watch: true,
-          state: true,
-          presence: true,
-          limit: 50,
-        });
 
-        if (rawChannels.length === 0) {
-          // Real Stream connected but no conversations yet — show demo to give a feel
-          setIsDemoMode(false);
-          setChannels(buildDemoChannels(userId ?? "", userRole));
-        } else {
-          setIsDemoMode(false);
-          // Merge real channels first, then demo channels at the bottom
-          const realMapped = mapChannels(rawChannels);
-          const demos = buildDemoChannels(userId ?? "", userRole);
-          setChannels([...realMapped, ...demos]);
-          listenerRef.current?.();
-          // Re-query when new messages arrive so list stays sorted by last_message_at
-          listenerRef.current = client.on("message.new", async () => {
-            try {
-              const refreshed = await client.queryChannels(filter, sort, {
-                watch: false,
-                state: true,
-                limit: 50,
-              });
-              setChannels([...mapChannels(refreshed), ...buildDemoChannels(userId ?? "", userRole)]);
-            } catch {
-              setChannels([...mapChannels(rawChannels), ...buildDemoChannels(userId ?? "", userRole)]);
-            }
-          }).unsubscribe;
-        }
+    if (!isRefresh) setLoading(true);
+    setIsDemoMode(false);
+    try {
+      const filter = { type: "messaging", members: { $in: [userId] } };
+      const sort = [{ last_message_at: -1 as const }];
+      const rawChannels = await client.queryChannels(filter, sort, {
+        watch: true,
+        state: true,
+        presence: false,
+        limit: 30,
+        message_limit: 1,
+      });
+
+      const demos = buildDemoChannels(userId ?? "", userRole);
+      if (rawChannels.length === 0) {
+        setIsDemoMode(false);
+        setChannels(demos);
+      } else {
+        setIsDemoMode(false);
+        const realMapped = mapChannels(rawChannels);
+        setChannels([...realMapped, ...demos]);
+        listenerRef.current?.();
+        listenerRef.current = client.on("message.new", async () => {
+          try {
+            const refreshed = await client.queryChannels(filter, sort, {
+              watch: false,
+              state: true,
+              limit: 30,
+              message_limit: 1,
+            });
+            setChannels([...mapChannels(refreshed), ...buildDemoChannels(userId ?? "", userRole)]);
+          } catch {
+            // keep current list on error
+          }
+        }).unsubscribe;
+      }
     } catch (err) {
       console.error("[ConversationList] Stream queryChannels failed:", err);
       setIsDemoMode(true);
@@ -412,17 +420,17 @@ export default function ConversationListScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [userId, userRole, mapChannels]);
+  }, [userId, userRole, mapChannels]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!userId) return;
-    loadChannels();
+    loadChannels(false);
     return () => { listenerRef.current?.(); };
   }, [userId, loadChannels]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await loadChannels();
+    await loadChannels(true);
   }, [loadChannels]);
 
   // ── Open a new chat from the search modal ──────────────────────────────────

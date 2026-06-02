@@ -6,7 +6,11 @@ export const API_PREFIX = '/app/api/v1';
 const EMULATOR_ANDROID_HOST = '10.0.2.2';
 const EXPO_API_BASE = (process.env.EXPO_PUBLIC_API_BASE_URL || '').trim();
 /** Per-URL timeout; keep moderate so OTP does not hang on unreachable hosts. */
-export const REQUEST_TIMEOUT_MS = 8000;
+export const REQUEST_TIMEOUT_MS = 12000;
+/** OTP/Stytch can be slow — allow longer on auth endpoints. */
+export const AUTH_REQUEST_TIMEOUT_MS = 25000;
+/** Quick fail when direct :8000 is blocked by firewall (Metro proxy is tried next). */
+export const DIRECT_API_PROBE_TIMEOUT_MS = 5000;
 const STORED_API_BASE_KEY = '@vtailor_api_base_url';
 
 const expoHostCandidates = [
@@ -182,16 +186,16 @@ export async function getCandidateBaseUrls(): Promise<string[]> {
     return [...new Set(urls)];
   }
 
-  // 1) Direct API on current Expo LAN host (start-api.ps1 / 0.0.0.0:8000) — fastest for phone
+  // 1) Metro proxy — phone → Expo :8081 → PC localhost:8000 (works when backend is 127.0.0.1 only)
+  if (metroDevBase) urls.push(metroDevBase);
+
+  // 2) Direct API on LAN (requires start-api.ps1 / --host 0.0.0.0)
   if (preferredHost) {
     const direct = buildBaseUrl(preferredHost, 8000);
     urls.push(direct);
   }
 
-  // 2) Metro proxy — phone → Expo :8081 → PC localhost:8000 (needs npx expo start)
-  if (metroDevBase) urls.push(metroDevBase);
-
-  // 3) Explicit .env (8081 metro or 8000 direct)
+  // 3) Explicit .env
   if (normalizedEnvBase && !isStaleApiBase(normalizedEnvBase, preferredHost)) {
     urls.push(normalizedEnvBase);
   }
@@ -206,6 +210,13 @@ export async function getCandidateBaseUrls(): Promise<string[]> {
   }
 
   return [...new Set(urls)];
+}
+
+function timeoutForBase(base: string, overrideMs?: number): number {
+  if (overrideMs != null) return overrideMs;
+  if (/:8081(?:\/|$)/.test(base)) return AUTH_REQUEST_TIMEOUT_MS;
+  if (/:8000(?:\/|$)/.test(base)) return DIRECT_API_PROBE_TIMEOUT_MS;
+  return REQUEST_TIMEOUT_MS;
 }
 
 /** App-level JSON errors should not trigger trying another host (avoids false 401 from Metro proxy). */
@@ -231,7 +242,11 @@ async function shouldTryNextBase(response: Response): Promise<boolean> {
   return true;
 }
 
-export async function fetchWithApiFallback(path: string, init?: RequestInit): Promise<Response> {
+export async function fetchWithApiFallback(
+  path: string,
+  init?: RequestInit,
+  options?: { timeoutMs?: number },
+): Promise<Response> {
   const baseUrls = await getCandidateBaseUrls();
   let lastError: unknown = null;
   let lastResponse: Response | null = null;
@@ -239,7 +254,8 @@ export async function fetchWithApiFallback(path: string, init?: RequestInit): Pr
   for (const base of baseUrls) {
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+      const timeoutMs = timeoutForBase(base, options?.timeoutMs);
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
       try {
         const response = await fetch(`${base}${path}`, {
           ...init,
@@ -275,7 +291,7 @@ export async function fetchWithApiFallback(path: string, init?: RequestInit): Pr
   const candidatePreview = baseUrls.join(', ');
   const hint =
     reason === 'Aborted' || /aborted|network request failed|failed to connect/i.test(reason)
-      ? ' Run backend: cd app-Vtailor && .\\start-api.ps1 (NOT 127.0.0.1 only). Same Wi‑Fi, not mobile data. If port 8000 is stuck, close old terminals and run start-api.ps1 again.'
+      ? ' Backend must be running. Use: cd backend\\app-Vtailor && .\\start-api.ps1 (binds 0.0.0.0:8000). If you use uvicorn manually, add --host 0.0.0.0. Same Wi‑Fi, not mobile data.'
       : '';
   throw new Error(
     `${reason}${hint} Tried: ${candidatePreview}. ` +

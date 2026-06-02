@@ -60,7 +60,10 @@ export default function AuthScreen() {
       setStep('otp');
     } catch (err) {
       console.log('OTP send error', err);
-      const message = err instanceof Error ? err.message : 'Unable to reach server. Check your connection and try again.';
+      const raw = err instanceof Error ? err.message : '';
+      const message = /aborted|network request failed|failed to connect/i.test(raw)
+        ? 'Cannot reach the backend. Keep Expo running, start the API with start-api.ps1, and use the same Wi‑Fi on your phone.'
+        : raw || 'Unable to reach server. Check your connection and try again.';
       Alert.alert('Send OTP Failed', message);
     } finally {
       setSendingOtp(false);
@@ -239,14 +242,14 @@ export default function AuthScreen() {
             </ThemedText>
           </View>
           <ThemedText type="title" style={styles.title}>
-            {step === 'role' && 'Welcome to V Tailor'}
-            {step === 'email' && 'Enter Your Email'}
-            {step === 'otp' && 'Verify OTP'}
+            {step === 'role' ? 'Welcome to V Tailor' : step === 'email' ? 'Enter Your Email' : 'Verify OTP'}
           </ThemedText>
           <ThemedText style={styles.subtitle}>
-            {step === 'role' && 'Choose how you want to use V Tailor'}
-            {step === 'email' && 'We will send you a verification code'}
-            {step === 'otp' && `Code sent to ${email}`}
+            {step === 'role'
+              ? 'Choose how you want to use V Tailor'
+              : step === 'email'
+                ? 'We will send you a verification code'
+                : `Code sent to ${email}`}
           </ThemedText>
           {step === 'role' ? (
             <View style={styles.heroStats}>

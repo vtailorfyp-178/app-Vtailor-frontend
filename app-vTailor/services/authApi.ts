@@ -1,9 +1,9 @@
-import { fetchWithApiFallback } from '@/services/apiBase';
+import { fetchWithApiFallback, AUTH_REQUEST_TIMEOUT_MS } from '@/services/apiBase';
 
 export type TabId = 'neck' | 'sleeves' | 'bottom' | 'frock-style' | 'colors' | 'saree-style';
 
-async function fetchWithFallback(path: string, init?: RequestInit) {
-  return fetchWithApiFallback(path, init);
+async function fetchWithFallback(path: string, init?: RequestInit, timeoutMs?: number) {
+  return fetchWithApiFallback(path, init, timeoutMs != null ? { timeoutMs } : undefined);
 }
 
 function extractErrorDetail(data: unknown): string {
@@ -93,7 +93,7 @@ export async function sendEmailOtp(email: string): Promise<EmailOtpStartResult> 
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({ email }),
-  });
+  }, AUTH_REQUEST_TIMEOUT_MS);
 
   const data = await parseResponseBody(response);
   if (!response.ok) {
@@ -130,7 +130,7 @@ export async function verifyEmailOtp(methodId: string, code: string, role: 'cust
       code,
       role,
     }),
-  });
+  }, AUTH_REQUEST_TIMEOUT_MS);
 
   const data = await parseResponseBody(response);
   if (!response.ok) {

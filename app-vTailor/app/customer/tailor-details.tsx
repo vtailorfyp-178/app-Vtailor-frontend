@@ -65,6 +65,12 @@ function parseRatingValue(rating?: string): string {
   return match?.[0] ?? '4.8';
 }
 
+function paramString(value: string | string[] | undefined): string | undefined {
+  if (typeof value === 'string') return value;
+  if (Array.isArray(value)) return value[0];
+  return undefined;
+}
+
 export default function TailorDetails() {
   const params = useLocalSearchParams();
   const router = useRouter();
@@ -74,22 +80,24 @@ export default function TailorDetails() {
   const tint = useThemeColor({}, 'tint');
   const muted = useThemeColor({}, 'muted');
 
+  const routeTailorId = paramString(params.tailorId as string | string[] | undefined);
+
   const routeTailorData: Partial<TailorDetailsData> = {
-    id: params.tailorId || undefined,
-    name: typeof params.tailorName === 'string' ? params.tailorName : undefined,
-    phone: typeof params.tailorPhone === 'string' ? params.tailorPhone : undefined,
-    email: typeof params.tailorEmail === 'string' ? params.tailorEmail : undefined,
-    address: typeof params.tailorAddress === 'string' ? params.tailorAddress : undefined,
-    experience: typeof params.tailorExperience === 'string' ? params.tailorExperience : undefined,
-    description: typeof params.tailorDescription === 'string' ? params.tailorDescription : undefined,
-    avatar: typeof params.tailorAvatar === 'string' ? params.tailorAvatar : undefined,
-    rating: typeof params.tailorRating === 'string' ? params.tailorRating : undefined,
+    id: routeTailorId,
+    name: paramString(params.tailorName as string | string[] | undefined),
+    phone: paramString(params.tailorPhone as string | string[] | undefined),
+    email: paramString(params.tailorEmail as string | string[] | undefined),
+    address: paramString(params.tailorAddress as string | string[] | undefined),
+    experience: paramString(params.tailorExperience as string | string[] | undefined),
+    description: paramString(params.tailorDescription as string | string[] | undefined),
+    avatar: paramString(params.tailorAvatar as string | string[] | undefined),
+    rating: paramString(params.tailorRating as string | string[] | undefined),
     specializations: splitSpecializations(params.specialization),
   };
 
   const profileTailorData: Partial<TailorDetailsData> = tailorProfile
     ? {
-        id: params.tailorId || tailorProfile.email || tailorProfile.phone || 1,
+        id: routeTailorId || tailorProfile.email || tailorProfile.phone || 1,
         name: tailorProfile.name,
         phone: tailorProfile.phone,
         email: tailorProfile.email,

@@ -17,7 +17,8 @@
       }
     },
     "android": {
-      "usesCleartextTraffic": true,
+      "package": "com.vtailor.app",
+      "versionCode": 1,
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/vTailorlogo.png",
@@ -25,6 +26,7 @@
         "monochromeImage": "./assets/images/vTailorlogo.png"
       },
       "edgeToEdgeEnabled": true,
+      "softwareKeyboardLayoutMode": "resize",
       "predictiveBackGestureEnabled": false,
       "permissions": [
         "ACCESS_COARSE_LOCATION",
@@ -66,7 +68,15 @@
       "expo-video",
       "expo-web-browser",
       "expo-asset",
-      "expo-font"
+      "expo-font",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          }
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

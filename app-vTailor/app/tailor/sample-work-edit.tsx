@@ -6,7 +6,7 @@ import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { ThemedText } from '@/components/themed-text';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import * as ImagePicker from 'expo-image-picker';
-import { ResizeMode, Video } from 'expo-av';
+import { VideoView, useVideoPlayer } from 'expo-video';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface MediaItem {
@@ -18,6 +18,14 @@ interface MediaItem {
 }
 
 const SAMPLE_WORK_STORAGE_KEY = 'TAILOR_SAMPLE_WORK';
+
+function SampleVideoPlayer({ uri, style }: { uri: string; style: object }) {
+  const player = useVideoPlayer(uri, (p) => {
+    p.loop = false;
+    p.play();
+  });
+  return <VideoView player={player} style={style} nativeControls contentFit="contain" />;
+}
 
 export default function SampleWorkEdit() {
   const router = useRouter();
@@ -230,13 +238,7 @@ export default function SampleWorkEdit() {
               <Ionicons name="close" size={28} color="#fff" />
             </Pressable>
             {selectedVideoUri ? (
-              <Video
-                source={{ uri: selectedVideoUri }}
-                style={styles.viewerVideo}
-                useNativeControls
-                resizeMode={ResizeMode.CONTAIN}
-                shouldPlay
-              />
+              <SampleVideoPlayer uri={selectedVideoUri} style={styles.viewerVideo} />
             ) : null}
           </View>
         </Modal>

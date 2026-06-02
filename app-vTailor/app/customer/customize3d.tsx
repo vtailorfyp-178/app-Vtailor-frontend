@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useThemeColor } from '@/hooks/use-theme-color';
@@ -595,6 +596,30 @@ export default function Customize3D() {
   })();
 
   const [selections, setSelections] = useState<Record<TabId, string | null>>(initialSelections);
+
+  // Persist customization state so it survives navigation to AI chatbot and back
+  const customizeStateKey = `vtailor_customize_state_${modelId}`;
+  useEffect(() => {
+    AsyncStorage.setItem(customizeStateKey, JSON.stringify(selections)).catch(() => {});
+  }, [selections, customizeStateKey]);
+
+  // Restore persisted state on mount only when no selections were passed as params
+  useEffect(() => {
+    if (params.selections) return; // params take priority
+    AsyncStorage.getItem(customizeStateKey).then((saved) => {
+      if (!saved) return;
+      try {
+        const parsed = JSON.parse(saved) as Record<TabId, string | null>;
+        setSelections((current) => {
+          // Only restore if current selections are all null (fresh mount)
+          const hasAny = Object.values(current).some((v) => v !== null);
+          if (hasAny) return current;
+          return parsed;
+        });
+      } catch { /* ignore malformed cache */ }
+    }).catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const { userId } = useAuth();
 
