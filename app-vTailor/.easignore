@@ -10,10 +10,7 @@ web-build/
 android/
 ios/
 
-# Local assets (3D models load from Cloudinary in production)
-app-vTailor/2d model/
-2d model/
-**/3d model/
+# Do NOT exclude "2d model/" — customize3d.tsx requires those PNGs at build time.
 
 .git/
 .vscode/
@@ -22,8 +19,10 @@ npm-debug.log*
 .DS_Store
 Thumbs.db
 
+# Keep secrets local; use eas.json "env" for EXPO_PUBLIC_* on EAS builds
+.env
 .env.local
 .env.*.local
-scripts/**/*.glb
 
-# Large JSON catalogs are small; keep data/ for Cloudinary resolver
+scripts/**/*.glb
+**/3d model/

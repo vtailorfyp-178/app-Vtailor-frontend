@@ -11,9 +11,13 @@
 **/android/
 **/ios/
 
-# Env secrets
+# Env secrets (never commit)
 **/.env
 **/.env.local
+
+# Native folders generated locally
+**/android/
+**/ios/
 
 # OS / editor
 .DS_Store
