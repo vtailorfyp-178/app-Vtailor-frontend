@@ -1,0 +1,21 @@
+# Dependencies
+**/node_modules/
+
+# Expo build artifacts (never commit — multi-GB)
+**/.expo-export-test/
+**/.expo/
+**/dist/
+**/web-build/
+
+# Native
+**/android/
+**/ios/
+
+# Env secrets
+**/.env
+**/.env.local
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.log

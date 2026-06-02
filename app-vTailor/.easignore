@@ -1,0 +1,29 @@
+# EAS Build upload — exclude files not needed to compile the app
+# Must be committed to git for EAS to read it.
+# https://expo.fyi/eas-build-archive
+
+node_modules/
+**/.expo-export-test/
+**/.expo/
+dist/
+web-build/
+android/
+ios/
+
+# Local assets (3D models load from Cloudinary in production)
+app-vTailor/2d model/
+2d model/
+**/3d model/
+
+.git/
+.vscode/
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db
+
+.env.local
+.env.*.local
+scripts/**/*.glb
+
+# Large JSON catalogs are small; keep data/ for Cloudinary resolver
