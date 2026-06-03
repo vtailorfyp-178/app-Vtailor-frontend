@@ -7,6 +7,12 @@ module.exports = ({ config }) => {
 
   return {
     ...config,
+    extra: {
+      ...config.extra,
+      apiBaseUrl:
+        process.env.EXPO_PUBLIC_API_BASE_URL?.trim() ||
+        config.extra?.apiBaseUrl,
+    },
     android: {
       ...config.android,
       adaptiveIcon: {

@@ -27,6 +27,7 @@
         "buildType": "app-bundle"
       },
       "env": {
+        "EXPO_PUBLIC_API_BASE_URL": "https://app-vtailor.onrender.com/app/api/v1",
         "EXPO_PUBLIC_USE_CLOUDINARY_MODELS": "true"
       }
     }

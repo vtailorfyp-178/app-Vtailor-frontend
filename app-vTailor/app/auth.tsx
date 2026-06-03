@@ -61,8 +61,11 @@ export default function AuthScreen() {
     } catch (err) {
       console.log('OTP send error', err);
       const raw = err instanceof Error ? err.message : '';
+      const usingCloud = /onrender\.com|https:\/\//i.test(raw) || !__DEV__;
       const message = /aborted|network request failed|failed to connect/i.test(raw)
-        ? 'Cannot reach the backend. Keep Expo running, start the API with start-api.ps1, and use the same Wi‑Fi on your phone.'
+        ? usingCloud
+          ? 'Cannot reach the server. Check your internet connection and wait a minute — the cloud backend may be waking up, then try again.'
+          : 'Cannot reach the backend. Keep Expo running, start the API with start-api.ps1, and use the same Wi‑Fi on your phone.'
         : raw || 'Unable to reach server. Check your connection and try again.';
       Alert.alert('Send OTP Failed', message);
     } finally {

@@ -9,6 +9,9 @@ const EXPO_API_BASE = (process.env.EXPO_PUBLIC_API_BASE_URL || '').trim();
 export const REQUEST_TIMEOUT_MS = 12000;
 /** OTP/Stytch can be slow — allow longer on auth endpoints. */
 export const AUTH_REQUEST_TIMEOUT_MS = 25000;
+/** Render free tier cold start can exceed 25s — use on remote HTTPS in standalone builds. */
+export const CLOUD_AUTH_REQUEST_TIMEOUT_MS = 60000;
+export const CLOUD_REQUEST_TIMEOUT_MS = 45000;
 /** Quick fail when direct :8000 is blocked by firewall (Metro proxy is tried next). */
 export const DIRECT_API_PROBE_TIMEOUT_MS = 5000;
 const STORED_API_BASE_KEY = '@vtailor_api_base_url';
@@ -41,6 +44,31 @@ export function normalizeApiBase(raw: string): string | null {
   return value;
 }
 
+function getConfiguredApiBaseRaw(): string {
+  const extraBase = String((Constants.expoConfig?.extra as { apiBaseUrl?: string } | undefined)?.apiBaseUrl || '').trim();
+  return EXPO_API_BASE || extraBase;
+}
+
+export function getConfiguredApiBase(): string | null {
+  return normalizeApiBase(getConfiguredApiBaseRaw());
+}
+
+function isStandaloneApp(): boolean {
+  return (
+    Constants.executionEnvironment === 'standalone' ||
+    Constants.executionEnvironment === 'storeClient'
+  );
+}
+
+function isRemoteCloudBase(url: string): boolean {
+  if (!/^https:\/\//i.test(url)) return false;
+  return !/(?:^|\/)localhost(?:[:/]|$)|127\.0\.0\.1|10\.0\.2\.2|192\.168\.|10\.\d+\.\d+\.\d+/i.test(url);
+}
+
+function isLocalDevBase(url: string): boolean {
+  return /(?:^|\/)localhost(?:[:/]|$)|127\.0\.0\.1|10\.0\.2\.2|192\.168\.|10\.\d+\.\d+\.\d+|:8081(?:\/|$)|:8000(?:\/|$)/i.test(url);
+}
+
 function extractHostFromScriptUrl(): string | null {
   try {
     const scriptURL: string | undefined = (NativeModules as any)?.SourceCode?.scriptURL;
@@ -66,7 +94,10 @@ function buildBaseUrl(host: string, port = 8000) {
 }
 
 function getPreferredLanHost(): string | null {
-  return extractHostFromScriptUrl() || expoHostCandidates[0] || null;
+  if (isStandaloneApp()) return null;
+  const host = extractHostFromScriptUrl() || expoHostCandidates[0] || null;
+  if (!host || !/^\d{1,3}(?:\.\d{1,3}){3}$/.test(host)) return null;
+  return host;
 }
 
 /** In Expo Go dev, the phone already reaches Metro (e.g. 192.168.100.46:8081). */
@@ -98,20 +129,38 @@ function isStaleApiBase(url: string, preferredHost: string | null): boolean {
   return ip !== preferredHost;
 }
 
-let cachedBaseUrl: string | null = normalizeApiBase(EXPO_API_BASE);
+let cachedBaseUrl: string | null = getConfiguredApiBase();
 let storedBaseLoaded = false;
 
 async function loadStoredBase(): Promise<void> {
   if (storedBaseLoaded) return;
   storedBaseLoaded = true;
 
+  const envBase = getConfiguredApiBase();
+  const cloudBase = envBase && isRemoteCloudBase(envBase) ? envBase : null;
+
+  if (isStandaloneApp() && cloudBase) {
+    cachedBaseUrl = cloudBase;
+    try {
+      await AsyncStorage.removeItem(STORED_API_BASE_KEY);
+    } catch {
+      /* ignore */
+    }
+    return;
+  }
+
   const preferredHost = getPreferredLanHost();
-  const envBase = normalizeApiBase(EXPO_API_BASE);
 
   try {
     const stored = await AsyncStorage.getItem(STORED_API_BASE_KEY);
     const normalized = normalizeApiBase(stored || '');
     if (!normalized) return;
+
+    if (cloudBase && isLocalDevBase(normalized)) {
+      await AsyncStorage.removeItem(STORED_API_BASE_KEY);
+      cachedBaseUrl = cloudBase;
+      return;
+    }
 
     if (isStaleApiBase(normalized, preferredHost)) {
       await AsyncStorage.removeItem(STORED_API_BASE_KEY);
@@ -129,23 +178,31 @@ async function loadStoredBase(): Promise<void> {
 export async function pruneStaleApiBaseUrl(): Promise<void> {
   storedBaseLoaded = false;
   const preferredHost = getPreferredLanHost();
-  const envBase = normalizeApiBase(EXPO_API_BASE);
+  const envBase = getConfiguredApiBase();
+  const cloudBase = envBase && isRemoteCloudBase(envBase) ? envBase : null;
 
   try {
     const stored = await AsyncStorage.getItem(STORED_API_BASE_KEY);
     const normalized = normalizeApiBase(stored || '');
-    if (normalized && isStaleApiBase(normalized, preferredHost)) {
+    if (
+      normalized &&
+      (isStaleApiBase(normalized, preferredHost) || (cloudBase && isLocalDevBase(normalized)))
+    ) {
       await AsyncStorage.removeItem(STORED_API_BASE_KEY);
     }
   } catch {
     /* ignore */
   }
 
-  cachedBaseUrl = envBase;
+  cachedBaseUrl = cloudBase || envBase;
   storedBaseLoaded = true;
 }
 
 export async function rememberWorkingApiBase(base: string): Promise<void> {
+  const envBase = getConfiguredApiBase();
+  if (envBase && isRemoteCloudBase(envBase) && isStandaloneApp() && !isRemoteCloudBase(base)) {
+    return;
+  }
   cachedBaseUrl = base;
   try {
     await AsyncStorage.setItem(STORED_API_BASE_KEY, base);
@@ -156,7 +213,7 @@ export async function rememberWorkingApiBase(base: string): Promise<void> {
 
 /** Clear a previously saved API URL (e.g. after changing .env or PC IP). */
 export async function clearStoredApiBaseUrl(): Promise<void> {
-  cachedBaseUrl = normalizeApiBase(EXPO_API_BASE);
+  cachedBaseUrl = getConfiguredApiBase();
   storedBaseLoaded = true;
   try {
     await AsyncStorage.removeItem(STORED_API_BASE_KEY);
@@ -168,8 +225,16 @@ export async function clearStoredApiBaseUrl(): Promise<void> {
 export async function getCandidateBaseUrls(): Promise<string[]> {
   await loadStoredBase();
 
+  const normalizedEnvBase = getConfiguredApiBase();
+  const cloudBase = normalizedEnvBase && isRemoteCloudBase(normalizedEnvBase) ? normalizedEnvBase : null;
+
+  // Installed APK / TestFlight: always use the deployed backend, never LAN fallbacks.
+  if (isStandaloneApp()) {
+    if (cloudBase) return [cloudBase];
+    if (normalizedEnvBase) return [normalizedEnvBase];
+  }
+
   const urls: string[] = [];
-  const normalizedEnvBase = normalizeApiBase(EXPO_API_BASE);
   const preferredHost = getPreferredLanHost();
   const metroDevBase = getMetroDevApiBase();
 
@@ -205,7 +270,7 @@ export async function getCandidateBaseUrls(): Promise<string[]> {
     urls.push(cachedBaseUrl);
   }
 
-  if (Platform.OS === 'android' && !preferredHost) {
+  if (Platform.OS === 'android' && !preferredHost && !isStandaloneApp()) {
     urls.push(buildBaseUrl(EMULATOR_ANDROID_HOST, 8000));
   }
 
@@ -213,7 +278,13 @@ export async function getCandidateBaseUrls(): Promise<string[]> {
 }
 
 function timeoutForBase(base: string, overrideMs?: number): number {
-  if (overrideMs != null) return overrideMs;
+  if (overrideMs != null) {
+    if (isRemoteCloudBase(base) && overrideMs < CLOUD_AUTH_REQUEST_TIMEOUT_MS) {
+      return CLOUD_AUTH_REQUEST_TIMEOUT_MS;
+    }
+    return overrideMs;
+  }
+  if (isRemoteCloudBase(base)) return CLOUD_REQUEST_TIMEOUT_MS;
   if (/:8081(?:\/|$)/.test(base)) return AUTH_REQUEST_TIMEOUT_MS;
   if (/:8000(?:\/|$)/.test(base)) return DIRECT_API_PROBE_TIMEOUT_MS;
   return REQUEST_TIMEOUT_MS;
@@ -289,12 +360,15 @@ export async function fetchWithApiFallback(
 
   const reason = lastError instanceof Error ? lastError.message : 'Failed to fetch';
   const candidatePreview = baseUrls.join(', ');
+  const cloudConfigured = baseUrls.some(isRemoteCloudBase);
   const hint =
     reason === 'Aborted' || /aborted|network request failed|failed to connect/i.test(reason)
-      ? ' Backend must be running. Use: cd backend\\app-Vtailor && .\\start-api.ps1 (binds 0.0.0.0:8000). If you use uvicorn manually, add --host 0.0.0.0. Same Wi‑Fi, not mobile data.'
+      ? cloudConfigured
+        ? ' Check mobile data/Wi‑Fi and wait ~1 minute — the cloud server may be waking up (Render free tier).'
+        : ' Backend must be running. Use: cd backend\\app-Vtailor && .\\start-api.ps1 (binds 0.0.0.0:8000). Same Wi‑Fi, not mobile data.'
       : '';
   throw new Error(
-    `${reason}${hint} Tried: ${candidatePreview}. ` +
-      'Phone test: open http://YOUR_PC_IP:8000/health in mobile browser.',
+    `${reason}${hint} Tried: ${candidatePreview}.` +
+      (cloudConfigured ? '' : ' Phone test: open http://YOUR_PC_IP:8000/health in mobile browser.'),
   );
 }
