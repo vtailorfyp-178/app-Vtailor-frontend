@@ -3,20 +3,20 @@ import type { DressSelections } from '@/services/dressGlbResolver';
 import { isCasualShortShirtModelId } from '@/services/glb/dressGlbTypes';
 import { canShowGlbPreview } from '@/services/glb/threePreviewReadiness';
 
-const IMG_BRIDAL_LEHNGA = require('../2d model/bridal-lehnga.png');
-const IMG_FLARED_FROCK = require('../2d model/variations/flared-bottom.png');
-const IMG_FRONT_SLIT_FROCK = require('../2d model/variations/front-slit-frock.png');
-const IMG_PATIYALA = require('../2d model/variations/patiyala-shalwar.png');
-const IMG_LONG_FROCK = require('../2d model/long frock 2.png');
-const IMG_SAREE = require('../2d model/variations/saree.png');
-const IMG_PLAIN_SAREE = require('../2d model/variations/plain saree.png');
-const IMG_FRILL_SAREE = require('../2d model/variations/frill saree.png');
-const IMG_ROUND_NECK = require('../2d model/variations/round-neck.png');
-const IMG_V_NECK = require('../2d model/variations/v-neck.png');
-const IMG_SHORT_SHIRT = require('../2d model/short-shirt-shalwar.png');
-const IMG_GRARAH_SHIRT = require('../2d model/variations/short-shirt-grarah.png');
-const IMG_GRARAH_PEPLUM = require('../2d model/variations/peplum-grarah.png');
-const IMG_LEHNGA_CIRCULAR = require('../2d model/variations/circular.png');
+const IMG_BRIDAL_LEHNGA = require('../dress_assets/bridal-lehnga.png');
+const IMG_FLARED_FROCK = require('../dress_assets/variations/flared-bottom.png');
+const IMG_FRONT_SLIT_FROCK = require('../dress_assets/variations/front-slit-frock.png');
+const IMG_PATIYALA = require('../dress_assets/variations/patiyala-shalwar.png');
+const IMG_LONG_FROCK = require('../dress_assets/long frock 2.png');
+const IMG_SAREE = require('../dress_assets/variations/saree.png');
+const IMG_PLAIN_SAREE = require('../dress_assets/variations/plain saree.png');
+const IMG_FRILL_SAREE = require('../dress_assets/variations/frill saree.png');
+const IMG_ROUND_NECK = require('../dress_assets/variations/round-neck.png');
+const IMG_V_NECK = require('../dress_assets/variations/v-neck.png');
+const IMG_SHORT_SHIRT = require('../dress_assets/short-shirt-shalwar.png');
+const IMG_GRARAH_SHIRT = require('../dress_assets/variations/short-shirt-grarah.png');
+const IMG_GRARAH_PEPLUM = require('../dress_assets/variations/peplum-grarah.png');
+const IMG_LEHNGA_CIRCULAR = require('../dress_assets/variations/circular.png');
 
 function neckStyleImage(neck: string | null | undefined): ImageSourcePropType | null {
   if (neck === 'v-neck') return IMG_V_NECK;

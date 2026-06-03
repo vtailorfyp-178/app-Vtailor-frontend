@@ -123,20 +123,20 @@ function mergedSelections(selections: Record<string, string | null>): Record<Tab
 }
 
 function imageForModel(modelId: string) {
-  if (modelId === 'kurti') return require('../../2d model/casual dresses.jpg');
-  if (modelId === 'kurti-trouser') return require('../../2d model/casual dresses.jpg');
-  if (modelId === 'short-frock') return require('../../2d model/short-shirt-shalwar.png');
+  if (modelId === 'kurti') return require('../../dress_assets/casual dresses.jpg');
+  if (modelId === 'kurti-trouser') return require('../../dress_assets/casual dresses.jpg');
+  if (modelId === 'short-frock') return require('../../dress_assets/short-shirt-shalwar.png');
   if (modelId === 'short-frock-shalwar' || modelId === 'shalwar-kameez-short')
-    return require('../../2d model/short-shirt-shalwar.png');
-  if (modelId === 'long-frock') return require('../../2d model/long frock 2.png');
-  if (modelId === 'saree') return require('../../2d model/variations/saree.png');
+    return require('../../dress_assets/short-shirt-shalwar.png');
+  if (modelId === 'long-frock') return require('../../dress_assets/long frock 2.png');
+  if (modelId === 'saree') return require('../../dress_assets/variations/saree.png');
   if (modelId === 'shalwar-kameez' || modelId === 'shalwar-kameez-long')
-    return require('../../2d model/short-shirt-shalwar.png');
-  if (modelId === 'sharara') return require('../../2d model/shrara.png');
-  if (modelId === 'grarah-short-shirt') return require('../../2d model/variations/short-shirt-grarah.png');
-  if (modelId === 'grarah-peplum') return require('../../2d model/variations/peplum-grarah.png');
-  if (modelId === 'lehnga-circular') return require('../../2d model/variations/circular.png');
-  if (modelId === 'lehnga-bridal' || modelId === 'lehnga') return require('../../2d model/bridal-lehnga.png');
+    return require('../../dress_assets/short-shirt-shalwar.png');
+  if (modelId === 'sharara') return require('../../dress_assets/shrara.png');
+  if (modelId === 'grarah-short-shirt') return require('../../dress_assets/variations/short-shirt-grarah.png');
+  if (modelId === 'grarah-peplum') return require('../../dress_assets/variations/peplum-grarah.png');
+  if (modelId === 'lehnga-circular') return require('../../dress_assets/variations/circular.png');
+  if (modelId === 'lehnga-bridal' || modelId === 'lehnga') return require('../../dress_assets/bridal-lehnga.png');
   return null;
 }
 

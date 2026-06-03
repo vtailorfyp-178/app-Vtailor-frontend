@@ -7,9 +7,9 @@ import { useThemeColor } from '@/hooks/use-theme-color';
 import AppBackButton from '@/components/AppBackButton';
 
 const logo = require('../../assets/images/vTailorlogo.jpeg');
-const weddingDressesImage = require('../../2d model/traditional dresses.jpg');
-const casualDressesImage = require('../../2d model/casual dresses.jpg');
-const partyFormalDressesImage = require('../../2d model/partyformal 2.jpg');
+const weddingDressesImage = require('../../dress_assets/traditional dresses.jpg');
+const casualDressesImage = require('../../dress_assets/casual dresses.jpg');
+const partyFormalDressesImage = require('../../dress_assets/partyformal 2.jpg');
 
 const models = [
   { id: 'party-formal', name: 'Party / Formal dress' },

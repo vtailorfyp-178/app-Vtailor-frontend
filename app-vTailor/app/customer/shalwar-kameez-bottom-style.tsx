@@ -6,7 +6,7 @@ import { ThemedView } from '@/components/themed-view';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import AppBackButton from '@/components/AppBackButton';
 
-const patiyalaImage = require('../../2d model/variations/patiyala-shalwar.png');
+const patiyalaImage = require('../../dress_assets/variations/patiyala-shalwar.png');
 
 const shalwarTypes = [
   { id: 'patiyala', name: 'Patiyala shalwar', image: patiyalaImage },

@@ -16,9 +16,9 @@ import AppBackButton from '@/components/AppBackButton';
 
 const logo = require('../../assets/images/vTailorlogo.jpeg');
 
-const lehngaImage = require('../../2d model/lehanga.png');
+const lehngaImage = require('../../dress_assets/lehanga.png');
 
-const grarahImage = require('../../2d model/shrara.png');
+const grarahImage = require('../../dress_assets/shrara.png');
 
 
 

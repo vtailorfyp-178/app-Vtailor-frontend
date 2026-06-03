@@ -6,8 +6,8 @@ import { ThemedView } from '@/components/themed-view';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import AppBackButton from '@/components/AppBackButton';
 
-const circularImage = require('../../2d model/variations/circular.png');
-const bridalImage = require('../../2d model/bridal-lehnga.png');
+const circularImage = require('../../dress_assets/variations/circular.png');
+const bridalImage = require('../../dress_assets/bridal-lehnga.png');
 
 const lehngaStyles = [
   { id: 'lehnga-circular', name: 'Circular lehnga', image: circularImage },

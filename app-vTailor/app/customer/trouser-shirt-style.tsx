@@ -8,8 +8,8 @@ import AppBackButton from '@/components/AppBackButton';
 import { prefetchTrouserShirtEntry } from '@/services/glb/glbUrlResolve';
 
 /** Replace this asset anytime — UI reads from one place. */
-const bellBottomThumbnail: ImageSourcePropType = require('../../2d model/bell-bottom.png');
-const tulipTrouserThumbnail: ImageSourcePropType = require('../../2d model/tulip-trouser.png');
+const bellBottomThumbnail: ImageSourcePropType = require('../../dress_assets/bell-bottom.png');
+const tulipTrouserThumbnail: ImageSourcePropType = require('../../dress_assets/tulip-trouser.png');
 
 const trouserVariations = [
   {

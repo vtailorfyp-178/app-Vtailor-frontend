@@ -6,8 +6,8 @@ import { ThemedView } from '@/components/themed-view';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import AppBackButton from '@/components/AppBackButton';
 
-const shortShirtImage = require('../../2d model/variations/short-shirt-grarah.png');
-const peplumImage = require('../../2d model/variations/peplum-grarah.png');
+const shortShirtImage = require('../../dress_assets/variations/short-shirt-grarah.png');
+const peplumImage = require('../../dress_assets/variations/peplum-grarah.png');
 
 const grarahStyles = [
   { id: 'grarah-short-shirt', name: 'Short shirt grarah', image: shortShirtImage },

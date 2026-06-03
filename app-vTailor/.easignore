@@ -10,7 +10,7 @@ web-build/
 android/
 ios/
 
-# Do NOT exclude "2d model/" — customize3d.tsx requires those PNGs at build time.
+# Do NOT exclude "dress_assets/" — customize3d.tsx requires those PNGs at build time.
 
 .git/
 .vscode/

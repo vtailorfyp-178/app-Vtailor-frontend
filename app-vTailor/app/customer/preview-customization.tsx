@@ -25,29 +25,29 @@ export default function PreviewCustomization() {
 
   const imageSource =
     modelId === 'kurti'
-      ? require('../../2d model/casual dresses.jpg')
+      ? require('../../dress_assets/casual dresses.jpg')
       : modelId === 'kurti-trouser'
-      ? require('../../2d model/casual dresses.jpg')
+      ? require('../../dress_assets/casual dresses.jpg')
       : modelId === 'short-frock'
-      ? require('../../2d model/short-shirt-shalwar.png')
+      ? require('../../dress_assets/short-shirt-shalwar.png')
       : modelId === 'short-frock-shalwar' || modelId === 'shalwar-kameez-short'
-      ? require('../../2d model/short-shirt-shalwar.png')
+      ? require('../../dress_assets/short-shirt-shalwar.png')
       : modelId === 'long-frock'
-      ? require('../../2d model/long frock 2.png')
+      ? require('../../dress_assets/long frock 2.png')
       : modelId === 'saree'
-      ? require('../../2d model/variations/saree.png')
+      ? require('../../dress_assets/variations/saree.png')
       : modelId === 'shalwar-kameez' || modelId === 'shalwar-kameez-long'
-      ? require('../../2d model/short-shirt-shalwar.png')
+      ? require('../../dress_assets/short-shirt-shalwar.png')
       : modelId === 'sharara'
-      ? require('../../2d model/shrara.png')
+      ? require('../../dress_assets/shrara.png')
       : modelId === 'grarah-short-shirt'
-      ? require('../../2d model/variations/short-shirt-grarah.png')
+      ? require('../../dress_assets/variations/short-shirt-grarah.png')
       : modelId === 'grarah-peplum'
-      ? require('../../2d model/variations/peplum-grarah.png')
+      ? require('../../dress_assets/variations/peplum-grarah.png')
       : modelId === 'lehnga-circular'
-      ? require('../../2d model/variations/circular.png')
+      ? require('../../dress_assets/variations/circular.png')
       : modelId === 'lehnga-bridal' || modelId === 'lehnga'
-      ? require('../../2d model/bridal-lehnga.png')
+      ? require('../../dress_assets/bridal-lehnga.png')
       : null;
 
   return (

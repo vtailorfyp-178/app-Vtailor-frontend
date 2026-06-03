@@ -2,23 +2,23 @@ import type { ImageSourcePropType } from 'react-native';
 import type { DressSelections } from '@/services/dressGlbResolver';
 import { resolveCustomizePreviewImage } from '@/services/dressCustomizePreview';
 
-const imgShortShirtShalwar = require('../2d model/short-shirt-shalwar.png');
-const imgPatiyala = require('../2d model/variations/patiyala-shalwar.png');
-const imgLongFrock = require('../2d model/long frock 2.png');
-const imgCasualDress = require('../2d model/casual dresses.jpg');
-const imgPlainSaree = require('../2d model/variations/plain saree.png');
-const imgFrillSaree = require('../2d model/variations/frill saree.png');
-const imgSaree = require('../2d model/variations/saree.png');
+const imgShortShirtShalwar = require('../dress_assets/short-shirt-shalwar.png');
+const imgPatiyala = require('../dress_assets/variations/patiyala-shalwar.png');
+const imgLongFrock = require('../dress_assets/long frock 2.png');
+const imgCasualDress = require('../dress_assets/casual dresses.jpg');
+const imgPlainSaree = require('../dress_assets/variations/plain saree.png');
+const imgFrillSaree = require('../dress_assets/variations/frill saree.png');
+const imgSaree = require('../dress_assets/variations/saree.png');
 
 const variationByOptionId: Record<string, ImageSourcePropType> = {
-  round: require('../2d model/variations/round-neck.png'),
-  'v-neck': require('../2d model/variations/v-neck.png'),
-  square: require('../2d model/variations/square neck.png'),
-  'boat-neck': require('../2d model/variations/boat neck.png'),
-  balloon: require('../2d model/variations/balloon-sleeves.png'),
-  layered: require('../2d model/variations/layered-sleeves.png'),
-  full: require('../2d model/variations/full-sleeves.png'),
-  bell: require('../2d model/variations/bell-sleeves.png'),
+  round: require('../dress_assets/variations/round-neck.png'),
+  'v-neck': require('../dress_assets/variations/v-neck.png'),
+  square: require('../dress_assets/variations/square neck.png'),
+  'boat-neck': require('../dress_assets/variations/boat neck.png'),
+  balloon: require('../dress_assets/variations/balloon-sleeves.png'),
+  layered: require('../dress_assets/variations/layered-sleeves.png'),
+  full: require('../dress_assets/variations/full-sleeves.png'),
+  bell: require('../dress_assets/variations/bell-sleeves.png'),
   patiyala: imgPatiyala,
   plain: imgPlainSaree,
   frill: imgFrillSaree,
@@ -40,16 +40,16 @@ function modelFallback(modelId: string, selections: DressSelections): ImageSourc
     if (selections['saree-style'] === 'plain') return imgPlainSaree;
     return imgSaree;
   }
-  if (modelId === 'sharara') return require('../2d model/shrara.png');
+  if (modelId === 'sharara') return require('../dress_assets/shrara.png');
   if (modelId === 'grarah-short-shirt') {
-    return require('../2d model/variations/short-shirt-grarah.png');
+    return require('../dress_assets/variations/short-shirt-grarah.png');
   }
   if (modelId === 'grarah-peplum') {
-    return require('../2d model/variations/peplum-grarah.png');
+    return require('../dress_assets/variations/peplum-grarah.png');
   }
-  if (modelId === 'lehnga-circular') return require('../2d model/variations/circular.png');
+  if (modelId === 'lehnga-circular') return require('../dress_assets/variations/circular.png');
   if (modelId === 'lehnga-bridal' || modelId === 'lehnga') {
-    return require('../2d model/bridal-lehnga.png');
+    return require('../dress_assets/bridal-lehnga.png');
   }
   return null;
 }

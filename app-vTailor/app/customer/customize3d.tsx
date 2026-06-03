@@ -186,40 +186,40 @@ const colorOptions = [
 
 const LONG_FROCK_EXCLUDED_COLORS = new Set(['green', 'yellow', 'beige']);
 
-const imgPlainSaree = require('../../2d model/variations/plain saree.png');
-const imgFrillSaree = require('../../2d model/variations/frill saree.png');
-const imgSaree = require('../../2d model/variations/saree.png');
-const imgShortShirtShalwar = require('../../2d model/short-shirt-shalwar.png');
-const imgCasualDress = require('../../2d model/casual dresses.jpg');
-const imgTrouserShirtCollarNeck = require('../../2d model/variations/collar neck.png');
-const imgRoundKeyholeNeck = require('../../2d model/variations/round keyhole neck.png');
-const imgCollarKeyholeNeck = require('../../2d model/variations/Collar Keyhole neck.png');
-const imgPleatedFlarredBellSleeves = require('../../2d model/variations/pleated-flarred-bell sleeves.png');
-const imgPleatedBellSleeves = require('../../2d model/variations/pleated bell sleeves.png');
-const imgPleatedBalloonSleeves = require('../../2d model/variations/pleated balloon sleeves.png');
-const imgPleatesFullSleeves = require('../../2d model/variations/pleates full sleeves.png');
+const imgPlainSaree = require('../../dress_assets/variations/plain saree.png');
+const imgFrillSaree = require('../../dress_assets/variations/frill saree.png');
+const imgSaree = require('../../dress_assets/variations/saree.png');
+const imgShortShirtShalwar = require('../../dress_assets/short-shirt-shalwar.png');
+const imgCasualDress = require('../../dress_assets/casual dresses.jpg');
+const imgTrouserShirtCollarNeck = require('../../dress_assets/variations/collar neck.png');
+const imgRoundKeyholeNeck = require('../../dress_assets/variations/round keyhole neck.png');
+const imgCollarKeyholeNeck = require('../../dress_assets/variations/Collar Keyhole neck.png');
+const imgPleatedFlarredBellSleeves = require('../../dress_assets/variations/pleated-flarred-bell sleeves.png');
+const imgPleatedBellSleeves = require('../../dress_assets/variations/pleated bell sleeves.png');
+const imgPleatedBalloonSleeves = require('../../dress_assets/variations/pleated balloon sleeves.png');
+const imgPleatesFullSleeves = require('../../dress_assets/variations/pleates full sleeves.png');
 
 const optionImages: Record<string, any> = {
-  round: require('../../2d model/variations/round-neck.png'),
-  'v-neck': require('../../2d model/variations/v-neck.png'),
-  square: require('../../2d model/variations/square neck.png'),
-  'boat-neck': require('../../2d model/variations/boat neck.png'),
-  balloon: require('../../2d model/variations/balloon-sleeves.png'),
-  layered: require('../../2d model/variations/layered-sleeves.png'),
-  sweetheart: require('../../2d model/variations/sweatheart neckline.png'),
-  full: require('../../2d model/variations/full-sleeves.png'),
-  short: require('../../2d model/variations/short-sleeves.png'),
-  bell: require('../../2d model/variations/bell-sleeves.png'),
-  'flared-bell': require('../../2d model/variations/flarred-bell-sleeves.png'),
-  collar: require('../../2d model/variations/round-neck.png'),
-  keyhole: require('../../2d model/variations/v-neck.png'),
-  puff: require('../../2d model/variations/balloon-sleeves.png'),
-  straight: require('../../2d model/short-shirt-shalwar.png'),
-  tulip: require('../../2d model/tulip-trouser.png'),
-  patiyala: require('../../2d model/variations/patiyala-shalwar.png'),
-  flared: require('../../2d model/variations/flared-bottom.png'),
-  'flared-bottom': require('../../2d model/variations/flared-bottom.png'),
-  'front-slit': require('../../2d model/variations/front-slit-frock.png'),
+  round: require('../../dress_assets/variations/round-neck.png'),
+  'v-neck': require('../../dress_assets/variations/v-neck.png'),
+  square: require('../../dress_assets/variations/square neck.png'),
+  'boat-neck': require('../../dress_assets/variations/boat neck.png'),
+  balloon: require('../../dress_assets/variations/balloon-sleeves.png'),
+  layered: require('../../dress_assets/variations/layered-sleeves.png'),
+  sweetheart: require('../../dress_assets/variations/sweatheart neckline.png'),
+  full: require('../../dress_assets/variations/full-sleeves.png'),
+  short: require('../../dress_assets/variations/short-sleeves.png'),
+  bell: require('../../dress_assets/variations/bell-sleeves.png'),
+  'flared-bell': require('../../dress_assets/variations/flarred-bell-sleeves.png'),
+  collar: require('../../dress_assets/variations/round-neck.png'),
+  keyhole: require('../../dress_assets/variations/v-neck.png'),
+  puff: require('../../dress_assets/variations/balloon-sleeves.png'),
+  straight: require('../../dress_assets/short-shirt-shalwar.png'),
+  tulip: require('../../dress_assets/tulip-trouser.png'),
+  patiyala: require('../../dress_assets/variations/patiyala-shalwar.png'),
+  flared: require('../../dress_assets/variations/flared-bottom.png'),
+  'flared-bottom': require('../../dress_assets/variations/flared-bottom.png'),
+  'front-slit': require('../../dress_assets/variations/front-slit-frock.png'),
   plain: imgPlainSaree,
   frill: imgFrillSaree,
   saree: imgSaree,
@@ -769,7 +769,7 @@ export default function Customize3D() {
     if (modelId === 'short-frock' || modelId === 'short-frock-shalwar' || modelId === 'shalwar-kameez-short' || modelId === 'shalwar-kameez') {
       return imgShortShirtShalwar;
     }
-    if (modelId === 'sharara') return require('../../2d model/shrara.png');
+    if (modelId === 'sharara') return require('../../dress_assets/shrara.png');
     return null;
   }, [modelId, selections]);
 

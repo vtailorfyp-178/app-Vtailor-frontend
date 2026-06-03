@@ -6,8 +6,8 @@ import { ThemedView } from '@/components/themed-view';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import AppBackButton from '@/components/AppBackButton';
 
-const flaredImage = require('../../2d model/variations/flared-bottom.png');
-const frontSplitImage = require('../../2d model/variations/front-slit-frock.png');
+const flaredImage = require('../../dress_assets/variations/flared-bottom.png');
+const frontSplitImage = require('../../dress_assets/variations/front-slit-frock.png');
 
 const longFrockStyles = [
   { id: 'flared-bottom', name: 'Flared frock', image: flaredImage },

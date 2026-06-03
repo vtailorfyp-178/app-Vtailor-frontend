@@ -7,8 +7,8 @@ import { useThemeColor } from '@/hooks/use-theme-color';
 import AppBackButton from '@/components/AppBackButton';
 
 const logo = require('../../assets/images/vTailorlogo.jpeg');
-const shalwarKameezImage = require('../../2d model/short-shirt-shalwar.png');
-const shararaImage = require('../../2d model/shrara.png');
+const shalwarKameezImage = require('../../dress_assets/short-shirt-shalwar.png');
+const shararaImage = require('../../dress_assets/shrara.png');
 
 const traditionalDresses = [
   { id: 'shalwar-kameez', name: 'Shalwar Kameez' },

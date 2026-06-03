@@ -7,8 +7,8 @@ import { useThemeColor } from '@/hooks/use-theme-color';
 import AppBackButton from '@/components/AppBackButton';
 import { prefetchDressModelCatalog } from '@/services/glb/glbUrlResolve';
 
-const shalwarKameezImage = require('../../2d model/short-shirt-shalwar.png');
-const trouserShirtImage = require('../../2d model/trouser-shirt.png');
+const shalwarKameezImage = require('../../dress_assets/short-shirt-shalwar.png');
+const trouserShirtImage = require('../../dress_assets/trouser-shirt.png');
 
 export default function CasualDresses() {
   const router = useRouter();

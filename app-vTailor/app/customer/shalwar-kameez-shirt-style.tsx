@@ -6,8 +6,8 @@ import { ThemedView } from '@/components/themed-view';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import AppBackButton from '@/components/AppBackButton';
 
-const longShirtImage = require('../../2d model/short-shirt-shalwar.png');
-const shortShirtImage = require('../../2d model/short-shirt-shalwar.png');
+const longShirtImage = require('../../dress_assets/short-shirt-shalwar.png');
+const shortShirtImage = require('../../dress_assets/short-shirt-shalwar.png');
 
 const shirtStyles = [
   { id: 'long', name: 'Long shirt with shalwar', image: longShirtImage },

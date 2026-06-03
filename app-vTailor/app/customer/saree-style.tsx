@@ -6,8 +6,8 @@ import { ThemedView } from '@/components/themed-view';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import AppBackButton from '@/components/AppBackButton';
 
-const plainSareeImage = require('../../2d model/variations/plain saree.png');
-const frillSareeImage = require('../../2d model/variations/frill saree.png');
+const plainSareeImage = require('../../dress_assets/variations/plain saree.png');
+const frillSareeImage = require('../../dress_assets/variations/frill saree.png');
 
 const sareeStyles = [
   { id: 'plain', name: 'Plain saree', image: plainSareeImage },
