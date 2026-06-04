@@ -4,6 +4,8 @@ import CustomerOrders from '@/components/CustomerOrders';
 import CustomerProfile from '@/components/CustomerProfile';
 import CustomerWallet from '@/components/CustomerWallet';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
+import { customerTabFromParam } from '@/components/customer/customerTabConfig';
+import { SURFACE_MUTED } from '@/constants/ui';
 import { useFocusEffect, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useState } from 'react';
 import { View } from 'react-native';
@@ -11,13 +13,12 @@ import { View } from 'react-native';
 const CustomerDashboard = () => {
   const params = useLocalSearchParams();
   const [activeTab, setActiveTab] = useState(() =>
-    typeof params?.tab === 'string' ? params.tab : 'home'
+    customerTabFromParam(typeof params?.tab === 'string' ? params.tab : undefined),
   );
 
   useFocusEffect(
     useCallback(() => {
-      const tabFromParams = typeof params?.tab === 'string' ? params.tab : 'home';
-      setActiveTab(tabFromParams);
+      setActiveTab(customerTabFromParam(typeof params?.tab === 'string' ? params.tab : undefined));
     }, [params?.tab])
   );
 
@@ -34,7 +35,7 @@ const CustomerDashboard = () => {
 
   return (
     <ProtectedRoute requiredRole="customer">
-      <View style={{ flex: 1 }}>
+      <View style={{ flex: 1, backgroundColor: SURFACE_MUTED }}>
         {renderTab()}
       </View>
     </ProtectedRoute>

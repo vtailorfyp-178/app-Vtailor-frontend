@@ -199,7 +199,7 @@ export default function CustomerOrders() {
   return (
     <ProtectedRoute requiredRole="customer">
       <View style={[styles.container, { backgroundColor: bg }]}> 
-        <View style={styles.header}> 
+        <View style={styles.header}>
           <View style={styles.headerRow}>
             <AppBackButton onPress={() => router.back()} />
             <View style={styles.headerTitleWrap}>
@@ -434,7 +434,16 @@ const styles = StyleSheet.create({
   headerTitleWrap: { flex: 1, alignItems: 'center' },
   title: { textAlign: 'center', fontSize: 23, fontWeight: '900', color: TEXT_DARK },
   subtitle: { color: '#6b7280', fontSize: 12, fontWeight: '600', marginTop: 3 },
-  summaryCard: { flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: '#ec4899', borderRadius: UI.radius.xl, padding: 16, marginBottom: 16, ...UI.shadow },
+  summaryCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    backgroundColor: '#ec4899',
+    borderRadius: UI.radius.xl,
+    padding: 16,
+    marginBottom: 16,
+    ...UI.shadow,
+  },
   summaryIcon: { width: 54, height: 54, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.22)', alignItems: 'center', justifyContent: 'center' },
   summaryLabel: { color: '#ffe4f0', fontSize: 11, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.5 },
   summaryTitle: { color: '#fff', fontSize: 20, fontWeight: '900', marginTop: 2 },

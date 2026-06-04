@@ -2,7 +2,9 @@ import React, { useCallback, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, Image } from 'react-native';
 import { useAuth } from '@/contexts/AuthContext';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
+import { CustomerScreenHeader } from '@/components/customer/CustomerScreenHeader';
 import { ThemedText } from '@/components/themed-text';
+import { SURFACE_MUTED, ROLE_COLORS, UI } from '@/constants/ui';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { Href, useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -21,8 +23,8 @@ const SAMPLE_WORK_STORAGE_KEY = 'TAILOR_SAMPLE_WORK';
 export default function TailorProfile() {
   const auth = useAuth();
   const { user } = auth;
-  const bg = useThemeColor({}, 'background');
   const cardBg = useThemeColor({}, 'card');
+  const tint = ROLE_COLORS.tailor.primary;
   const router = useRouter();
   const [savedSampleWork, setSavedSampleWork] = useState<MediaItem[]>([]);
 
@@ -34,7 +36,7 @@ export default function TailorProfile() {
   ];
 
   const handleLogout = () => {
-    try { /* call logout if present */
+    try {
       // @ts-ignore
       if (auth.logout) auth.logout();
     } catch {}
@@ -53,38 +55,42 @@ export default function TailorProfile() {
       };
 
       loadSampleWork();
-    }, [])
+    }, []),
   );
 
   return (
     <ProtectedRoute requiredRole="tailor">
-      <View style={[styles.container, { backgroundColor: bg }]}> 
-        <View style={styles.headerGradient}>
-          <View style={styles.headerTop}>
-            <ThemedText style={styles.headerTitle}>Profile</ThemedText>
+      <View style={[styles.container, { backgroundColor: SURFACE_MUTED }]}>
+        <CustomerScreenHeader
+          eyebrow="Your account"
+          title="Profile"
+          tint={tint}
+          rightSlot={
             <Pressable style={styles.iconBtn} onPress={() => router.push('/tailor/profile-edit')}>
-              <Ionicons name="create-outline" size={19} color="#ec4899" />
+              <Ionicons name="create-outline" size={20} color="#fff" />
             </Pressable>
-          </View>
-
-          <View style={styles.profileRow}>
-            <View style={[styles.avatar, { backgroundColor: cardBg }]}> 
-              {user?.avatar
-                ? <Image source={{ uri: user.avatar }} style={styles.avatarImage} />
-                : <Ionicons name="person-outline" size={34} color="#ec4899" />
-              }
-            </View>
-            <View style={{ marginLeft: 12 }}>
-              <Text style={styles.name}>{user?.name || 'Tailor Name'}</Text>
-              <Text style={styles.phone}>{auth?.loginEmail || user?.email || 'tailor@example.com'}</Text>
-              <View style={styles.ratingRow}>
-                <Ionicons name="star" size={15} color="#f59e0b" style={styles.star} />
-                <Text style={styles.rating}>4.8</Text>
-                <Text style={styles.reviews}>(128 reviews)</Text>
+          }
+          footer={
+            <View style={[styles.profileCard, { backgroundColor: cardBg }]}>
+              <View style={[styles.avatar, { backgroundColor: '#fdf2f8' }]}>
+                {user?.avatar ? (
+                  <Image source={{ uri: user.avatar }} style={styles.avatarImage} />
+                ) : (
+                  <Ionicons name="person-outline" size={32} color={tint} />
+                )}
+              </View>
+              <View style={styles.profileInfo}>
+                <Text style={styles.name}>{user?.name || 'Tailor Name'}</Text>
+                <Text style={styles.phone}>{auth?.loginEmail || user?.email || 'tailor@example.com'}</Text>
+                <View style={styles.ratingRow}>
+                  <Ionicons name="star" size={15} color="#f59e0b" />
+                  <Text style={styles.rating}>4.8</Text>
+                  <Text style={styles.reviews}>(128 reviews)</Text>
+                </View>
               </View>
             </View>
-          </View>
-        </View>
+          }
+        />
 
         <ScrollView contentContainerStyle={styles.content}>
           <View style={styles.section}>
@@ -98,7 +104,7 @@ export default function TailorProfile() {
 
           <View style={styles.section}>
             <Text style={styles.sectionLabel}>Information</Text>
-            <View style={[styles.infoCard, { backgroundColor: cardBg }]}> 
+            <View style={[styles.infoCard, { backgroundColor: cardBg }]}>
               <View style={styles.infoRow}><Ionicons name="call-outline" size={19} color="#ec4899" style={styles.infoIcon} /><View style={{flex:1}}><Text style={styles.infoLabel}>Phone</Text><Text style={styles.infoValue}>{user?.phone || 'Not set'}</Text></View></View>
               <View style={styles.infoRow}><Ionicons name="mail-outline" size={19} color="#ec4899" style={styles.infoIcon} /><View style={{flex:1}}><Text style={styles.infoLabel}>Email</Text><Text style={styles.infoValue}>{auth?.loginEmail || user?.email || 'Not set'}</Text></View></View>
               <View style={styles.infoRow}><Ionicons name="location-outline" size={19} color="#ec4899" style={styles.infoIcon} /><View style={{flex:1}}><Text style={styles.infoLabel}>Address</Text><Text style={styles.infoValue}>{user?.address || 'Not set'}</Text></View></View>
@@ -149,12 +155,23 @@ export default function TailorProfile() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  headerGradient: { paddingHorizontal: 16, paddingTop: 20, paddingBottom: 12, backgroundColor: '#fff0f6', borderBottomLeftRadius: 24, borderBottomRightRadius: 24 },
-  headerTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  headerTitle: { fontSize: 20, fontWeight: '700', color: '#6b21a8' },
-  iconBtn: { padding: 8, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.6)' },
-  profileRow: { flexDirection: 'row', alignItems: 'center', marginTop: 12 },
-  avatar: { width: 80, height: 80, borderRadius: 40, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  iconBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.22)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  profileCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 14,
+    borderRadius: 20,
+    ...UI.softShadow,
+  },
+  profileInfo: { flex: 1, marginLeft: 12 },
+  avatar: { width: 72, height: 72, borderRadius: 36, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   avatarImage: { width: '100%', height: '100%', borderRadius: 40 },
   name: { fontSize: 18, fontWeight: '700' },
   phone: { color: '#6b7280' },
@@ -168,7 +185,7 @@ const styles = StyleSheet.create({
   chipsRow: { flexDirection: 'row', flexWrap: 'wrap' },
   chip: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 20, backgroundColor: '#fff', borderWidth: 1, borderColor: '#f3d1de', marginRight: 8, marginBottom: 8 },
   chipText: { color: '#ec4899', fontWeight: '600' },
-  infoCard: { padding: 12, borderRadius: 12 },
+  infoCard: { padding: 12, borderRadius: 18, borderWidth: 1, borderColor: '#f1d6e2', ...UI.softShadow },
   infoRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
   infoIcon: { width: 40, textAlign: 'center' },
   infoLabel: { color: '#6b7280', fontSize: 12 },
@@ -179,7 +196,7 @@ const styles = StyleSheet.create({
   sampleImage: { width: '100%', height: '100%' },
   videoSample: { width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center', backgroundColor: '#1f2937' },
   sampleText: { color: '#6b7280', fontSize: 12 },
-  menuItem: { flexDirection: 'row', alignItems: 'center', padding: 12, borderRadius: 12, marginBottom: 8 },
+  menuItem: { flexDirection: 'row', alignItems: 'center', padding: 14, borderRadius: 16, marginBottom: 10, borderWidth: 1, borderColor: '#f1d6e2', ...UI.softShadow },
   menuIcon: { width: 32, textAlign: 'center' },
   menuLabel: { flex: 1, fontWeight: '700' },
   menuArrow: { color: '#6b7280' },
@@ -187,4 +204,3 @@ const styles = StyleSheet.create({
   logoutText: { color: '#fff', fontWeight: '700' },
   linkText: { color: '#ec4899', fontWeight: '700' },
 });
-

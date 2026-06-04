@@ -61,7 +61,7 @@ export default function AIStyleAssistant() {
 
   const [message, setMessage] = useState('');
   const [messages, setMessages] = useState<Message[]>([welcomeMessage]);
-  const { bottomInset } = useKeyboardInset({ extraOffset: 40 });
+  const { inputPaddingBottom } = useKeyboardInset({ extraOffset: 8 });
   const [sessionId, setSessionId] = useState<string | null>(
     typeof params.sessionId === 'string' ? params.sessionId : null
   );
@@ -447,7 +447,7 @@ export default function AIStyleAssistant() {
             )}
           </ScrollView>
 
-        <View style={[styles.inputFooter, { paddingBottom: bottomInset }]}>
+        <View style={[styles.inputFooter, { paddingBottom: inputPaddingBottom }]}>
           {showQuickPrompts && (
             <View style={styles.quickWrap}>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 12 }} keyboardShouldPersistTaps="handled">

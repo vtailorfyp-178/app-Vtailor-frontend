@@ -8,12 +8,12 @@ import {
   RefreshControl,
   TextInput,
   Modal,
-  KeyboardAvoidingView,
   Platform,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
+import { CustomerScreenHeader } from "@/components/customer/CustomerScreenHeader";
 import { SURFACE_MUTED, TEXT_DARK, UI } from "@/constants/ui";
 import { useThemeColor } from "@/hooks/use-theme-color";
 import { useAuth } from "@/contexts/AuthContext";
@@ -21,6 +21,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { getStreamClient } from "@/services/streamChatService";
 import { searchUsers, type UserSearchResult } from "@/services/usersApi";
 import { fetchOrCreateStreamChannel } from "@/services/streamChatService";
+import { useKeyboardInset } from "@/hooks/useKeyboardInset";
 import type { Channel, ChannelMemberResponse } from "stream-chat";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -160,6 +161,7 @@ function NewChatModal({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const { inputPaddingBottom } = useKeyboardInset({ extraOffset: 8 });
 
   // Role to search: customers search tailors, tailors search customers
   const targetRole: "tailor" | "customer" = myRole === "tailor" ? "customer" : "tailor";
@@ -214,12 +216,8 @@ function NewChatModal({
       transparent
       onRequestClose={handleClose}
     >
-      <KeyboardAvoidingView
-        style={styles.modalOverlay}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        keyboardVerticalOffset={0}
-      >
-        <View style={[styles.modalSheet, { backgroundColor: card }]}>
+      <View style={styles.modalOverlay}>
+        <View style={[styles.modalSheet, { backgroundColor: card, paddingBottom: inputPaddingBottom }]}>
           {/* Modal header */}
           <View style={[styles.modalHeader, { backgroundColor: tint }]}>
             <ThemedText style={styles.modalTitle}>
@@ -312,7 +310,7 @@ function NewChatModal({
             />
           )}
         </View>
-      </KeyboardAvoidingView>
+      </View>
     </Modal>
   );
 }
@@ -585,51 +583,70 @@ export default function ConversationListScreen() {
     );
   }
 
+  const composeButton = (
+    <Pressable
+      style={[styles.newChatBtn, { backgroundColor: "rgba(255,255,255,0.22)" }]}
+      onPress={() => setShowNewChat(true)}
+      disabled={openingChat}
+    >
+      {openingChat ? (
+        <ActivityIndicator size="small" color="#fff" />
+      ) : (
+        <Ionicons name="create-outline" size={20} color="#fff" />
+      )}
+    </Pressable>
+  );
+
+  const searchField = (
+    <View style={[styles.searchRow, { borderColor: inputBorder, backgroundColor: card }]}>
+      <Ionicons name="search-outline" size={18} color={muted} style={styles.searchIcon} />
+      <TextInput
+        value={searchQuery}
+        onChangeText={setSearchQuery}
+        placeholder="Filter conversations…"
+        placeholderTextColor={muted}
+        style={styles.searchInput}
+      />
+    </View>
+  );
+
+  const demoBanner = isDemoMode ? (
+    <View style={styles.demoBanner}>
+      <Ionicons name="information-circle-outline" size={13} color="#fff" />
+      <ThemedText style={styles.demoBannerText}>
+        Demo mode — tap <Ionicons name="create-outline" size={12} color="#fff" /> to search real profiles
+      </ThemedText>
+    </View>
+  ) : null;
+
   return (
     <ThemedView style={styles.container}>
-      {/* Header */}
-      <View style={[styles.header, { backgroundColor: tint }]}>
-        <View style={styles.headerTopRow}>
-          <View style={{ flex: 1 }}>
-            <ThemedText style={styles.headerEyebrow}>Stay connected</ThemedText>
-            <ThemedText style={styles.headerTitle}>Messages</ThemedText>
+      {userRole === "tailor" ? (
+        <View style={[styles.header, { backgroundColor: tint }]}>
+          <View style={styles.headerTopRow}>
+            <View style={{ flex: 1 }}>
+              <ThemedText style={styles.headerEyebrow}>Stay connected</ThemedText>
+              <ThemedText style={styles.headerTitle}>Messages</ThemedText>
+            </View>
+            {composeButton}
           </View>
-          {/* New Chat compose button */}
-          <Pressable
-            style={[styles.newChatBtn, { backgroundColor: "rgba(255,255,255,0.22)" }]}
-            onPress={() => setShowNewChat(true)}
-            disabled={openingChat}
-          >
-            {openingChat ? (
-              <ActivityIndicator size="small" color="#fff" />
-            ) : (
-              <Ionicons name="create-outline" size={20} color="#fff" />
-            )}
-          </Pressable>
+          {demoBanner}
+          {searchField}
         </View>
-
-        {isDemoMode && (
-          <View style={styles.demoBanner}>
-            <Ionicons name="information-circle-outline" size={13} color="#fff" />
-            <ThemedText style={styles.demoBannerText}>
-              Demo mode — tap{" "}
-              <Ionicons name="create-outline" size={12} color="#fff" />{" "}
-              to search real profiles from the database
-            </ThemedText>
-          </View>
-        )}
-
-        <View style={[styles.searchRow, { borderColor: inputBorder }]}>
-          <Ionicons name="search-outline" size={18} color={muted} style={styles.searchIcon} />
-          <TextInput
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            placeholder={userRole === "tailor" ? "Filter conversations…" : "Filter conversations…"}
-            placeholderTextColor={muted}
-            style={styles.searchInput}
-          />
-        </View>
-      </View>
+      ) : (
+        <CustomerScreenHeader
+          eyebrow="Stay connected"
+          title="Messages"
+          tint={tint}
+          rightSlot={composeButton}
+          footer={
+            <>
+              {demoBanner}
+              {searchField}
+            </>
+          }
+        />
+      )}
 
       {/* Conversation list */}
       {loading ? (
@@ -742,16 +759,16 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 14,
-    paddingVertical: 9,
+    paddingVertical: 10,
     borderRadius: 18,
     borderWidth: 1,
-    backgroundColor: "#fff",
-    marginTop: 10,
+    minHeight: 48,
+    marginBottom: 4,
   },
   searchIcon: { marginRight: 10 },
-  searchInput: { flex: 1, fontSize: 16, color: TEXT_DARK, paddingVertical: 6 },
+  searchInput: { flex: 1, fontSize: 15, color: TEXT_DARK, paddingVertical: 6 },
   centerContent: { flex: 1, justifyContent: "center", alignItems: "center", paddingHorizontal: 20 },
-  listContent: { paddingHorizontal: 14, paddingTop: 2, paddingBottom: 120 },
+  listContent: { paddingHorizontal: 14, paddingTop: 16, paddingBottom: 120 },
   startChatBtn: {
     flexDirection: "row",
     alignItems: "center",

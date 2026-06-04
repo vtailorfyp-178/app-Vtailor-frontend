@@ -1,5 +1,6 @@
 import React, { useRef, useState } from 'react';
-import { View, StyleSheet, Image, Pressable, TextInput, Alert, NativeSyntheticEvent, TextInputKeyPressEventData, KeyboardAvoidingView, ScrollView, Platform } from 'react-native';
+import { View, StyleSheet, Pressable, TextInput, Alert, NativeSyntheticEvent, TextInputKeyPressEventData, KeyboardAvoidingView, ScrollView, Platform } from 'react-native';
+import { BrandLogo } from '@/components/BrandLogo';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { ThemedText } from '@/components/themed-text';
@@ -10,8 +11,6 @@ import { useAuth, UserRole } from '@/contexts/AuthContext';
 import { getProfile, sendEmailOtp, verifyEmailOtp } from '@/services/authApi';
 import { migrateCustomizationsToUser } from '@/services/userDataService';
 import { Ionicons } from '@expo/vector-icons';
-
-const logo = require('../assets/images/vTailorlogo.jpeg');
 
 type AuthStep = 'role' | 'email' | 'otp';
 
@@ -231,9 +230,7 @@ export default function AuthScreen() {
         ) : null}
 
         <View style={{ alignItems: 'center' }}>
-          <View style={styles.logoWrap}>
-            <Image source={logo} style={styles.logo} />
-          </View>
+          <BrandLogo size={104} style={styles.logoWrap} />
           <View style={styles.stepPill}>
             <Ionicons
               name={step === 'role' ? 'sparkles-outline' : step === 'email' ? 'mail-outline' : 'shield-checkmark-outline'}
@@ -431,20 +428,7 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     backgroundColor: '#fff1f7',
   },
-  logo: {
-    width: 86,
-    height: 86,
-    resizeMode: 'contain',
-  },
   logoWrap: {
-    width: 104,
-    height: 104,
-    borderRadius: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#fff7fb',
-    borderWidth: 1,
-    borderColor: '#fbcfe8',
     marginBottom: 12,
   },
   stepPill: {

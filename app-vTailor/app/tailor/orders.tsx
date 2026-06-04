@@ -1,7 +1,8 @@
 import { ProtectedRoute } from '@/components/ProtectedRoute';
+import { CustomerScreenHeader } from '@/components/customer/CustomerScreenHeader';
 import { ThemedText } from '@/components/themed-text';
+import { useThemeColor } from '@/hooks/use-theme-color';
 import { SURFACE_MUTED, TEXT_DARK, UI, ROLE_COLORS } from '@/constants/ui';
-import { Ionicons } from '@expo/vector-icons';
 import { usePathname, useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -70,6 +71,7 @@ const orders = [
 export default function TailorOrders() {
   const router = useRouter();
   const pathname = usePathname();
+  const tint = useThemeColor({}, 'tint');
   const [filter, setFilter] = useState<'all' | 'active' | 'done' | 'cancelled'>('all');
   const returnTo = pathname === '/tailor/orders' ? '/tailor/orders' : '/tailor?tab=orders';
 
@@ -97,32 +99,35 @@ export default function TailorOrders() {
   return (
     <ProtectedRoute requiredRole="tailor">
       <ScrollView style={styles.screen} contentContainerStyle={styles.container}>
-        <View style={styles.header}>
-          <Pressable style={styles.backBtn} onPress={() => router.back()}>
-            <Ionicons name="arrow-back" size={24} color="#111827" />
-          </Pressable>
-          <View style={styles.headerTextWrap}>
-            <ThemedText style={styles.headerEyebrow}>Tailor workspace</ThemedText>
-            <ThemedText style={styles.title}>All Orders</ThemedText>
-          </View>
-          <View style={{ width: 40 }} />
-        </View>
+        <CustomerScreenHeader
+          eyebrow="Tailor workspace"
+          title="My Orders"
+          tint={tint}
+          footer={
+            <View style={styles.filtersRow}>
+              {(['all', 'active', 'done', 'cancelled'] as const).map((key) => {
+                const active = filter === key;
+                const labels = {
+                  all: `All (${counts.all})`,
+                  active: `Active (${counts.active})`,
+                  done: `Done (${counts.done})`,
+                  cancelled: `Cancelled (${counts.cancelled})`,
+                };
+                return (
+                  <Pressable
+                    key={key}
+                    style={[styles.filterChip, active && styles.filterChipActive]}
+                    onPress={() => setFilter(key)}
+                  >
+                    <Text style={active ? styles.filterTextActive : styles.filterText}>{labels[key]}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          }
+        />
 
-        <View style={styles.filters}>
-          <Pressable style={[styles.filterBtn, filter === 'all' && styles.filterActive]} onPress={() => setFilter('all')}>
-            <Text style={filter === 'all' ? styles.filterTextActive : styles.filterText}>All ({counts.all})</Text>
-          </Pressable>
-          <Pressable style={[styles.filterBtn, filter === 'active' && styles.filterActive]} onPress={() => setFilter('active')}>
-            <Text style={filter === 'active' ? styles.filterTextActive : styles.filterText}>Active ({counts.active})</Text>
-          </Pressable>
-          <Pressable style={[styles.filterBtn, filter === 'done' && styles.filterActive]} onPress={() => setFilter('done')}>
-            <Text style={filter === 'done' ? styles.filterTextActive : styles.filterText}>Done ({counts.done})</Text>
-          </Pressable>
-          <Pressable style={[styles.filterBtn, filter === 'cancelled' && styles.filterActive]} onPress={() => setFilter('cancelled')}>
-            <Text style={filter === 'cancelled' ? styles.filterTextActive : styles.filterText}>Cancelled ({counts.cancelled})</Text>
-          </Pressable>
-        </View>
-
+        <View style={styles.listWrap}>
         {filtered.map((order) => {
           const statusStyle = getStatusStyle(order.status);
           return (
@@ -166,6 +171,7 @@ export default function TailorOrders() {
             </Pressable>
           );
         })}
+        </View>
 
         <View style={{ height: 120 }} />
       </ScrollView>
@@ -175,17 +181,20 @@ export default function TailorOrders() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: SURFACE_MUTED },
-  container: { paddingBottom: 40, paddingHorizontal: 16, paddingTop: 16 },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18, backgroundColor: '#fff', borderRadius: 22, padding: 12, ...UI.softShadow },
-  headerTextWrap: { flex: 1, alignItems: 'center' },
-  headerEyebrow: { fontSize: 11, color: ROLE_COLORS.tailor.primary, fontWeight: '800', letterSpacing: 0.6, textTransform: 'uppercase', marginBottom: 2 },
-  backBtn: { width: 44, height: 44, borderRadius: 16, backgroundColor: ROLE_COLORS.tailor.soft, alignItems: 'center', justifyContent: 'center' },
-  title: { fontSize: 22, fontWeight: '900', textAlign: 'center', color: TEXT_DARK },
-  filters: { flexDirection: 'row', gap: 8, marginBottom: 18, justifyContent: 'space-between' },
-  filterBtn: { paddingVertical: 10, paddingHorizontal: 11, borderRadius: 999, backgroundColor: '#fff', borderWidth: 1, borderColor: BORDER },
-  filterActive: { backgroundColor: ROLE_COLORS.tailor.primary, borderColor: ROLE_COLORS.tailor.primary },
-  filterText: { color: '#374151', fontWeight: '600', fontSize: 12 },
-  filterTextActive: { color: '#fff', fontWeight: '600', fontSize: 12 },
+  container: { paddingBottom: 40, paddingTop: 4 },
+  filtersRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  filterChip: {
+    paddingVertical: 9,
+    paddingHorizontal: 14,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.35)',
+  },
+  filterChipActive: { backgroundColor: '#fff', borderColor: '#fff' },
+  filterText: { color: 'rgba(255,255,255,0.92)', fontWeight: '700', fontSize: 12 },
+  filterTextActive: { color: ROLE_COLORS.tailor.primaryDark, fontWeight: '700', fontSize: 12 },
+  listWrap: { paddingHorizontal: 16, paddingTop: 8 },
   card: { 
     backgroundColor: '#fff',
     padding: 16, 

@@ -30,6 +30,10 @@ import {
   toDisplayStandardMaterial,
 } from '@/services/glb/gltfSceneDisplay';
 import { getCachedGlbBuffer } from '@/services/glb/glbModelCache';
+import {
+  dressCameraFitMultiplier,
+  type DressViewerFramingMode,
+} from '@/services/glb/dressViewerFraming';
 import type { JSX } from 'react';
 import {
   Image,
@@ -62,6 +66,7 @@ function fitDressCamera(
   camera: THREE.PerspectiveCamera,
   layoutW: number,
   layoutH: number,
+  framing: DressViewerFramingMode = 'editor',
 ): { pivotY: number; zoom: number } {
   const box = new THREE.Box3().setFromObject(model);
   const size = box.getSize(new THREE.Vector3());
@@ -72,7 +77,7 @@ function fitDressCamera(
   const vFovRad = (camera.fov * Math.PI) / 180;
   const hFovRad = 2 * Math.atan(Math.tan(vFovRad / 2) * aspect);
   const fitFov = Math.min(vFovRad, hFovRad);
-  const dist = (maxDim / 2) / Math.tan(fitFov / 2) * 1.26;
+  const dist = (maxDim / 2) / Math.tan(fitFov / 2) * dressCameraFitMultiplier(framing);
 
   return {
     pivotY: center.y,
@@ -253,6 +258,8 @@ type Props = {
   backgroundImage?: ImageSourcePropType | null;
   style?: StyleProp<ViewStyle>;
   isUpdating?: boolean;
+  /** `presentation` — slightly closer framing for full-screen view / My Designs. */
+  framing?: DressViewerFramingMode;
 };
 
 export function TraditionalDressGlbViewer({
@@ -265,6 +272,7 @@ export function TraditionalDressGlbViewer({
   backgroundImage,
   style,
   isUpdating = false,
+  framing = 'editor',
 }: Props): JSX.Element {
   const hasBackdrop = backgroundImage != null;
   const rotY = useRef(0);
@@ -384,6 +392,7 @@ export function TraditionalDressGlbViewer({
           cam,
           layoutRef.current.width,
           layoutRef.current.height,
+          framing,
         );
         pivotYRef.current = pivotY;
         zoomRef.current = zoom;
@@ -685,6 +694,7 @@ export function TraditionalDressGlbViewer({
         fabricTextureUrl={fabricTextureUrl}
         style={style}
         isUpdating={isUpdating}
+        framing={framing}
       />
     );
   }

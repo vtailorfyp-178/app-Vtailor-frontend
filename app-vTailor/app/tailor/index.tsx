@@ -1,4 +1,6 @@
 import { ProtectedRoute } from '@/components/ProtectedRoute';
+import { tailorTabFromParam } from '@/components/tailor/tailorTabConfig';
+import { SURFACE_MUTED } from '@/constants/ui';
 import { useFocusEffect, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useState } from 'react';
 import { View } from 'react-native';
@@ -10,15 +12,14 @@ import TailorWallet from './wallet';
 
 const TailorDashboard = () => {
   const params = useLocalSearchParams();
-  const [activeTab, setActiveTab] = useState(() => 
-    typeof params?.tab === 'string' ? params.tab : 'home'
+  const [activeTab, setActiveTab] = useState(() =>
+    tailorTabFromParam(typeof params?.tab === 'string' ? params.tab : undefined),
   );
 
   useFocusEffect(
     useCallback(() => {
-      const tabFromParams = typeof params?.tab === 'string' ? params.tab : 'home';
-      setActiveTab(tabFromParams);
-    }, [params?.tab])
+      setActiveTab(tailorTabFromParam(typeof params?.tab === 'string' ? params.tab : undefined));
+    }, [params?.tab]),
   );
 
   const renderTab = () => {
@@ -34,7 +35,7 @@ const TailorDashboard = () => {
 
   return (
     <ProtectedRoute requiredRole="tailor">
-      <View style={{ flex: 1 }}>
+      <View style={{ flex: 1, backgroundColor: SURFACE_MUTED }}>
         {renderTab()}
       </View>
     </ProtectedRoute>

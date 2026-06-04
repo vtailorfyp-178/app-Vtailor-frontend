@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { View, ScrollView, StyleSheet, Pressable, Text } from 'react-native';
 import { ThemedText } from './themed-text';
 import { useRouter } from 'expo-router';
+import { CustomerScreenHeader } from '@/components/customer/CustomerScreenHeader';
 import { SURFACE_MUTED, TEXT_DARK, UI } from '@/constants/ui';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { Ionicons } from '@expo/vector-icons';
@@ -30,6 +31,7 @@ const orders = DEMO_CUSTOMER_ORDERS.map((o) => ({
 const CustomerOrders = () => {
   const router = useRouter();
   const tint = useThemeColor({}, 'tint');
+  const card = useThemeColor({}, 'card');
   const inputBorder = useThemeColor({}, 'inputBorder');
   const [selectedFilter, setSelectedFilter] = useState<OrderStatusFilter>('All');
 
@@ -68,29 +70,34 @@ const CustomerOrders = () => {
 
   return (
     <View style={styles.container}>
-      <View style={[styles.headerSection, { backgroundColor: tint }]}>
-        <ThemedText style={styles.headerEyebrow}>Track every stitch</ThemedText>
-        <ThemedText style={styles.headerTitle}>My Orders</ThemedText>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filtersRow}>
-          {FILTERS.map((filter) => {
-            const active = selectedFilter === filter;
-            return (
-              <Pressable
-                key={filter}
-                onPress={() => setSelectedFilter(filter)}
-                style={[
-                  styles.filterChip,
-                  active ? styles.filterChipActive : [styles.filterChipInactive, { borderColor: inputBorder }],
-                ]}
-              >
-                <Text style={[styles.filterText, active ? styles.filterTextActive : styles.filterTextInactive]}>
-                  {filter} ({filterCounts[filter]})
-                </Text>
-              </Pressable>
-            );
-          })}
-        </ScrollView>
-      </View>
+      <CustomerScreenHeader
+        eyebrow="Track & manage"
+        title="My Orders"
+        tint={tint}
+        footer={
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filtersRow}>
+            {FILTERS.map((filter) => {
+              const active = selectedFilter === filter;
+              return (
+                <Pressable
+                  key={filter}
+                  onPress={() => setSelectedFilter(filter)}
+                  style={[
+                    styles.filterChip,
+                    active
+                      ? [styles.filterChipActive, { backgroundColor: '#fff', borderColor: '#fff' }]
+                      : styles.filterChipInactive,
+                  ]}
+                >
+                  <Text style={[styles.filterText, active ? styles.filterTextActive : styles.filterTextInactive]}>
+                    {filter} ({filterCounts[filter]})
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        }
+      />
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         <View style={styles.ordersList}>
@@ -182,16 +189,13 @@ const CustomerOrders = () => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: SURFACE_MUTED },
-  headerSection: { margin: 16, paddingHorizontal: 18, paddingTop: 24, paddingBottom: 18, borderRadius: 24, ...UI.shadow },
-  headerEyebrow: { color: '#fff', opacity: 0.86, fontSize: 12, fontWeight: '700', marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.7 },
-  headerTitle: { fontSize: 24, fontWeight: '900', marginBottom: 16, color: '#fff' },
-  filtersRow: { gap: 10, paddingRight: 16 },
-  filterChip: { borderRadius: 999, paddingHorizontal: 15, paddingVertical: 10, borderWidth: 1 },
-  filterChipActive: { backgroundColor: '#fff', borderColor: '#fff' },
-  filterChipInactive: { backgroundColor: 'rgba(255,255,255,0.18)' },
+  filtersRow: { gap: 8, paddingRight: 8 },
+  filterChip: { borderRadius: 999, paddingHorizontal: 14, paddingVertical: 9, borderWidth: 1 },
+  filterChipActive: {},
+  filterChipInactive: { backgroundColor: 'rgba(255,255,255,0.2)', borderColor: 'rgba(255,255,255,0.35)' },
   filterText: { fontSize: 12, fontWeight: '700' },
-  filterTextActive: { color: '#ec4899' },
-  filterTextInactive: { color: '#fff' },
+  filterTextActive: { color: '#be185d' },
+  filterTextInactive: { color: 'rgba(255,255,255,0.92)' },
   scrollView: { flex: 1 },
   ordersList: { paddingHorizontal: 16, paddingTop: 6, gap: 12 },
   emptyCard: { padding: 18, backgroundColor: '#fff', borderRadius: 18, borderWidth: 1, borderColor: '#e5e7eb', alignItems: 'center', ...UI.softShadow },

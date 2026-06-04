@@ -4,7 +4,7 @@
     "slug": "app-vTailor",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/vTailorlogo.png",
+    "icon": "./assets/images/app-icon.png",
     "scheme": "appvtailor",
     "userInterfaceStyle": "automatic",
     "ios": {
@@ -20,8 +20,8 @@
       "package": "com.vtailor.app",
       "versionCode": 1,
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/images/vTailorlogo.png"
+        "backgroundColor": "#FFFFFF",
+        "foregroundImage": "./assets/images/app-icon-foreground.png"
       },
       "edgeToEdgeEnabled": true,
       "softwareKeyboardLayoutMode": "resize",
@@ -54,8 +54,8 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/vTailorlogo.png",
-          "imageWidth": 200,
+      "image": "./assets/images/app-icon.png",
+      "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#ffffff",
           "dark": {

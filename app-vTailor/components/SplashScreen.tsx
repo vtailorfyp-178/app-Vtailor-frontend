@@ -1,10 +1,9 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Animated, Image, Platform } from 'react-native';
+import { View, Text, StyleSheet, Animated, Platform } from 'react-native';
+import { BrandLogo } from '@/components/BrandLogo';
 import { useRouter } from 'expo-router';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { ROLE_COLORS, TEXT_DARK, UI } from '@/constants/ui';
-
-const logo = require('../assets/images/vTailorlogo.jpeg');
 
 export default function SplashScreen() {
   const router = useRouter();
@@ -48,7 +47,7 @@ export default function SplashScreen() {
       <Animated.View style={[styles.brandCard, { transform: [{ scale }], opacity }]}>
         <View style={styles.glowOne} />
         <View style={styles.glowTwo} />
-        <Image source={logo} style={styles.logo} resizeMode="contain" />
+        <BrandLogo size={120} />
       </Animated.View>
 
       <Animated.View style={[styles.taglineWrap, { opacity }]}>

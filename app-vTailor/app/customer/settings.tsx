@@ -19,12 +19,10 @@ export default function CustomerSettings() {
 
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [pushEnabled, setPushEnabled] = useState(true);
-  const [smsEnabled, setSmsEnabled] = useState(false);
 
   const handleToggleAllNotifications = (value: boolean) => {
     setNotificationsEnabled(value);
     setPushEnabled(value);
-    setSmsEnabled(value);
   };
 
   const handleChangeEmail = () => {
@@ -92,10 +90,12 @@ export default function CustomerSettings() {
 
               <Pressable style={[styles.settingItem, { backgroundColor: cardBg, marginTop: 8 }]} onPress={handleChangePhone}>
                 <View style={styles.settingLeft}>
-                  <Ionicons name="mail-open-outline" size={20} color={tint} style={styles.settingIcon} />
+                  <Ionicons name="call-outline" size={20} color={tint} style={styles.settingIcon} />
                   <View style={{ marginLeft: 12, flex: 1 }}>
-                    <Text style={styles.settingLabel}>Email</Text>
-                    <Text style={[styles.settingValue, { color: muted }]}>{auth.loginEmail || auth.user?.email || 'Not set'}</Text>
+                    <Text style={styles.settingLabel}>Phone Number</Text>
+                    <Text style={[styles.settingValue, { color: muted }]} numberOfLines={1}>
+                      {auth.user?.phone || 'Not set'}
+                    </Text>
                   </View>
                 </View>
                 <Ionicons name="chevron-forward" size={20} color={muted} />
@@ -129,16 +129,6 @@ export default function CustomerSettings() {
                 <Switch value={pushEnabled} onValueChange={setPushEnabled} />
               </View>
 
-              <View style={[styles.settingItem, { backgroundColor: cardBg, marginTop: 8 }]}>
-                <View style={styles.settingLeft}>
-                  <Ionicons name="chatbubble-ellipses-outline" size={20} color={tint} style={styles.settingIcon} />
-                  <View style={{ marginLeft: 12, flex: 1 }}>
-                    <Text style={styles.settingLabel}>SMS Notifications</Text>
-                    <Text style={[styles.settingValue, { color: muted }]}>Updates via SMS</Text>
-                  </View>
-                </View>
-                <Switch value={smsEnabled} onValueChange={setSmsEnabled} />
-              </View>
             </View>
           </View>
 

@@ -4,6 +4,7 @@ import { Href, useRouter } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
 import { ThemedText } from './themed-text';
 import { useThemeColor } from '@/hooks/use-theme-color';
+import { CustomerScreenHeader } from '@/components/customer/CustomerScreenHeader';
 import { SURFACE_MUTED, TEXT_DARK, UI } from '@/constants/ui';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -29,25 +30,30 @@ const CustomerProfile = () => {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: SURFACE_MUTED }]}> 
-      <View style={[styles.headerSection, { backgroundColor: tint }] }>
-        <ThemedText style={[styles.headerTitle, { color: '#fff' }]}>Profile</ThemedText>
-        <View style={[styles.profileCard, { backgroundColor: card }] }>
+    <View style={[styles.container, { backgroundColor: SURFACE_MUTED }]}>
+      <CustomerScreenHeader
+        eyebrow="Your account"
+        title="Profile"
+        tint={tint}
+        footer={
+          <View style={[styles.profileCard, { backgroundColor: card }]}>
             <View style={[styles.profileAvatar, { backgroundColor: iconBg }]}>
-              {user?.avatar
-                ? <Image source={{ uri: user.avatar }} style={styles.avatarImage} />
-                : <Ionicons name="person-outline" size={29} color={tint} />
-              }
+              {user?.avatar ? (
+                <Image source={{ uri: user.avatar }} style={styles.avatarImage} />
+              ) : (
+                <Ionicons name="person-outline" size={29} color={tint} />
+              )}
             </View>
-          <View style={styles.profileInfo}>
-            <ThemedText style={styles.profileName}>{user?.name || 'Customer Name'}</ThemedText>
-            <ThemedText style={[styles.profilePhone, { color: muted }]}>{displayEmail}</ThemedText>
+            <View style={styles.profileInfo}>
+              <ThemedText style={styles.profileName}>{user?.name || 'Customer Name'}</ThemedText>
+              <ThemedText style={[styles.profilePhone, { color: muted }]}>{displayEmail}</ThemedText>
+            </View>
+            <Pressable style={[styles.editBtn, { backgroundColor: iconBg }]} onPress={() => router.push('/customer/profile-edit')}>
+              <Ionicons name="create-outline" size={20} color={tint} />
+            </Pressable>
           </View>
-          <Pressable style={[styles.editBtn, { backgroundColor: iconBg }]} onPress={() => router.push('/customer/profile-edit')}>
-            <Ionicons name="create-outline" size={20} color={tint} />
-          </Pressable>
-        </View>
-      </View>
+        }
+      />
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         <View style={styles.section}>
@@ -101,9 +107,7 @@ const CustomerProfile = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#ffffff' },
-  headerSection: { margin: 16, paddingHorizontal: 18, paddingTop: 24, paddingBottom: 18, borderRadius: 24, ...UI.shadow },
-  headerTitle: { fontSize: 24, fontWeight: '900', marginBottom: 16 },
+  container: { flex: 1 },
   profileCard: { flexDirection: 'row', alignItems: 'center', padding: 14, borderRadius: 20, ...UI.softShadow },
   profileAvatar: { width: 62, height: 62, borderRadius: 31, justifyContent: 'center', alignItems: 'center', marginRight: 12, overflow: 'hidden' },
   avatarImage: { width: '100%', height: '100%', borderRadius: 28 },

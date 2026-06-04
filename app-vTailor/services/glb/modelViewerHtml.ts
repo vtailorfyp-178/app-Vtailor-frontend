@@ -1,3 +1,8 @@
+import {
+  DRESS_MODEL_VIEWER_ORBIT_SCALE,
+  type DressViewerFramingMode,
+} from '@/services/glb/dressViewerFraming';
+
 function escapeAttr(value: string): string {
   return value
     .replace(/&/g, '&amp;')
@@ -5,6 +10,8 @@ function escapeAttr(value: string): string {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;');
 }
+
+const MV_ORBIT_SCALE_DEFAULT = DRESS_MODEL_VIEWER_ORBIT_SCALE.editor;
 
 /** Stable shell — model-viewer script loads once; GLB swaps via `injectModelViewerGlbScript`. */
 export function buildModelViewerShellHtml(): string {
@@ -145,13 +152,17 @@ export function buildModelViewerShellHtml(): string {
         const dim = mv.getDimensions && mv.getDimensions();
         if (dim && dim.y > 0.01) {
           var maxDim = Math.max(dim.x, dim.y, dim.z);
-          mv.cameraOrbit = '0deg 88deg ' + Math.round(maxDim * 102) + '%';
+          var orbitScale = (typeof window.__vtailorOrbitScale === 'number')
+            ? window.__vtailorOrbitScale
+            : ${MV_ORBIT_SCALE_DEFAULT};
+          mv.cameraOrbit = '0deg 88deg ' + Math.round(maxDim * orbitScale) + '%';
           mv.fieldOfView = '22deg';
         }
         setTargetFromModel();
         if (typeof mv.updateFraming === 'function') mv.updateFraming();
       } catch (_) {}
     }
+    window.__vtailorFrameDress = frameDress;
     function nudgeTarget(delta) {
       if (!baseTarget) return;
       targetYOffset = clamp(targetYOffset + delta, -3, 3);
@@ -451,6 +462,11 @@ export function injectModelViewerWeddingColorScript(hex: string | null): string 
   return `(function(){try{window.__vtailorWeddingHex=${payload};window.__vtailorSetWeddingColor&&window.__vtailorSetWeddingColor(window.__vtailorWeddingHex);}catch(e){}})();true;`;
 }
 
+export function injectModelViewerFramingScript(mode: DressViewerFramingMode): string {
+  const scale = DRESS_MODEL_VIEWER_ORBIT_SCALE[mode];
+  return `(function(){try{window.__vtailorOrbitScale=${scale};if(typeof window.__vtailorFrameDress==='function')window.__vtailorFrameDress();}catch(e){}})();true;`;
+}
+
 /** Inline HTML for WebView fallback — preserves GLB materials via model-viewer. */
 export function buildModelViewerHtml(glbUrl: string): string {
   const src = escapeAttr(glbUrl);
@@ -523,7 +539,10 @@ export function buildModelViewerHtml(glbUrl: string): string {
         }
         if (dim && dim.y > 0.01) {
           var maxDim = Math.max(dim.x, dim.y, dim.z);
-          mv.cameraOrbit = '0deg 88deg ' + Math.round(maxDim * 102) + '%';
+          var orbitScale = (typeof window.__vtailorOrbitScale === 'number')
+            ? window.__vtailorOrbitScale
+            : ${MV_ORBIT_SCALE_DEFAULT};
+          mv.cameraOrbit = '0deg 88deg ' + Math.round(maxDim * orbitScale) + '%';
           mv.fieldOfView = '22deg';
         }
         if (typeof mv.updateFraming === 'function') mv.updateFraming();

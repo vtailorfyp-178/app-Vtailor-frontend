@@ -7,6 +7,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { ThemedText } from './themed-text';
 import { useAuth } from '@/contexts/AuthContext';
 import { getWalletSummary, WalletSummary } from '@/services/walletApi';
+import { CustomerScreenHeader } from '@/components/customer/CustomerScreenHeader';
 import { SURFACE_MUTED, TEXT_DARK, UI } from '@/constants/ui';
 
 type PenaltyOrder = {
@@ -101,48 +102,52 @@ const CustomerWallet = () => {
   );
 
   return (
-    <View style={styles.container}> 
-      <View style={[styles.headerSection, { backgroundColor: tint }] }>
-        <ThemedText style={[styles.headerTitle, { color: '#fff' }]}>My Wallet</ThemedText>
-        <View style={[styles.balanceCard, { backgroundColor: card }] }>
-          <View style={styles.balanceTop}>
-            <View style={[styles.walletIcon, { backgroundColor: '#fef3c7' }]}>
-              <Ionicons name="wallet-outline" size={25} color="#d97706" />
+    <View style={styles.container}>
+      <CustomerScreenHeader
+        eyebrow="Payments"
+        title="My Wallet"
+        tint={tint}
+        footer={
+          <View style={[styles.balanceCard, { backgroundColor: card }]}>
+            <View style={styles.balanceTop}>
+              <View style={[styles.walletIcon, { backgroundColor: '#fef3c7' }]}>
+                <Ionicons name="wallet-outline" size={25} color="#d97706" />
+              </View>
+              <View>
+                <ThemedText style={styles.balanceLabel}>Available Balance</ThemedText>
+                <ThemedText style={styles.balanceAmount}>Rs. {(wallet?.balance ?? 0).toLocaleString()}</ThemedText>
+              </View>
             </View>
-            <View>
-              <ThemedText style={styles.balanceLabel}>Available Balance</ThemedText>
-              <ThemedText style={styles.balanceAmount}>Rs. {(wallet?.balance ?? 0).toLocaleString()}</ThemedText>
-            </View>
-          </View>
-          <View style={styles.actionRow}>
-            <Pressable
-              onPress={() => {
-                setMode('withdraw');
-                router.push({ pathname: '/wallet-payment-method', params: { transactionType: 'withdraw', role: 'customer' } });
-              }}
-              style={[
-                styles.tabBtn,
-                { backgroundColor: mode === 'withdraw' ? tint : 'transparent', borderWidth: mode === 'withdraw' ? 0 : 1, borderColor: inputBorder },
-              ]}
-            >
-              <ThemedText style={[styles.tabBtnText, mode === 'withdraw' ? { color: '#fff' } : { color: tint }]}>- Withdraw</ThemedText>
-            </Pressable>
+            <View style={styles.actionRow}>
+              <Pressable
+                onPress={() => {
+                  setMode('withdraw');
+                  router.push({ pathname: '/wallet-payment-method', params: { transactionType: 'withdraw', role: 'customer' } });
+                }}
+                style={[
+                  styles.tabBtn,
+                  { backgroundColor: mode === 'withdraw' ? tint : 'transparent', borderWidth: mode === 'withdraw' ? 0 : 1, borderColor: inputBorder },
+                ]}
+              >
+                <ThemedText style={[styles.tabBtnText, mode === 'withdraw' ? { color: '#fff' } : { color: tint }]}>- Withdraw</ThemedText>
+              </Pressable>
 
-            <Pressable
-              onPress={() => {
-                setMode('add');
-                router.push({ pathname: '/wallet-payment-method', params: { transactionType: 'add', role: 'customer' } });
-              }}
-              style={[
-                styles.tabBtn,
-                { backgroundColor: mode === 'add' ? tint : 'transparent', borderWidth: mode === 'add' ? 0 : 1, borderColor: inputBorder },
-              ]}
-            >
-              <ThemedText style={[styles.tabBtnText, mode === 'add' ? { color: '#fff' } : { color: tint }]}>+ Add Money</ThemedText>
-            </Pressable>
+              <Pressable
+                onPress={() => {
+                  setMode('add');
+                  router.push({ pathname: '/wallet-payment-method', params: { transactionType: 'add', role: 'customer' } });
+                }}
+                style={[
+                  styles.tabBtn,
+                  { backgroundColor: mode === 'add' ? tint : 'transparent', borderWidth: mode === 'add' ? 0 : 1, borderColor: inputBorder },
+                ]}
+              >
+                <ThemedText style={[styles.tabBtnText, mode === 'add' ? { color: '#fff' } : { color: tint }]}>+ Add Money</ThemedText>
+              </Pressable>
+            </View>
           </View>
-        </View>
-      </View>
+        }
+      />
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         {/* Delivery Status & Penalty Information Section */}
@@ -260,8 +265,6 @@ const CustomerWallet = () => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: SURFACE_MUTED },
-  headerSection: { margin: 16, paddingHorizontal: 18, paddingTop: 24, paddingBottom: 18, borderRadius: 24, ...UI.shadow },
-  headerTitle: { fontSize: 24, fontWeight: '900', marginBottom: 20 },
   balanceCard: { borderRadius: 20, padding: 16, ...UI.softShadow },
   balanceTop: { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
   walletIcon: { width: 48, height: 48, borderRadius: 12, backgroundColor: '#fbbf24', justifyContent: 'center', alignItems: 'center', marginRight: 12 },

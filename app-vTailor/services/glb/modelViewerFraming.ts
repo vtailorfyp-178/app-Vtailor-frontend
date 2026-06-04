@@ -1,5 +1,12 @@
 /** Shared Google model-viewer settings for full-length dress GLBs. */
 
+import {
+  dressCameraOrbitRadius,
+  type DressViewerFramingMode,
+} from '@/services/glb/dressViewerFraming';
+
+export type { DressViewerFramingMode };
+
 export type ModelViewerElement = HTMLElement & {
   updateFraming?: () => void;
   getDimensions?: () => { x: number; y: number; z: number };
@@ -13,10 +20,6 @@ export type ModelViewerElement = HTMLElement & {
 /** Eye-level front view (polar ~88°), not top-down. */
 export const DRESS_CAMERA_ORBIT_DEFAULT = '0deg 88deg auto';
 export const DRESS_CAMERA_FOV_DEFAULT = '22deg';
-
-export function dressCameraOrbitRadius(maxDim: number): string {
-  return `${Math.round(maxDim * 102)}%`;
-}
 
 export const DRESS_MODEL_VIEWER_ATTRS: Record<string, string> = {
   'camera-controls': '',
@@ -42,7 +45,10 @@ export function applyModelViewerAttrs(el: HTMLElement, attrs = DRESS_MODEL_VIEWE
 }
 
 /** Center on real bbox center (GLB origin is often off — fixes tiny/corner dress). */
-export function frameDressModelViewer(mv: ModelViewerElement): void {
+export function frameDressModelViewer(
+  mv: ModelViewerElement,
+  mode: DressViewerFramingMode = 'editor',
+): void {
   try {
     const center = mv.getBoundingBoxCenter?.();
     const dim = mv.getDimensions?.();
@@ -53,7 +59,7 @@ export function frameDressModelViewer(mv: ModelViewerElement): void {
 
     if (dim && dim.y > 0.01) {
       const maxDim = Math.max(dim.x, dim.y, dim.z);
-      mv.cameraOrbit = `0deg 88deg ${dressCameraOrbitRadius(maxDim)}`;
+      mv.cameraOrbit = `0deg 88deg ${dressCameraOrbitRadius(maxDim, mode)}`;
       mv.fieldOfView = DRESS_CAMERA_FOV_DEFAULT;
     }
 
@@ -69,9 +75,13 @@ export function frameDressModelViewer(mv: ModelViewerElement): void {
   }
 }
 
-export function scheduleDressModelFraming(mv: ModelViewerElement, onReady?: () => void): void {
+export function scheduleDressModelFraming(
+  mv: ModelViewerElement,
+  onReady?: () => void,
+  mode: DressViewerFramingMode = 'editor',
+): void {
   const run = () => {
-    frameDressModelViewer(mv);
+    frameDressModelViewer(mv, mode);
     onReady?.();
   };
   run();

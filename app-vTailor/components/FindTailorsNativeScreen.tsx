@@ -8,7 +8,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as Location from 'expo-location';
 
 import { ThemedView } from '@/components/themed-view';
@@ -161,8 +161,33 @@ function initials(name: string) {
     .join('');
 }
 
+function getTailorCoordinate(tailor: NearbyTailor): { latitude: number; longitude: number } | null {
+  const lat = tailor.location?.latitude;
+  const lng = tailor.location?.longitude;
+  if (typeof lat !== 'number' || typeof lng !== 'number' || !Number.isFinite(lat) || !Number.isFinite(lng)) {
+    return null;
+  }
+  return { latitude: lat, longitude: lng };
+}
+
+function formatDistanceKm(km?: number | null): string {
+  if (typeof km !== 'number' || !Number.isFinite(km)) return '—';
+  return `${km.toFixed(1)} km`;
+}
+
+function formatRatingValue(rating?: number | null): string {
+  if (typeof rating !== 'number' || !Number.isFinite(rating)) return '—';
+  return rating.toFixed(1);
+}
+
+function formatReviewCount(count?: number | null): string {
+  if (typeof count !== 'number' || !Number.isFinite(count)) return '0';
+  return String(count);
+}
+
 export default function FindTailorsNativeScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ q?: string }>();
   const { token, userId } = useAuth();
 
   const tint = useThemeColor({}, 'tint');
@@ -171,7 +196,14 @@ export default function FindTailorsNativeScreen() {
   const muted = useThemeColor({}, 'muted');
   const text = useThemeColor({}, 'text');
 
-  const [query, setQuery] = useState('');
+  const initialQuery = typeof params.q === 'string' ? params.q : '';
+  const [query, setQuery] = useState(initialQuery);
+
+  useEffect(() => {
+    if (typeof params.q === 'string' && params.q !== query) {
+      setQuery(params.q);
+    }
+  }, [params.q]);
   const [sortBy, setSortBy] = useState<SortFilter>(null);
   const [distanceKm, setDistanceKm] = useState<DistanceFilter>(5);
   const [minRating, setMinRating] = useState<RatingFilter>('all');
@@ -201,7 +233,9 @@ export default function FindTailorsNativeScreen() {
     if (!query.trim()) return DEMO_TAILORS;
     const q = query.toLowerCase();
     return DEMO_TAILORS.filter(
-      (t) => t.name.toLowerCase().includes(q) || t.specialization.some((s) => s.toLowerCase().includes(q))
+      (t) =>
+        t.name.toLowerCase().includes(q) ||
+        (t.specialization || []).some((s) => s.toLowerCase().includes(q)),
     );
   }, [tailors, query]);
 
@@ -369,14 +403,21 @@ export default function FindTailorsNativeScreen() {
     return () => clearInterval(intervalId);
   }, [searchRegion, token, loadTailors]);
 
+  const mapTailors = useMemo(
+    () => displayTailors.filter((t) => getTailorCoordinate(t) != null),
+    [displayTailors],
+  );
+
   const onMarkerPress = (tailor: NearbyTailor) => {
     setSelectedTailorId(tailor.user_id);
-    const idx = tailors.findIndex((item) => item.user_id === tailor.user_id);
+    const idx = displayTailors.findIndex((item) => item.user_id === tailor.user_id);
     if (idx >= 0) {
       listRef.current?.scrollToIndex({ index: idx, animated: true });
     }
+    const coord = getTailorCoordinate(tailor);
+    if (!coord) return;
     focusingTailorRef.current = true;
-    mapRef.current?.animateToRegion(toRegion(tailor.location.latitude, tailor.location.longitude), 450);
+    mapRef.current?.animateToRegion(toRegion(coord.latitude, coord.longitude), 450);
     setTimeout(() => {
       focusingTailorRef.current = false;
     }, 600);
@@ -384,8 +425,10 @@ export default function FindTailorsNativeScreen() {
 
   const onTailorCardPress = (tailor: NearbyTailor) => {
     setSelectedTailorId(tailor.user_id);
+    const coord = getTailorCoordinate(tailor);
+    if (!coord) return;
     focusingTailorRef.current = true;
-    mapRef.current?.animateToRegion(toRegion(tailor.location.latitude, tailor.location.longitude), 450);
+    mapRef.current?.animateToRegion(toRegion(coord.latitude, coord.longitude), 450);
     setTimeout(() => {
       focusingTailorRef.current = false;
     }, 600);
@@ -520,13 +563,15 @@ export default function FindTailorsNativeScreen() {
         </View>
 
         <View style={styles.metaRow}>
-          <ThemedText style={styles.metaText}>{item.distance_km.toFixed(1)} km</ThemedText>
-          <ThemedText style={styles.metaText}>Rating {item.rating.toFixed(1)}</ThemedText>
-          <ThemedText style={styles.metaText}>{item.review_count} reviews</ThemedText>
+          <ThemedText style={styles.metaText}>{formatDistanceKm(item.distance_km)}</ThemedText>
+          <ThemedText style={styles.metaText}>Rating {formatRatingValue(item.rating)}</ThemedText>
+          <ThemedText style={styles.metaText}>{formatReviewCount(item.review_count)} reviews</ThemedText>
         </View>
 
         <View style={styles.metaRow}>
-          <ThemedText style={styles.metaText}>Rs {item.price_from} - {item.price_to}</ThemedText>
+          <ThemedText style={styles.metaText}>
+            Rs {item.price_from ?? '—'} - {item.price_to ?? '—'}
+          </ThemedText>
           <ThemedText style={[styles.metaText, { color: item.is_available ? '#15803d' : '#6b7280' }]}>
             {item.is_available ? 'Open now' : 'Closed'}
           </ThemedText>
@@ -559,7 +604,7 @@ export default function FindTailorsNativeScreen() {
                   specialization: (item.specialization || []).join(','),
                   rating: String(item.rating),
                   reviews: String(item.review_count),
-                  distance: `${item.distance_km.toFixed(1)} km`,
+                  distance: formatDistanceKm(item.distance_km),
                   isAvailable: String(item.is_available),
                 },
               })
@@ -687,13 +732,12 @@ export default function FindTailorsNativeScreen() {
           showsUserLocation
           showsMyLocationButton
         >
-          {displayTailors.map((tailor) => (
+          {mapTailors.map((tailor) => {
+            const coord = getTailorCoordinate(tailor)!;
+            return (
             <Marker
               key={tailor.user_id}
-              coordinate={{
-                latitude: tailor.location.latitude,
-                longitude: tailor.location.longitude,
-              }}
+              coordinate={coord}
               onPress={() => onMarkerPress(tailor)}
             >
               <View style={[styles.markerBubble, { borderColor: selectedTailorId === tailor.user_id ? tint : '#d1d5db' }]}>
@@ -705,7 +749,8 @@ export default function FindTailorsNativeScreen() {
                 <View style={[styles.markerDot, { backgroundColor: tailor.is_available ? '#16a34a' : '#9ca3af' }]} />
               </View>
             </Marker>
-          ))}
+            );
+          })}
         </MapView>
         {loading ? (
           <View style={styles.mapLoading}>
@@ -778,9 +823,9 @@ export default function FindTailorsNativeScreen() {
                     <ThemedText style={{ color: muted, fontSize: 12 }} numberOfLines={1}>
                       {tailor.email || tailor.phone || tailor.user_id}
                     </ThemedText>
-                    {tailor.specialization.length > 0 && (
+                    {(tailor.specialization?.length ?? 0) > 0 && (
                       <ThemedText style={{ color: tint, fontSize: 12 }} numberOfLines={1}>
-                        {tailor.specialization.join(' • ')}
+                        {(tailor.specialization || []).join(' • ')}
                       </ThemedText>
                     )}
                   </View>

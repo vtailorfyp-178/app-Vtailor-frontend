@@ -13,6 +13,7 @@ import { ensureModelViewerScript } from '@/services/glb/modelViewerScript';
 import {
   applyModelViewerAttrs,
   scheduleDressModelFraming,
+  type DressViewerFramingMode,
   type ModelViewerElement,
 } from '@/services/glb/modelViewerFraming';
 
@@ -22,6 +23,7 @@ type Props = {
   height: number;
   fallbackImage?: ImageSourcePropType | null;
   style?: StyleProp<ViewStyle>;
+  framing?: DressViewerFramingMode;
 };
 
 type LoadState = 'loading' | 'ready' | 'error';
@@ -35,6 +37,7 @@ export function GlbHtmlModelViewer({
   height,
   fallbackImage,
   style,
+  framing = 'editor',
 }: Props): React.ReactElement {
   const domRef = useRef<HTMLDivElement | null>(null);
   const errorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -86,7 +89,7 @@ export function GlbHtmlModelViewer({
           if (cancelled) return;
           scheduleDressModelFraming(mv, () => {
             if (!cancelled) setState('ready');
-          });
+          }, framing);
         };
         const onError = () => {
           if (!cancelled) scheduleError();
@@ -108,7 +111,7 @@ export function GlbHtmlModelViewer({
       clearErrorTimer();
       host.replaceChildren();
     };
-  }, [glbUrl]);
+  }, [glbUrl, framing]);
 
   if (!glbUrl || glbUrl === 'about:blank') {
     return (

@@ -76,7 +76,7 @@ export default function MeasurementForm() {
   const card = useThemeColor({}, 'card');
   const inputBorder = useThemeColor({}, 'inputBorder');
   const muted = useThemeColor({}, 'muted');
-  const { keyboardHeight, keyboardVisible, bottomInset } = useKeyboardInset({ extraOffset: 12 });
+  const { keyboardHeight, keyboardVisible, bottomInset, inputPaddingBottom } = useKeyboardInset({ extraOffset: 8 });
 
   const [step, setStep] = useState<Step>('basic');
   const [basic, setBasic] = useState<Record<string, string>>({});
@@ -226,8 +226,12 @@ export default function MeasurementForm() {
   return (
     <ThemedView style={styles.container}>
       <View style={[styles.header, { backgroundColor: tint }]}>
-        <AppBackButton onPress={handleBack} variant="tint" />
-        <ThemedText style={styles.headerTitle}>{STEP_TITLE[step]}</ThemedText>
+        <View style={styles.headerRow}>
+          <AppBackButton onPress={handleBack} variant="tint" />
+          <ThemedText style={styles.headerTitle} numberOfLines={2}>
+            {STEP_TITLE[step]}
+          </ThemedText>
+        </View>
       </View>
 
       <View style={styles.keyboardArea}>
@@ -300,7 +304,7 @@ export default function MeasurementForm() {
           </View>
         </ScrollView>
 
-        <View style={[styles.footer, { borderTopColor: inputBorder, backgroundColor: card, paddingBottom: bottomInset }]}>
+        <View style={[styles.footer, { borderTopColor: inputBorder, backgroundColor: card, paddingBottom: inputPaddingBottom }]}>
           {step === 'basic' ? (
             <Pressable
               onPress={() => basicComplete && setStep('shirt')}
@@ -346,8 +350,13 @@ export default function MeasurementForm() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   keyboardArea: { flex: 1 },
-  header: { paddingTop: 40, padding: 16, gap: 12 },
-  headerTitle: { color: '#fff', fontWeight: '800', fontSize: 18 },
+  header: { paddingTop: 40, paddingHorizontal: 16, paddingBottom: 14 },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  headerTitle: { flex: 1, color: '#fff', fontWeight: '800', fontSize: 18 },
   scroll: { padding: 12, flexGrow: 0 },
   infoCard: { padding: 12, borderRadius: 12, borderWidth: 1, marginTop: 12 },
   stepPillsScroll: { marginTop: 12, flexGrow: 0 },

@@ -143,7 +143,7 @@ export default function ChatConversation() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const insets = useSafeAreaInsets();
-  const { bottomInset } = useKeyboardInset({ extraOffset: 12 });
+  const { inputPaddingBottom } = useKeyboardInset({ extraOffset: 8 });
 
   const streamChannelId = params.stream_channel_id as string | undefined;
   const demoChannelId = params.demo_channel_id as string | undefined;
@@ -746,7 +746,7 @@ export default function ChatConversation() {
         />
 
         {/* Input â€” disabled when Stream error for real users */}
-        <View style={[styles.inputArea, { backgroundColor: card, borderTopColor: muted, paddingBottom: bottomInset }]}>
+        <View style={[styles.inputArea, { backgroundColor: card, borderTopColor: muted, paddingBottom: inputPaddingBottom }]}>
           {/* Attach menu popup */}
           {showAttachMenu && (
             <View style={[styles.attachMenu, { backgroundColor: card }]}>

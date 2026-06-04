@@ -9,7 +9,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 
 import { ThemedView } from '@/components/themed-view';
 import { ThemedText } from '@/components/themed-text';
@@ -146,6 +146,7 @@ const DEMO_TAILORS: NearbyTailor[] = [
 
 export default function FindTailorsWebScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ q?: string }>();
   const { token, userId } = useAuth();
 
   const tint = useThemeColor({}, 'tint');
@@ -154,7 +155,14 @@ export default function FindTailorsWebScreen() {
   const muted = useThemeColor({}, 'muted');
   const text = useThemeColor({}, 'text');
 
-  const [query, setQuery] = useState('');
+  const initialQuery = typeof params.q === 'string' ? params.q : '';
+  const [query, setQuery] = useState(initialQuery);
+
+  useEffect(() => {
+    if (typeof params.q === 'string' && params.q !== query) {
+      setQuery(params.q);
+    }
+  }, [params.q]);
   const [sortBy, setSortBy] = useState<SortMode>('distance');
   const [priceRange, setPriceRange] = useState<PriceRange>('all');
   const [minRating, setMinRating] = useState<RatingFilter>('all');

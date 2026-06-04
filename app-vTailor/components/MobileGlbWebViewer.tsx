@@ -19,10 +19,12 @@ import {
   type FabricPatternMeta,
 } from '@/services/glb/fabricPrintSelection';
 import { glbNeedsEmbeddedTextures } from '@/services/glb/glbMaterialPolicy';
+import type { DressViewerFramingMode } from '@/services/glb/dressViewerFraming';
 import {
   buildModelViewerShellHtml,
   injectModelViewerFabricColorScript,
   injectModelViewerFabricTextureScript,
+  injectModelViewerFramingScript,
   injectModelViewerGlbScript,
   injectModelViewerWeddingColorScript,
   modelViewerBaseUrl,
@@ -46,6 +48,7 @@ type Props = {
   style?: StyleProp<ViewStyle>;
   /** Show spinner while a new GLB is loading (previous model may stay visible underneath). */
   isUpdating?: boolean;
+  framing?: DressViewerFramingMode;
 };
 
 type LoadState = 'loading' | 'ready' | 'error';
@@ -69,6 +72,7 @@ export const MobileGlbWebViewer = React.memo(function MobileGlbWebViewer({
   fallbackImage,
   style,
   isUpdating = false,
+  framing = 'editor',
 }: Props): React.ReactElement {
   const webRef = useRef<WebView>(null);
   const shellReadyRef = useRef(false);
@@ -124,6 +128,10 @@ export const MobileGlbWebViewer = React.memo(function MobileGlbWebViewer({
     );
   }, []);
 
+  const injectFraming = useCallback((mode: DressViewerFramingMode) => {
+    webRef.current?.injectJavaScript(injectModelViewerFramingScript(mode));
+  }, []);
+
   const injectWeddingColor = useCallback((hex: string | null, url: string) => {
     if (!webRef.current || !shellReadyRef.current) return;
     const tintHex =
@@ -149,9 +157,10 @@ export const MobileGlbWebViewer = React.memo(function MobileGlbWebViewer({
         injectFabricTexture(fabricTextureRef.current, httpsUrl);
         injectFabricColor(fabricColorRef.current, httpsUrl);
         injectWeddingColor(weddingColorRef.current, httpsUrl);
+        injectFraming(framing);
       }, INJECT_DEBOUNCE_MS);
     },
-    [injectGlb, injectFabricColor, injectFabricTexture, injectWeddingColor, isUpdating],
+    [injectGlb, injectFabricColor, injectFabricTexture, injectWeddingColor, injectFraming, framing, isUpdating],
   );
 
   const resolveAndInject = useCallback(
@@ -242,6 +251,7 @@ export const MobileGlbWebViewer = React.memo(function MobileGlbWebViewer({
         allowsFullscreenVideo
         onLoadEnd={() => {
           shellReadyRef.current = true;
+          injectFraming(framing);
           void resolveAndInject(glbUrlRef.current);
         }}
         onMessage={(event) => {
@@ -251,6 +261,7 @@ export const MobileGlbWebViewer = React.memo(function MobileGlbWebViewer({
             const activeHttps = remoteGlbUrl(activeUrl);
             if (data.type === 'ready') {
               shellReadyRef.current = true;
+              injectFraming(framing);
               if (activeHttps) void resolveAndInject(activeHttps);
             }
             if (data.type === 'loading') {
@@ -265,6 +276,7 @@ export const MobileGlbWebViewer = React.memo(function MobileGlbWebViewer({
                 injectFabricTexture(fabricTextureUrl ?? null, activeHttps);
                 injectFabricColor(fabricColorHex ?? null, activeHttps);
                 injectWeddingColor(weddingColorHex ?? null, activeHttps);
+                injectFraming(framing);
               }
             }
             if (data.type === 'error' && activeHttps) {

@@ -181,6 +181,7 @@ export default function View3DModelScreen() {
             backgroundImage={imageSource}
             fallbackImage={imageSource}
             loadError={dressGlb.error}
+            framing="presentation"
           />
         ) : imageSource ? (
           <>

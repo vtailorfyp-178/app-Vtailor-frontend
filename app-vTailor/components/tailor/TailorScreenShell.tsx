@@ -36,10 +36,18 @@ export function TailorScreenShell({
           ) : (
             <View style={styles.spacer42} />
           )}
+          <View style={styles.titleBlock}>
+            <ThemedText style={tailorStyles.headerTitle} numberOfLines={1}>
+              {title}
+            </ThemedText>
+            {subtitle ? (
+              <ThemedText style={tailorStyles.headerSubtitle} numberOfLines={1}>
+                {subtitle}
+              </ThemedText>
+            ) : null}
+          </View>
           {rightSlot ?? <View style={styles.spacer42} />}
         </View>
-        <ThemedText style={tailorStyles.headerTitle}>{title}</ThemedText>
-        {subtitle ? <ThemedText style={tailorStyles.headerSubtitle}>{subtitle}</ThemedText> : null}
       </View>
       <View style={[tailorStyles.content, contentStyle]}>{children}</View>
     </View>
@@ -85,8 +93,12 @@ const styles = StyleSheet.create({
   headerTop: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    gap: 10,
     marginBottom: 4,
+  },
+  titleBlock: {
+    flex: 1,
+    minWidth: 0,
   },
   spacer42: { width: 42, height: 42 },
 });
