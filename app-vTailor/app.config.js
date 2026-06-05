@@ -7,7 +7,6 @@ module.exports = ({ config }) => {
 
   return {
     ...config,
-    icon: './assets/images/app-icon.png',
     extra: {
       ...config.extra,
       apiBaseUrl:
@@ -17,8 +16,8 @@ module.exports = ({ config }) => {
     android: {
       ...config.android,
       adaptiveIcon: {
-        foregroundImage: './assets/images/app-icon-foreground.png',
-        backgroundColor: '#FFFFFF',
+        foregroundImage: './assets/images/vTailorlogo.png',
+        backgroundColor: '#E6F4FE',
       },
       config: {
         ...config.android?.config,
@@ -32,7 +31,7 @@ module.exports = ({ config }) => {
       [
         'expo-notifications',
         {
-          color: '#fdf2f8',
+          color: '#E6F4FE',
         },
       ],
     ],

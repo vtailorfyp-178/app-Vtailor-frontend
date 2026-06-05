@@ -19,7 +19,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { fetchOrCreateStreamChannel } from '@/services/streamChatService';
 import { getNearbyTailors, type NearbyTailor } from '@/services/tailorsApi';
 import { searchUsers, type UserSearchResult } from '@/services/usersApi';
-import MapView, { Marker } from '@/components/MapPrimitives';
+import { FindTailorsOsmMap, type FindTailorsMapHandle } from '@/components/FindTailorsOsmMap';
 
 type SortMode = 'distance' | 'rating' | 'reviews';
 type SortFilter = SortMode | null;
@@ -215,6 +215,7 @@ export default function FindTailorsNativeScreen() {
   const [draftSpecialty, setDraftSpecialty] = useState<string>('all');
 
   const [locationReady, setLocationReady] = useState(false);
+  const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const [searchRegion, setSearchRegion] = useState<Region>(DEFAULT_REGION);
   const [tailors, setTailors] = useState<NearbyTailor[]>([]);
   const [loading, setLoading] = useState(true);
@@ -224,7 +225,7 @@ export default function FindTailorsNativeScreen() {
   const [dbTailors, setDbTailors] = useState<UserSearchResult[]>([]);
   const [dbLoading, setDbLoading] = useState(false);
 
-  const mapRef = useRef<any>(null);
+  const mapRef = useRef<FindTailorsMapHandle | null>(null);
   const listRef = useRef<FlatList<NearbyTailor> | null>(null);
   const focusingTailorRef = useRef(false);
 
@@ -369,6 +370,7 @@ export default function FindTailorsNativeScreen() {
         if (!mounted) return;
 
         const nextRegion = toRegion(current.coords.latitude, current.coords.longitude);
+        setUserLocation({ latitude: current.coords.latitude, longitude: current.coords.longitude });
         setSearchRegion((current) => (isSameArea(current, nextRegion) ? current : nextRegion));
         mapRef.current?.animateToRegion(nextRegion, 450);
         setLocationReady(true);
@@ -406,6 +408,24 @@ export default function FindTailorsNativeScreen() {
   const mapTailors = useMemo(
     () => displayTailors.filter((t) => getTailorCoordinate(t) != null),
     [displayTailors],
+  );
+
+  const leafletMarkers = useMemo(
+    () =>
+      mapTailors.map((tailor) => {
+        const coord = getTailorCoordinate(tailor)!;
+        return {
+          id: tailor.user_id,
+          lat: coord.latitude,
+          lng: coord.longitude,
+          initials: initials(tailor.name),
+          avatarUrl: tailor.avatar && tailor.avatar.startsWith('http') ? tailor.avatar : undefined,
+          available: !!tailor.is_available,
+          selected: selectedTailorId === tailor.user_id,
+          tint,
+        };
+      }),
+    [mapTailors, selectedTailorId, tint],
   );
 
   const onMarkerPress = (tailor: NearbyTailor) => {
@@ -718,40 +738,22 @@ export default function FindTailorsNativeScreen() {
       </View>
 
       <View style={styles.mapContainer}>
-        <MapView
-          ref={(ref) => {
-            mapRef.current = ref;
-          }}
-          style={StyleSheet.absoluteFill}
-          initialRegion={DEFAULT_REGION}
-          onRegionChangeComplete={(nextRegion: Region) => {
+        <FindTailorsOsmMap
+          ref={mapRef}
+          initialRegion={searchRegion}
+          markers={leafletMarkers}
+          tint={tint}
+          userLocation={userLocation}
+          onRegionChangeComplete={(nextRegion) => {
             if (!locationReady) return;
             if (focusingTailorRef.current) return;
             setSearchRegion((current) => (isSameArea(current, nextRegion) ? current : nextRegion));
           }}
-          showsUserLocation
-          showsMyLocationButton
-        >
-          {mapTailors.map((tailor) => {
-            const coord = getTailorCoordinate(tailor)!;
-            return (
-            <Marker
-              key={tailor.user_id}
-              coordinate={coord}
-              onPress={() => onMarkerPress(tailor)}
-            >
-              <View style={[styles.markerBubble, { borderColor: selectedTailorId === tailor.user_id ? tint : '#d1d5db' }]}>
-                {tailor.avatar && tailor.avatar.startsWith('http') ? (
-                  <Image source={{ uri: tailor.avatar }} style={styles.markerAvatar} />
-                ) : (
-                  <ThemedText style={styles.markerText}>{initials(tailor.name)}</ThemedText>
-                )}
-                <View style={[styles.markerDot, { backgroundColor: tailor.is_available ? '#16a34a' : '#9ca3af' }]} />
-              </View>
-            </Marker>
-            );
-          })}
-        </MapView>
+          onMarkerPress={(tailorId) => {
+            const tailor = displayTailors.find((item) => item.user_id === tailorId);
+            if (tailor) onMarkerPress(tailor);
+          }}
+        />
         {loading ? (
           <View style={styles.mapLoading}>
             <ActivityIndicator color={tint} />
@@ -914,7 +916,6 @@ const styles = StyleSheet.create({
   },
   filterBtnText: { fontWeight: '800', fontSize: 13 },
   mapContainer: { height: 260, marginHorizontal: 12, marginTop: 16, borderRadius: 18, overflow: 'hidden' },
-  mapFallback: { alignItems: 'center', justifyContent: 'center', backgroundColor: '#eef2f7' },
   mapLoading: {
     position: 'absolute',
     top: 12,
@@ -1034,26 +1035,4 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   actionText: { fontWeight: '700' },
-  markerBubble: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    borderWidth: 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#ffffff',
-    position: 'relative',
-  },
-  markerAvatar: { width: 40, height: 40, borderRadius: 20 },
-  markerText: { fontWeight: '800', color: '#111827' },
-  markerDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    borderWidth: 2,
-    borderColor: '#fff',
-    position: 'absolute',
-    right: 1,
-    bottom: 1,
-  },
 });
