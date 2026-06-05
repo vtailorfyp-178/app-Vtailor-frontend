@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Dimensions, Keyboard, Platform, type KeyboardEvent } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -15,12 +15,21 @@ export function computeInputPaddingBottom(
   keyboardHeight: number,
   safeAreaBottom: number,
   idlePadding: number,
-  keyboardGap = 14,
+  keyboardGap = 10,
+  androidWindowResized = false,
 ): number {
-  if (keyboardVisible) {
-    return Math.max(8, keyboardHeight - safeAreaBottom - keyboardGap);
+  if (!keyboardVisible) {
+    return idlePadding;
   }
-  return idlePadding;
+
+  // Android adjustResize already shrinks the window — only add a small cosmetic gap.
+  if (Platform.OS === 'android' && androidWindowResized) {
+    return Math.max(10, safeAreaBottom + keyboardGap);
+  }
+
+  // iOS, or Android when the window did not resize (keyboard overlays content).
+  const lift = keyboardHeight - safeAreaBottom - keyboardGap;
+  return Math.max(keyboardGap, lift);
 }
 
 function resolveKeyboardHeight(event: KeyboardEvent): number {
@@ -35,15 +44,39 @@ function resolveKeyboardHeight(event: KeyboardEvent): number {
  * on different screen sizes (iOS + Android, including edge-to-edge).
  */
 export function useKeyboardInset(options: UseKeyboardInsetOptions = {}) {
-  const { extraOffset = 8, keyboardGap = 14 } = options;
+  const { extraOffset = 8, keyboardGap = 10 } = options;
   const insets = useSafeAreaInsets();
   const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const [androidWindowResized, setAndroidWindowResized] = useState(false);
+  const baselineWindowHeightRef = useRef(Dimensions.get('window').height);
+  const keyboardVisibleRef = useRef(false);
 
   useEffect(() => {
     const onShow = (event: KeyboardEvent) => {
-      setKeyboardHeight(resolveKeyboardHeight(event));
+      const height = resolveKeyboardHeight(event);
+      keyboardVisibleRef.current = true;
+      setKeyboardHeight(height);
+
+      if (Platform.OS === 'android') {
+        const detectResize = () => {
+          const currentWindowHeight = Dimensions.get('window').height;
+          const baseline = baselineWindowHeightRef.current;
+          // adjustResize lowers window height when the keyboard opens.
+          const shrunk = baseline - currentWindowHeight > Math.max(72, height * 0.25);
+          setAndroidWindowResized(shrunk);
+        };
+        detectResize();
+        requestAnimationFrame(detectResize);
+        setTimeout(detectResize, 80);
+      }
     };
-    const onHide = () => setKeyboardHeight(0);
+
+    const onHide = () => {
+      keyboardVisibleRef.current = false;
+      setKeyboardHeight(0);
+      setAndroidWindowResized(false);
+      baselineWindowHeightRef.current = Dimensions.get('window').height;
+    };
 
     const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
     const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
@@ -51,9 +84,16 @@ export function useKeyboardInset(options: UseKeyboardInsetOptions = {}) {
     const showSub = Keyboard.addListener(showEvent, onShow);
     const hideSub = Keyboard.addListener(hideEvent, onHide);
 
+    const dimensionSub = Dimensions.addEventListener('change', ({ window }) => {
+      if (!keyboardVisibleRef.current) {
+        baselineWindowHeightRef.current = window.height;
+      }
+    });
+
     return () => {
       showSub.remove();
       hideSub.remove();
+      dimensionSub.remove();
     };
   }, []);
 
@@ -68,6 +108,7 @@ export function useKeyboardInset(options: UseKeyboardInsetOptions = {}) {
     insets.bottom,
     idlePadding,
     keyboardGap,
+    androidWindowResized,
   );
 
   return {
@@ -76,5 +117,6 @@ export function useKeyboardInset(options: UseKeyboardInsetOptions = {}) {
     bottomInset,
     inputPaddingBottom,
     safeAreaBottom: insets.bottom,
+    androidWindowResized,
   };
 }

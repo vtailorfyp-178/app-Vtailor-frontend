@@ -12,6 +12,7 @@ import {
   Linking,
   Modal,
   Keyboard,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -143,7 +144,7 @@ export default function ChatConversation() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const insets = useSafeAreaInsets();
-  const { inputPaddingBottom } = useKeyboardInset({ extraOffset: 8 });
+  const { inputPaddingBottom } = useKeyboardInset({ extraOffset: 8, keyboardGap: 10 });
 
   const streamChannelId = params.stream_channel_id as string | undefined;
   const demoChannelId = params.demo_channel_id as string | undefined;
@@ -719,7 +720,11 @@ export default function ChatConversation() {
         </View>
       )}
 
-      <View style={{ flex: 1 }}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 6 : 0}
+      >
         {/* Empty state for real chats with no messages yet */}
         {!demoMode && !streamError && messages.length === 0 && (
           <View style={styles.emptyState}>
@@ -805,7 +810,7 @@ export default function ChatConversation() {
             )}
           </Pressable>
         </View>
-      </View>
+      </KeyboardAvoidingView>
 
       {/* Full-screen image viewer */}
       <Modal

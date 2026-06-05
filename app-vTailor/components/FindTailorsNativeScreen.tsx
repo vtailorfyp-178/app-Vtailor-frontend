@@ -777,23 +777,23 @@ export default function FindTailorsNativeScreen() {
           </ThemedText>
         </View>
       ) : (
+        <>
+        <View style={styles.listHeader}>
+          <ThemedText style={styles.listTitle}>
+            {tailors.length > 0 ? 'Nearby Tailors' : 'Featured Tailors'}
+          </ThemedText>
+          <ThemedText style={{ color: muted, fontSize: 12 }}>
+            {displayTailors.length} result{displayTailors.length === 1 ? '' : 's'}
+          </ThemedText>
+        </View>
         <FlatList
           ref={(ref) => {
             listRef.current = ref;
           }}
+          style={styles.listScroll}
           data={displayTailors}
           keyExtractor={(item) => item.user_id}
           renderItem={renderTailorCard}
-          ListHeaderComponent={
-            <View style={styles.listHeader}>
-              <ThemedText style={styles.listTitle}>
-                {tailors.length > 0 ? 'Nearby tailors' : 'Featured tailors'}
-              </ThemedText>
-              <ThemedText style={{ color: muted, fontSize: 12 }}>
-                {displayTailors.length} result{displayTailors.length === 1 ? '' : 's'}
-              </ThemedText>
-            </View>
-          }
           ListFooterComponent={
             <View style={[styles.dbSection, { borderColor: inputBorder }]}>
               <View style={styles.dbSectionHeader}>
@@ -852,6 +852,7 @@ export default function FindTailorsNativeScreen() {
             }, 100);
           }}
         />
+        </>
       )}
     </ThemedView>
   );
@@ -938,10 +939,15 @@ const styles = StyleSheet.create({
   listHeader: {
     paddingTop: 14,
     paddingBottom: 10,
+    paddingHorizontal: 12,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    backgroundColor: '#f8fafc',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: '#e2e8f0',
   },
+  listScroll: { flex: 1 },
   listTitle: { fontSize: 16, fontWeight: '800' },
   tailorCard: {
     borderRadius: 14,

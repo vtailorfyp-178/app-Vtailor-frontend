@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, ScrollView, TextInput, Pressable, StyleSheet, Platform, Alert, Keyboard } from 'react-native';
+import { View, ScrollView, TextInput, Pressable, StyleSheet, Platform, Alert, Keyboard, KeyboardAvoidingView } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Clipboard from 'expo-clipboard';
@@ -61,7 +61,7 @@ export default function AIStyleAssistant() {
 
   const [message, setMessage] = useState('');
   const [messages, setMessages] = useState<Message[]>([welcomeMessage]);
-  const { inputPaddingBottom } = useKeyboardInset({ extraOffset: 8 });
+  const { inputPaddingBottom } = useKeyboardInset({ extraOffset: 8, keyboardGap: 10 });
   const [sessionId, setSessionId] = useState<string | null>(
     typeof params.sessionId === 'string' ? params.sessionId : null
   );
@@ -409,7 +409,11 @@ export default function AIStyleAssistant() {
         </View>
       </View>
 
-      <View style={styles.keyboardArea}>
+      <KeyboardAvoidingView
+        style={styles.keyboardArea}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 6 : 0}
+      >
         <ScrollView
             ref={scrollRef}
             contentContainerStyle={styles.messages}
@@ -491,7 +495,7 @@ export default function AIStyleAssistant() {
             </Pressable>
           </View>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </ThemedView>
   );
 }
