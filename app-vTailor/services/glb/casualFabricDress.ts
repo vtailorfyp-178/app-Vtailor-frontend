@@ -32,14 +32,10 @@ export function glbAllowsRuntimeFabricTexture(modelUrl?: string): boolean {
   return isCasualFabricDressGlbUrl(modelUrl);
 }
 
+/** Custom fabric print upload removed from casual dress UI — color tint only. */
 export function supportsCustomFabricPrint(
-  modelId: string,
-  selections: Partial<Record<string, string | null>>,
+  _modelId: string,
+  _selections: Partial<Record<string, string | null>>,
 ): boolean {
-  if (!isCasualFabricDressModelId(modelId)) return false;
-  if (modelId === 'shalwar-kameez-short' || modelId === 'short-frock-shalwar') {
-    const bottom = selections.bottom;
-    return bottom === 'patiyala' || bottom == null;
-  }
-  return true;
+  return false;
 }

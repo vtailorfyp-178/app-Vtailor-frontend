@@ -90,7 +90,7 @@ export function buildModelViewerShellHtml(): string {
     environment-image="neutral"
     interaction-prompt="none"
     camera-orbit="0deg 88deg auto"
-    field-of-view="22deg"
+    field-of-view="24deg"
     alt="Dress 3D preview"
   ></model-viewer>
   <div id="err">Could not load 3D model. Check Wi-Fi and that the API server is running.</div>
@@ -159,7 +159,7 @@ export function buildModelViewerShellHtml(): string {
             ? window.__vtailorOrbitScale
             : ${MV_ORBIT_SCALE_DEFAULT};
           mv.cameraOrbit = '0deg 88deg ' + Math.round(maxDim * orbitScale) + '%';
-          mv.fieldOfView = (typeof window.__vtailorFovDeg === 'number' ? window.__vtailorFovDeg : 22) + 'deg';
+          mv.fieldOfView = (typeof window.__vtailorFovDeg === 'number' ? window.__vtailorFovDeg : 24) + 'deg';
         }
         setTargetFromModel();
         if (typeof mv.updateFraming === 'function') mv.updateFraming();
@@ -471,7 +471,7 @@ export function injectModelViewerFramingScript(
 ): string {
   const scale = dressModelViewerOrbitScaleNumber(mode, ctx);
   const fovMatch = /(\d+)/.exec(dressCameraFieldOfView(ctx));
-  const fov = fovMatch ? Number(fovMatch[1]) : 22;
+  const fov = fovMatch ? Number(fovMatch[1]) : 24;
   return `(function(){try{window.__vtailorOrbitScale=${scale};window.__vtailorFovDeg=${fov};if(typeof window.__vtailorFrameDress==='function')window.__vtailorFrameDress();}catch(e){}})();true;`;
 }
 
@@ -519,7 +519,7 @@ export function buildModelViewerHtml(glbUrl: string): string {
     environment-image="neutral"
     interaction-prompt="none"
     camera-orbit="0deg 88deg auto"
-    field-of-view="22deg"
+    field-of-view="24deg"
     alt="Dress 3D preview"
   ></model-viewer>
   <div id="err">Could not load 3D model. Check Wi-Fi and that the API server is running.</div>
@@ -551,7 +551,7 @@ export function buildModelViewerHtml(glbUrl: string): string {
             ? window.__vtailorOrbitScale
             : ${MV_ORBIT_SCALE_DEFAULT};
           mv.cameraOrbit = '0deg 88deg ' + Math.round(maxDim * orbitScale) + '%';
-          mv.fieldOfView = (typeof window.__vtailorFovDeg === 'number' ? window.__vtailorFovDeg : 22) + 'deg';
+          mv.fieldOfView = (typeof window.__vtailorFovDeg === 'number' ? window.__vtailorFovDeg : 24) + 'deg';
         }
         if (typeof mv.updateFraming === 'function') mv.updateFraming();
       } catch (_) {}

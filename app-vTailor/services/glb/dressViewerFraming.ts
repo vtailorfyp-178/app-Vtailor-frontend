@@ -17,41 +17,41 @@ export type DressFramingProfile = {
   fovDeg?: number;
 };
 
-/** Three.js fitDressCamera distance multiplier — lower = closer (more zoom). */
+/** Three.js fitDressCamera distance multiplier — higher = farther camera = smaller dress in frame. */
 export const DRESS_CAMERA_FIT_MULTIPLIER: Record<DressViewerFramingMode, number> = {
-  editor: 1.34,
-  presentation: 1.22,
+  editor: 2.08,
+  presentation: 1.88,
 };
 
-/** Google model-viewer orbit radius scale (× maxDim for % suffix). Lower = closer. */
+/** Google model-viewer orbit radius scale (× maxDim for % suffix). Higher = farther = smaller dress. */
 export const DRESS_MODEL_VIEWER_ORBIT_SCALE: Record<DressViewerFramingMode, number> = {
-  editor: 112,
-  presentation: 98,
+  editor: 168,
+  presentation: 148,
 };
 
-export const DRESS_CAMERA_FOV_DEFAULT = '22deg';
+export const DRESS_CAMERA_FOV_DEFAULT = '24deg';
 
-const DEFAULT_PROFILE: DressFramingProfile = { fitScale: 1, orbitScale: 1 };
+const DEFAULT_PROFILE: DressFramingProfile = { fitScale: 1.14, orbitScale: 1.12, fovDeg: 24 };
 
 const MODEL_PROFILES: Record<string, DressFramingProfile> = {
-  'long-frock': { fitScale: 1.1, orbitScale: 1.08 },
-  saree: { fitScale: 1.12, orbitScale: 1.1 },
-  'grarah-short-shirt': { fitScale: 1.14, orbitScale: 1.12 },
-  'grarah-peplum': { fitScale: 1.16, orbitScale: 1.14 },
-  sharara: { fitScale: 1.14, orbitScale: 1.12, fovDeg: 23 },
-  'shalwar-kameez': { fitScale: 1.12, orbitScale: 1.1, fovDeg: 23 },
-  'shalwar-kameez-long': { fitScale: 1.14, orbitScale: 1.12, fovDeg: 23 },
-  'shalwar-kameez-short': { fitScale: 1.14, orbitScale: 1.12 },
-  'short-frock-shalwar': { fitScale: 1.14, orbitScale: 1.12 },
-  'short-frock': { fitScale: 1.1, orbitScale: 1.08, fovDeg: 23 },
-  gown: { fitScale: 1.12, orbitScale: 1.1, fovDeg: 23 },
-  kurti: { fitScale: 1.08, orbitScale: 1.06, fovDeg: 23 },
-  'kurti-trouser': { fitScale: 1.1, orbitScale: 1.08, fovDeg: 23 },
-  'trouser-shirt-bell-bottom': { fitScale: 1.12, orbitScale: 1.1 },
-  'trouser-shirt-tulip-trouser': { fitScale: 1.12, orbitScale: 1.1 },
-  'lehnga-bridal': { fitScale: 1.26, orbitScale: 1.22, fovDeg: 24 },
-  'lehnga-circular': { fitScale: 1.24, orbitScale: 1.2, fovDeg: 24 },
-  lehnga: { fitScale: 1.24, orbitScale: 1.2, fovDeg: 24 },
+  'long-frock': { fitScale: 1.22, orbitScale: 1.18, fovDeg: 25 },
+  saree: { fitScale: 1.38, orbitScale: 1.32, fovDeg: 26 },
+  'grarah-short-shirt': { fitScale: 1.26, orbitScale: 1.22, fovDeg: 25 },
+  'grarah-peplum': { fitScale: 1.28, orbitScale: 1.24, fovDeg: 25 },
+  sharara: { fitScale: 1.26, orbitScale: 1.22, fovDeg: 25 },
+  'shalwar-kameez': { fitScale: 1.36, orbitScale: 1.3, fovDeg: 26 },
+  'shalwar-kameez-long': { fitScale: 1.38, orbitScale: 1.32, fovDeg: 26 },
+  'shalwar-kameez-short': { fitScale: 1.36, orbitScale: 1.3, fovDeg: 26 },
+  'short-frock-shalwar': { fitScale: 1.36, orbitScale: 1.3, fovDeg: 26 },
+  'short-frock': { fitScale: 1.2, orbitScale: 1.16, fovDeg: 25 },
+  gown: { fitScale: 1.24, orbitScale: 1.2, fovDeg: 25 },
+  kurti: { fitScale: 1.18, orbitScale: 1.14, fovDeg: 25 },
+  'kurti-trouser': { fitScale: 1.22, orbitScale: 1.18, fovDeg: 25 },
+  'trouser-shirt-bell-bottom': { fitScale: 1.34, orbitScale: 1.28, fovDeg: 26 },
+  'trouser-shirt-tulip-trouser': { fitScale: 1.32, orbitScale: 1.26, fovDeg: 26 },
+  'lehnga-bridal': { fitScale: 1.38, orbitScale: 1.32, fovDeg: 26 },
+  'lehnga-circular': { fitScale: 1.36, orbitScale: 1.3, fovDeg: 26 },
+  lehnga: { fitScale: 1.36, orbitScale: 1.3, fovDeg: 26 },
 };
 
 type FramingRule = {
@@ -63,41 +63,45 @@ type FramingRule = {
 const VARIATION_RULES: FramingRule[] = [
   {
     match: (c) => c.modelId === 'long-frock' && c.selections?.['frock-style'] === 'front-slit',
-    profile: { fitScale: 1.28, orbitScale: 1.24, fovDeg: 23 },
+    profile: { fitScale: 1.42, orbitScale: 1.36, fovDeg: 26 },
   },
   {
     match: (c) => c.modelId === 'long-frock' && c.selections?.['frock-style'] === 'flared-bottom',
-    profile: { fitScale: 1.18, orbitScale: 1.14, fovDeg: 23 },
+    profile: { fitScale: 1.3, orbitScale: 1.26, fovDeg: 25 },
   },
   {
     match: (c) => c.modelId === 'saree' && c.selections?.['saree-style'] === 'plain',
-    profile: { fitScale: 1.22, orbitScale: 1.18, fovDeg: 23 },
+    profile: { fitScale: 1.44, orbitScale: 1.36, fovDeg: 27 },
   },
   {
     match: (c) => c.modelId === 'saree' && c.selections?.['saree-style'] === 'frill',
-    profile: { fitScale: 1.26, orbitScale: 1.22, fovDeg: 23 },
+    profile: { fitScale: 1.5, orbitScale: 1.4, fovDeg: 27 },
   },
   {
     match: (c) => c.modelId === 'grarah-peplum',
-    profile: { fitScale: 1.2, orbitScale: 1.18, fovDeg: 23 },
+    profile: { fitScale: 1.34, orbitScale: 1.28, fovDeg: 26 },
   },
   {
     match: (c) => c.modelId === 'grarah-short-shirt',
-    profile: { fitScale: 1.16, orbitScale: 1.14, fovDeg: 23 },
+    profile: { fitScale: 1.3, orbitScale: 1.26, fovDeg: 25 },
   },
   {
     match: (c) =>
       c.modelId === 'shalwar-kameez-short' ||
       c.modelId === 'short-frock-shalwar',
-    profile: { fitScale: 1.18, orbitScale: 1.16, fovDeg: 23 },
+    profile: { fitScale: 1.44, orbitScale: 1.36, fovDeg: 27 },
+  },
+  {
+    match: (c) => c.modelId === 'shalwar-kameez' || c.modelId === 'shalwar-kameez-long',
+    profile: { fitScale: 1.42, orbitScale: 1.34, fovDeg: 27 },
   },
   {
     match: (c) => c.modelId === 'trouser-shirt-bell-bottom',
-    profile: { fitScale: 1.22, orbitScale: 1.18, fovDeg: 23 },
+    profile: { fitScale: 1.42, orbitScale: 1.34, fovDeg: 27 },
   },
   {
     match: (c) => c.modelId === 'trouser-shirt-tulip-trouser',
-    profile: { fitScale: 1.2, orbitScale: 1.16, fovDeg: 23 },
+    profile: { fitScale: 1.4, orbitScale: 1.32, fovDeg: 27 },
   },
 ];
 
@@ -153,7 +157,7 @@ export function dressCameraOrbitRadius(
 }
 
 export function dressCameraFieldOfView(ctx?: DressFramingContext | null): string {
-  const deg = resolveDressFramingProfile(ctx).fovDeg ?? 22;
+  const deg = resolveDressFramingProfile(ctx).fovDeg ?? 24;
   return `${deg}deg`;
 }
 

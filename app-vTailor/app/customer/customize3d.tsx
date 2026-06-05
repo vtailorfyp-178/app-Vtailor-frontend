@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View,
   ScrollView,
@@ -9,16 +9,13 @@ import {
   type ImageSourcePropType,
 } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
-import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { Ionicons } from '@expo/vector-icons';
 import AppBackButton from '@/components/AppBackButton';
 import { DressGlbPreview } from '@/components/DressGlbPreview';
-import { FabricPrintUploadPanel } from '@/components/FabricPrintUploadPanel';
-import { useAuth } from '@/contexts/AuthContext';
 import { type TabId } from '@/services/dressGlbResolver';
 import {
   CASUAL_FABRIC_COLOR_FAMILIES,
@@ -41,7 +38,6 @@ import {
   prefetchDressModelCatalog,
   prefetchDressColorGrid,
 } from '@/services/glb/glbUrlResolve';
-import { supportsCustomFabricPrint } from '@/services/glb/casualFabricDress';
 import { safeRouterBack } from '@/utils/safeRouterBack';
 import type { Href } from 'expo-router';
 import { resolveCustomizePreviewImage } from '@/services/dressCustomizePreview';
@@ -314,20 +310,6 @@ function stripLongFrockDisallowedColors(
   if (mid !== 'long-frock') return s;
   if (s.colors != null && LONG_FROCK_EXCLUDED_COLORS.has(s.colors)) return { ...s, colors: null };
   return s;
-}
-
-/** Merge persisted picks into route defaults without wiping locked presets. */
-function mergeSavedSelections(
-  base: Record<TabId, string | null>,
-  saved: Record<TabId, string | null> | null | undefined,
-): Record<TabId, string | null> {
-  if (!saved) return base;
-  const merged = { ...base };
-  (Object.keys(saved) as TabId[]).forEach((key) => {
-    const value = saved[key];
-    if (value != null && value !== '') merged[key] = value;
-  });
-  return merged;
 }
 
 function isValidFrockStyleId(id: string): id is 'flared-bottom' | 'front-slit' {
@@ -608,99 +590,27 @@ export default function Customize3D() {
   })();
 
   const [selections, setSelections] = useState<Record<TabId, string | null>>(initialSelections);
-  const selectionsHydratedRef = useRef(Boolean(params.selections));
 
-  // Persist customization only after hydration — avoids wiping saved state on remount.
-  const customizeStateKey = `vtailor_customize_state_${modelId}`;
+  // New design from category picker: always start fresh (route presets only).
+  // Continue editing only when caller passes `selections` (design-detail, view-3d-model).
   useEffect(() => {
-    if (!selectionsHydratedRef.current) return;
-    AsyncStorage.setItem(customizeStateKey, JSON.stringify(selections)).catch(() => {});
-  }, [selections, customizeStateKey]);
+    if (params.selections) return;
+    setSelections(initialSelections);
+    const family = getFamilyIdForShade(initialSelections.colors);
+    setActiveColorFamily(family ?? 'white');
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [modelId, params.selections, presetFrockStyle, presetSareeStyle, presetBottom]);
 
-  const { userId } = useAuth();
+  const availableTabs = availableTabsBase;
 
-  const supportsFabricPrint = supportsCustomFabricPrint(modelId, selections);
+  const requiredTabs = availableTabs;
 
-  const availableTabs = useMemo((): TabConfig[] => {
-    if (!supportsFabricPrint) return availableTabsBase;
-    return [...availableTabsBase, { id: 'fabric-print', label: 'Upload Print' }];
-  }, [availableTabsBase, supportsFabricPrint]);
-
-  const requiredTabs = useMemo(
-    () => availableTabs.filter((t) => t.id !== 'fabric-print'),
-    [availableTabs],
-  );
-
-  const fabricTextureUrl = selections['fabric-print'];
+  const fabricTextureUrl = null;
 
   const [activeColorFamily, setActiveColorFamily] = useState<string>(() => {
     const fromShade = getFamilyIdForShade(initialSelections.colors);
     return fromShade ?? 'white';
   });
-
-  useEffect(() => {
-    if (params.selections) {
-      selectionsHydratedRef.current = true;
-      return;
-    }
-
-    let cancelled = false;
-    (async () => {
-      try {
-        const saved = await AsyncStorage.getItem(customizeStateKey);
-        if (cancelled) return;
-        if (!saved) {
-          selectionsHydratedRef.current = true;
-          return;
-        }
-        const parsed = JSON.parse(saved) as Record<TabId, string | null>;
-        const merged = stripLongFrockDisallowedColors(
-          modelId,
-          mergeSavedSelections(initialSelections, parsed),
-        );
-        setSelections(merged);
-        const family = getFamilyIdForShade(merged.colors);
-        if (family) setActiveColorFamily(family);
-      } catch {
-        /* ignore malformed cache */
-      } finally {
-        if (!cancelled) selectionsHydratedRef.current = true;
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  // Restore once per model session; initialSelections captures route presets on first mount.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [customizeStateKey, modelId]);
-
-  useFocusEffect(
-    useCallback(() => {
-      if (!selectionsHydratedRef.current || params.selections) return;
-      AsyncStorage.getItem(customizeStateKey)
-        .then((saved) => {
-          if (!saved) return;
-          try {
-            const parsed = JSON.parse(saved) as Record<TabId, string | null>;
-            setSelections((current) => {
-              const merged = stripLongFrockDisallowedColors(
-                modelId,
-                mergeSavedSelections(current, parsed),
-              );
-              const countSelections = (value: Record<TabId, string | null>) =>
-                Object.values(value).filter((entry) => entry != null && entry !== '').length;
-              return countSelections(merged) > countSelections(current) ? merged : current;
-            });
-            const family = getFamilyIdForShade(parsed.colors);
-            if (family) setActiveColorFamily(family);
-          } catch {
-            /* ignore malformed cache */
-          }
-        })
-        .catch(() => {});
-    }, [customizeStateKey, modelId, params.selections]),
-  );
 
   const lockedFrockStyleLabel = frockStyleOptions.find((o) => o.id === selections['frock-style'])?.name;
   const lockedSareeStyleLabel = sareeStyleOptions.find((o) => o.id === selections['saree-style'])?.name;
@@ -843,21 +753,11 @@ export default function Customize3D() {
   const selectedPicks = useMemo(() => {
     return availableTabs
       .filter((t) => {
-        if (t.id === 'fabric-print') return Boolean(selections['fabric-print']);
         if (t.id === 'colors' && usesFabricTint) return isValidFabricShadeId(selections.colors ?? '');
         return Boolean(selections[t.id]);
       })
       .map((t) => {
         const optId = selections[t.id]!;
-        if (t.id === 'fabric-print') {
-          return {
-            key: t.id,
-            tabLabel: t.label,
-            name: 'Custom print',
-            hex: null as string | null,
-            source: { uri: optId } as ImageSourcePropType,
-          };
-        }
         if (t.id === 'colors') {
           if (usesFabricTint) {
             const shade =
@@ -1111,15 +1011,7 @@ export default function Customize3D() {
             ))}
           </ScrollView>
 
-          {activeTab === 'fabric-print' ? (
-            <FabricPrintUploadPanel
-              userId={userId || 'guest'}
-              printUrl={fabricTextureUrl}
-              onPrintUrlChange={(url) =>
-                setSelections((p) => ({ ...p, 'fabric-print': url }))
-              }
-            />
-          ) : activeTab === 'colors' && usesFabricTint ? (
+          {activeTab === 'colors' && usesFabricTint ? (
             <>
               <ThemedText style={styles.colorSectionLabel}>Main color</ThemedText>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 8 }}>

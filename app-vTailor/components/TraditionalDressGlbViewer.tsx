@@ -53,7 +53,7 @@ import {
 const PIVOT_Y_DEFAULT = 1.05;
 const ZOOM_MIN = 2.2;
 const ZOOM_MAX = 14;
-const ZOOM_DEFAULT = 5.1;
+const ZOOM_DEFAULT = 8.2;
 const ZOOM_BUTTON_STEP = 0.78;
 const LOOK_Y_MIN = -0.72;
 const LOOK_Y_MAX = 1.05;
