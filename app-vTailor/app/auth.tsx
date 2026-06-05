@@ -1,5 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { View, StyleSheet, Pressable, TextInput, Alert, NativeSyntheticEvent, TextInputKeyPressEventData, KeyboardAvoidingView, ScrollView, Platform } from 'react-native';
+import { ThemedTextInput } from '@/components/ThemedTextInput';
 import { BrandLogo } from '@/components/BrandLogo';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -33,6 +34,8 @@ export default function AuthScreen() {
 
   const buttonStart = useThemeColor({}, 'buttonStart');
   const iconBg = useThemeColor({}, 'iconBg');
+  const muted = useThemeColor({}, 'muted');
+  const text = useThemeColor({}, 'text');
   const customerMain = ROLE_COLORS.customer.primary;
   const tailorMain = ROLE_COLORS.tailor.primary;
   const tailorText = ROLE_COLORS.tailor.primaryDark;
@@ -225,7 +228,7 @@ export default function AuthScreen() {
       <View style={styles.header}>
         {step !== 'role' ? (
           <Pressable onPress={handleBack} style={styles.backButton}>
-            <ThemedText>{'‹ Back'}</ThemedText>
+            <ThemedText style={[styles.backButtonText, { color: text || TEXT_DARK }]}>{'‹ Back'}</ThemedText>
           </Pressable>
         ) : null}
 
@@ -318,13 +321,16 @@ export default function AuthScreen() {
           <View>
             <ThemedText style={styles.label}>Email Address</ThemedText>
 
-            <TextInput
+            <ThemedTextInput
               style={[styles.phoneInput, { borderColor: emailFocused ? authPrimary : '#e6e7eb' }]}
               value={email}
               onFocus={() => setEmailFocused(true)}
               onBlur={() => setEmailFocused(false)}
               onChangeText={setEmail}
               placeholder="example@email.com"
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
             />
 
             <Pressable
@@ -347,7 +353,7 @@ export default function AuthScreen() {
 
             <View style={styles.otpRow}>
               {otp.map((d, i) => (
-                <TextInput
+                <ThemedTextInput
                   key={i}
                   ref={(ref) => { otpRefs.current[i] = ref; }}
                   style={[
@@ -427,6 +433,10 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     borderRadius: 999,
     backgroundColor: '#fff1f7',
+  },
+  backButtonText: {
+    fontWeight: '800',
+    fontSize: 15,
   },
   logoWrap: {
     marginBottom: 12,
@@ -528,6 +538,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
     marginTop: 36,
     textAlign: 'center',
+    color: '#64748b',
   },
   label: {
     marginBottom: 12,

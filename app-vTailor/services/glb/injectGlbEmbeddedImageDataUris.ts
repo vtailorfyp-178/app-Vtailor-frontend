@@ -121,7 +121,7 @@ export function injectGlbEmbeddedImageDataUris(buf: ArrayBuffer): ArrayBuffer {
 
   let changed = false;
 
-  for (const image of json.images) {
+  for (const image of json.images ?? []) {
     if (image.uri || image.bufferView == null) continue;
     const view = views[image.bufferView];
     if (!view) continue;

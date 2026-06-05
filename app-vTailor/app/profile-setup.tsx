@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, Image, Pressable, TextInput, ScrollView, Platform, Alert, KeyboardAvoidingView } from 'react-native';
+import { View, StyleSheet, Image, Pressable, ScrollView, Platform, Alert, KeyboardAvoidingView } from 'react-native';
+import { ThemedTextInput } from '@/components/ThemedTextInput';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { ThemedText } from '@/components/themed-text';
@@ -146,6 +147,7 @@ export default function ProfileSetup() {
 
   // theme colors
   const muted = useThemeColor({}, 'muted');
+  const text = useThemeColor({}, 'text');
   const inputBorder = useThemeColor({}, 'inputBorder');
   const avatarBg = useThemeColor({}, 'card');
   const avatarBtn = rolePrimary;
@@ -189,38 +191,38 @@ export default function ProfileSetup() {
             <ThemedText style={styles.sectionTitle}>Basic Information</ThemedText>
           </View>
           <ThemedText style={styles.label}>Full Name *</ThemedText>
-          <TextInput
+          <ThemedTextInput
             value={formData.name}
             onChangeText={(t) => setFormData({ ...formData, name: t })}
             placeholder="Enter your full name"
-            style={[styles.input, { borderColor: inputBorder }]}
+            style={[styles.input, { borderColor: inputBorder, color: text || TEXT_DARK }]}
           />
 
           <ThemedText style={styles.label}>Email Address</ThemedText>
-          <TextInput
+          <ThemedTextInput
             value={formData.email}
             editable={false}
             placeholder="your@email.com"
             keyboardType="email-address"
-            style={[styles.input, { borderColor: inputBorder, backgroundColor: '#f8fafc', color: '#6b7280' }]}
+            style={[styles.input, { borderColor: inputBorder, backgroundColor: '#f8fafc', color: '#475569' }]}
           />
 
           <ThemedText style={styles.label}>Phone Number</ThemedText>
-          <TextInput
+          <ThemedTextInput
             value={formData.phone}
             onChangeText={(t) => setFormData({ ...formData, phone: t })}
             placeholder="e.g., +92 300 1234567"
             keyboardType="phone-pad"
-            style={[styles.input, { borderColor: inputBorder }]}
+            style={[styles.input, { borderColor: inputBorder, color: text || TEXT_DARK }]}
           />
 
           <ThemedText style={styles.label}>Address *</ThemedText>
-          <TextInput
+          <ThemedTextInput
             value={formData.address}
             onChangeText={(t) => setFormData({ ...formData, address: t })}
             placeholder="Enter your complete address"
             multiline
-            style={[styles.input, styles.textarea, { borderColor: inputBorder }]}
+            style={[styles.input, styles.textarea, { borderColor: inputBorder, color: text || TEXT_DARK }]}
           />
         </View>
 
@@ -231,12 +233,12 @@ export default function ProfileSetup() {
               <ThemedText style={styles.sectionTitle}>Tailor Details</ThemedText>
             </View>
             <ThemedText style={styles.label}>Years of Experience</ThemedText>
-            <TextInput
+            <ThemedTextInput
               value={formData.experience}
               onChangeText={(t) => setFormData({ ...formData, experience: t })}
               placeholder="e.g., 5"
               keyboardType="numeric"
-              style={[styles.input, { borderColor: inputBorder }]}
+              style={[styles.input, { borderColor: inputBorder, color: text || TEXT_DARK }]}
             />
 
             <ThemedText style={[styles.label, { marginTop: 12 }]}>Specialization</ThemedText>
@@ -252,12 +254,12 @@ export default function ProfileSetup() {
             </View>
 
             <ThemedText style={[styles.label, { marginTop: 12 }]}>About Your Work</ThemedText>
-            <TextInput
+            <ThemedTextInput
               value={formData.description}
               onChangeText={(t) => setFormData({ ...formData, description: t })}
               placeholder="Describe your expertise and style..."
               multiline
-              style={[styles.input, styles.textarea, { borderColor: inputBorder }]}
+              style={[styles.input, styles.textarea, { borderColor: inputBorder, color: text || TEXT_DARK }]}
             />
 
             <ThemedText style={styles.label}>Sample Work</ThemedText>

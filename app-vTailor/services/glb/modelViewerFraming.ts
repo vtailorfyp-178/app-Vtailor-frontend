@@ -1,11 +1,13 @@
 /** Shared Google model-viewer settings for full-length dress GLBs. */
 
 import {
+  dressCameraFieldOfView,
   dressCameraOrbitRadius,
+  type DressFramingContext,
   type DressViewerFramingMode,
 } from '@/services/glb/dressViewerFraming';
 
-export type { DressViewerFramingMode };
+export type { DressViewerFramingMode, DressFramingContext };
 
 export type ModelViewerElement = HTMLElement & {
   updateFraming?: () => void;
@@ -48,6 +50,7 @@ export function applyModelViewerAttrs(el: HTMLElement, attrs = DRESS_MODEL_VIEWE
 export function frameDressModelViewer(
   mv: ModelViewerElement,
   mode: DressViewerFramingMode = 'editor',
+  ctx?: DressFramingContext | null,
 ): void {
   try {
     const center = mv.getBoundingBoxCenter?.();
@@ -59,8 +62,8 @@ export function frameDressModelViewer(
 
     if (dim && dim.y > 0.01) {
       const maxDim = Math.max(dim.x, dim.y, dim.z);
-      mv.cameraOrbit = `0deg 88deg ${dressCameraOrbitRadius(maxDim, mode)}`;
-      mv.fieldOfView = DRESS_CAMERA_FOV_DEFAULT;
+      mv.cameraOrbit = `0deg 88deg ${dressCameraOrbitRadius(maxDim, mode, ctx)}`;
+      mv.fieldOfView = dressCameraFieldOfView(ctx);
     }
 
     if (typeof mv.updateFraming === 'function') {
@@ -79,9 +82,10 @@ export function scheduleDressModelFraming(
   mv: ModelViewerElement,
   onReady?: () => void,
   mode: DressViewerFramingMode = 'editor',
+  ctx?: DressFramingContext | null,
 ): void {
   const run = () => {
-    frameDressModelViewer(mv, mode);
+    frameDressModelViewer(mv, mode, ctx);
     onReady?.();
   };
   run();

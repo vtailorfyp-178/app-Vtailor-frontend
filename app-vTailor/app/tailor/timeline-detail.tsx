@@ -3,7 +3,7 @@ import AppBackButton from '@/components/AppBackButton';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   Alert,
   FlatList,
@@ -17,6 +17,7 @@ import {
 import {
   getOrderById,
   orderProgressStorageKey,
+  resolveTailorOrder,
   type TailorOrderRecord,
 } from '@/services/tailor/tailorOrderCatalog';
 import { ROLE_COLORS, SURFACE_MUTED } from '@/constants/ui';
@@ -35,7 +36,24 @@ export default function TailorTimelineDetailScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const orderId = String(params.orderId || 'ORD-001');
-  const order: TailorOrderRecord | undefined = useMemo(() => getOrderById(orderId), [orderId]);
+  const [order, setOrder] = useState<TailorOrderRecord | undefined>();
+  const [orderLoading, setOrderLoading] = useState(true);
+
+  const loadOrder = useCallback(async () => {
+    setOrderLoading(true);
+    try {
+      const resolved = (await resolveTailorOrder(orderId)) || getOrderById(orderId);
+      setOrder(resolved);
+    } catch {
+      setOrder(getOrderById(orderId));
+    } finally {
+      setOrderLoading(false);
+    }
+  }, [orderId]);
+
+  useEffect(() => {
+    void loadOrder();
+  }, [loadOrder]);
 
   const [currentStep, setCurrentStep] = useState(0);
   const storageKey = orderProgressStorageKey(orderId);
@@ -43,7 +61,11 @@ export default function TailorTimelineDetailScreen() {
   const loadProgress = useCallback(async () => {
     try {
       const saved = await AsyncStorage.getItem(storageKey);
-      if (saved != null) setCurrentStep(parseInt(saved, 10));
+      if (saved == null) return;
+      const step = parseInt(saved, 10);
+      if (!Number.isNaN(step) && step >= 0 && step < STEPS.length) {
+        setCurrentStep(step);
+      }
     } catch {
       /* ignore */
     }
@@ -74,6 +96,19 @@ export default function TailorTimelineDetailScreen() {
       router.back();
     }
   };
+
+  if (orderLoading) {
+    return (
+      <ProtectedRoute requiredRole="tailor">
+        <SafeAreaView style={styles.safeArea}>
+          <View style={styles.headerContainer}>
+            <AppBackButton onPress={() => router.back()} variant="tint" />
+            <Text style={styles.header}>Loading order…</Text>
+          </View>
+        </SafeAreaView>
+      </ProtectedRoute>
+    );
+  }
 
   if (!order) {
     return (
@@ -125,7 +160,7 @@ export default function TailorTimelineDetailScreen() {
                 {order.notes ? <DetailRow label="Notes" value={order.notes} /> : null}
               </View>
 
-              {m ? (
+              {m?.basic ? (
                 <View style={styles.measurementsSection}>
                   <Text style={styles.sectionTitle}>Key Measurements</Text>
                   <View style={styles.measurementGrid}>

@@ -255,7 +255,7 @@ async function parseBuffer(
     try {
       const gltf = await loader.parseAsync(parseBuf, '');
       if (bindings.length) {
-        await applyNativeGlbTextures(gltf, bindings, imageBytes);
+        await applyNativeGlbTextures(gltf as unknown as Parameters<typeof applyNativeGlbTextures>[0], bindings, imageBytes);
       }
       return prepareGltfSceneForDisplay(gltf.scene, null, {
         patiyalaTint,

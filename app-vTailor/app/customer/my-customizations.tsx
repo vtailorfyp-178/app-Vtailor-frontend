@@ -6,11 +6,13 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { useAuth } from '@/contexts/AuthContext';
+import { type TabId } from '@/services/dressGlbResolver';
 import { getUserCustomizations, setCustomizationsSnapshot } from '@/services/userDataService';
 import AppBackButton from '@/components/AppBackButton';
-import { type TabId } from '@/services/dressGlbResolver';
+import { type SavedDesign } from '@/services/savedDesign';
+import { safeLocaleString } from '@/utils/safeDisplay';
 
-type Item = { id: string; modelId: string; modelName: string; selections: Record<string, string | null>; createdAt: string };
+type Item = SavedDesign;
 
 const defaultSelections: Record<TabId, string | null> = {
   neck: null,
@@ -35,7 +37,7 @@ function humanizeSelection(value: string | null | undefined): string {
 }
 
 function getModelHeading(item: Item): string {
-  const id = item.modelId.toLowerCase();
+  const id = String(item.modelId || '').toLowerCase();
   if (id.includes('shalwar-kameez')) return 'Shalwar Kameez';
   if (id.includes('long-frock')) return 'Long Frock';
   if (id.includes('short-frock')) return 'Short Frock';
@@ -85,14 +87,12 @@ function buildCustomizationSummary(item: Item): string {
   return buildCustomizationDescription(item);
 }
 
-function openSavedCustomization(router: ReturnType<typeof useRouter>, item: Item) {
+function openSavedCustomization(router: ReturnType<typeof useRouter>, item: Item, tab?: 'design' | 'measurements' | 'tailor') {
   router.push({
-    pathname: '/customer/view-3d-model',
+    pathname: '/customer/design-detail',
     params: {
-      modelId: item.modelId,
-      modelName: item.modelName,
-      selections: JSON.stringify(item.selections || {}),
-      flow: 'saved',
+      id: item.id,
+      ...(tab ? { tab } : {}),
     },
   });
 }
@@ -113,7 +113,11 @@ export default function MyCustomizations() {
         // Load from user-specific storage if userId exists
         if (userId) {
           const list = await getUserCustomizations(userId);
-          setItems(list.reverse());
+          setItems(
+            (list as Item[])
+              .filter((row) => row && typeof row === 'object' && row.id)
+              .reverse(),
+          );
         } else {
           setItems([]);
         }
@@ -140,7 +144,7 @@ export default function MyCustomizations() {
     <ThemedView style={styles.container}>
       <View style={[styles.header, { backgroundColor: tint }]}> 
         <AppBackButton onPress={() => (router as any).back()} variant="tint" />
-        <ThemedText style={styles.headerTitle}>My Customizations</ThemedText>
+        <ThemedText style={styles.headerTitle}>My Designs</ThemedText>
         <View style={styles.headerSpacer} />
       </View>
 
@@ -156,9 +160,11 @@ export default function MyCustomizations() {
               ]}
               onPress={() => openSavedCustomization(router, it)}
             >
-              <View style={[styles.badgeRow, { backgroundColor: tint }]}> 
-                <Ionicons name="sparkles-outline" size={14} color="#fff" />
-                <ThemedText style={styles.badgeText}>Saved design</ThemedText>
+              <View style={[styles.badgeRow, { backgroundColor: it.orderPlaced ? '#059669' : tint }]}> 
+                <Ionicons name={it.orderPlaced ? 'checkmark-circle-outline' : 'sparkles-outline'} size={14} color="#fff" />
+                <ThemedText style={styles.badgeText}>
+                  {it.orderPlaced ? 'Order placed' : 'Saved design'}
+                </ThemedText>
               </View>
               <View style={styles.cardBody}>
                 <View style={styles.cardHead}>
@@ -172,11 +178,14 @@ export default function MyCustomizations() {
                   </Pressable>
                 </View>
                 <ThemedText style={styles.summary}>{buildCustomizationSummary(it)}</ThemedText>
-                <ThemedText style={styles.meta}>{new Date(it.createdAt).toLocaleString()}</ThemedText>
+                {it.orderPlaced && it.tailor?.tailorName ? (
+                  <ThemedText style={styles.tailorLine}>Tailor: {it.tailor.tailorName}</ThemedText>
+                ) : null}
+                <ThemedText style={styles.meta}>{safeLocaleString(it.createdAt)}</ThemedText>
                 <View style={styles.footerRow}>
                   <View style={styles.tapPill}>
-                    <Ionicons name="hand-left-outline" size={14} color={tint} />
-                    <ThemedText style={[styles.tapPillText, { color: tint }]}>Tap to open model</ThemedText>
+                    <Ionicons name="layers-outline" size={14} color={tint} />
+                    <ThemedText style={[styles.tapPillText, { color: tint }]}>Tap for design · measurements · tailor</ThemedText>
                   </View>
                 </View>
               </View>
@@ -185,8 +194,8 @@ export default function MyCustomizations() {
         ) : (
           <View style={[styles.emptyState, { borderColor: inputBorder, backgroundColor: card }]}>
             <Ionicons name="images-outline" size={30} color={tint} />
-            <ThemedText style={styles.emptyTitle}>No saved customizations yet</ThemedText>
-            <ThemedText style={styles.emptyText}>Your saved designs will appear here with a clear summary and tap-to-open model view.</ThemedText>
+            <ThemedText style={styles.emptyTitle}>No saved designs yet</ThemedText>
+            <ThemedText style={styles.emptyText}>Completed designs with customizations, measurements, and tailor details will appear here after you place an order.</ThemedText>
           </View>
         )}
       </ScrollView>
@@ -231,7 +240,8 @@ const styles = StyleSheet.create({
   cardHead: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 6, gap: 12 },
   title: { fontWeight: '800', fontSize: 18, flex: 1, paddingRight: 12 },
   deleteBtn: { padding: 4, borderRadius: 16 },
-  summary: { color: '#334155', fontSize: 14, lineHeight: 22, marginBottom: 8 },
+  summary: { color: '#334155', fontSize: 14, lineHeight: 22, marginBottom: 6 },
+  tailorLine: { color: '#0e7490', fontSize: 13, fontWeight: '700', marginBottom: 6 },
   meta: { color: '#64748b', fontSize: 12, marginBottom: 10 },
   footerRow: { flexDirection: 'row', alignItems: 'center' },
   tapPill: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 8, borderRadius: 999, backgroundColor: 'rgba(0,0,0,0.03)' },

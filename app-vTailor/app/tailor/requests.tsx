@@ -15,6 +15,7 @@ import {
   getOrders, acceptOrder, declineOrder, proposePrice,
   type Order as ApiOrder,
 } from '@/services/ordersApi';
+import { firstInitial } from '@/utils/safeDisplay';
 
 // ── Sample data ───────────────────────────────────────────────────────────────
 
@@ -90,7 +91,7 @@ function ProposePriceModal({ visible, order, onClose, onSubmit, submitting }: Pr
   useEffect(() => {
     if (visible && order) {
       setPrice(String(order.budget));
-      setDays('7');
+      setDays(order.delivery_days && order.delivery_days > 0 ? String(order.delivery_days) : '7');
       setNote('');
     }
   }, [visible, order]);
@@ -124,6 +125,11 @@ function ProposePriceModal({ visible, order, onClose, onSubmit, submitting }: Pr
               <ThemedText style={{ color: '#059669', fontSize: 13, fontWeight: '700', marginTop: 4 }}>
                 Customer budget: Rs. {order.budget.toLocaleString()}
               </ThemedText>
+              {order.delivery_days != null && order.delivery_days > 0 && (
+                <ThemedText style={{ color: '#0e7490', fontSize: 13, fontWeight: '700', marginTop: 2 }}>
+                  Requested delivery: {order.delivery_days} day{order.delivery_days === 1 ? '' : 's'}
+                </ThemedText>
+              )}
             </View>
           )}
 
@@ -214,9 +220,10 @@ export default function TailorRequests() {
 
   const handleAcceptAtBudget = async (order: ApiOrder) => {
     if (!token) return;
+    const customerDays = order.delivery_days && order.delivery_days > 0 ? order.delivery_days : 7;
     Alert.alert(
       'Confirm Acceptance',
-      `Accept "${order.description}" at customer's budget of Rs. ${order.budget.toLocaleString()}?\n\nDelivery will be 7 days by default.`,
+      `Accept "${order.description}" at customer's budget of Rs. ${order.budget.toLocaleString()}?\n\nDelivery: ${customerDays} day${customerDays === 1 ? '' : 's'}.`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -225,7 +232,7 @@ export default function TailorRequests() {
             try {
               const updated = await acceptOrder(token, order.id, {
                 proposed_price: order.budget,
-                delivery_days: 7,
+                delivery_days: customerDays,
               });
               setApiOrders((prev) => prev.map((o) => (o.id === order.id ? updated : o)));
             } catch (e: any) {
@@ -280,12 +287,14 @@ export default function TailorRequests() {
   };
 
   const handleSampleAccept = (reqId: string) => {
+    const request = SAMPLE_REQUESTS.find((r) => r.id === reqId);
     (router as any).push({
       pathname: '/tailor/decided-price',
       params: {
         orderId: reqId,
-        customerName: SAMPLE_REQUESTS.find((r) => r.id === reqId)?.customerName,
-        price: String(SAMPLE_REQUESTS.find((r) => r.id === reqId)?.budget),
+        customerName: request?.customerName,
+        price: String(request?.budget ?? ''),
+        days: '7',
       },
     });
     setSampleRequests((prev) =>
@@ -339,7 +348,7 @@ export default function TailorRequests() {
                   <View style={styles.customerInfo}>
                     <View style={[styles.customerAvatar, { backgroundColor: '#d1fae5' }]}>
                       <ThemedText style={[styles.customerAvatarText, { color: '#059669' }]}>
-                        {order.customer_name.charAt(0).toUpperCase()}
+                        {firstInitial(order.customer_name, 'C')}
                       </ThemedText>
                     </View>
                     <View style={{ marginLeft: 12, flex: 1 }}>
@@ -356,6 +365,17 @@ export default function TailorRequests() {
                     <View style={styles.detailValueRow}>
                       <Ionicons name="cash-outline" size={16} color="#059669" />
                       <ThemedText style={styles.value}>Rs {order.budget.toLocaleString()}</ThemedText>
+                    </View>
+                  </View>
+                  <View style={styles.detailItem}>
+                    <ThemedText style={[styles.label, { color: muted }]}>Delivery</ThemedText>
+                    <View style={styles.detailValueRow}>
+                      <Ionicons name="calendar-outline" size={15} color="#0e7490" />
+                      <ThemedText style={styles.value}>
+                        {order.delivery_days && order.delivery_days > 0
+                          ? `${order.delivery_days} day${order.delivery_days === 1 ? '' : 's'}`
+                          : 'Not specified'}
+                      </ThemedText>
                     </View>
                   </View>
                   <View style={styles.detailItem}>
@@ -415,7 +435,7 @@ export default function TailorRequests() {
                     <View style={styles.customerInfo}>
                       <View style={[styles.customerAvatar, { backgroundColor: `${sc.color}22` }]}>
                         <ThemedText style={[styles.customerAvatarText, { color: sc.color }]}>
-                          {order.customer_name.charAt(0).toUpperCase()}
+                          {firstInitial(order.customer_name, 'C')}
                         </ThemedText>
                       </View>
                       <View style={{ marginLeft: 12, flex: 1 }}>

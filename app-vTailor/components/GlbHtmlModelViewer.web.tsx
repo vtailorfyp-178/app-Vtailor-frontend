@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -13,9 +13,11 @@ import { ensureModelViewerScript } from '@/services/glb/modelViewerScript';
 import {
   applyModelViewerAttrs,
   scheduleDressModelFraming,
+  type DressFramingContext,
   type DressViewerFramingMode,
   type ModelViewerElement,
 } from '@/services/glb/modelViewerFraming';
+import { dressFramingContext } from '@/services/glb/dressViewerFraming';
 
 type Props = {
   glbUrl: string;
@@ -24,6 +26,8 @@ type Props = {
   fallbackImage?: ImageSourcePropType | null;
   style?: StyleProp<ViewStyle>;
   framing?: DressViewerFramingMode;
+  modelId?: string | null;
+  selections?: DressFramingContext['selections'];
 };
 
 type LoadState = 'loading' | 'ready' | 'error';
@@ -38,10 +42,16 @@ export function GlbHtmlModelViewer({
   fallbackImage,
   style,
   framing = 'editor',
+  modelId = null,
+  selections = null,
 }: Props): React.ReactElement {
   const domRef = useRef<HTMLDivElement | null>(null);
   const errorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [state, setState] = useState<LoadState>('loading');
+  const framingCtx = useMemo(
+    () => dressFramingContext(modelId, selections),
+    [modelId, selections],
+  );
 
   const clearErrorTimer = () => {
     if (errorTimerRef.current) {
@@ -89,7 +99,7 @@ export function GlbHtmlModelViewer({
           if (cancelled) return;
           scheduleDressModelFraming(mv, () => {
             if (!cancelled) setState('ready');
-          }, framing);
+          }, framing, framingCtx);
         };
         const onError = () => {
           if (!cancelled) scheduleError();
@@ -111,7 +121,7 @@ export function GlbHtmlModelViewer({
       clearErrorTimer();
       host.replaceChildren();
     };
-  }, [glbUrl, framing]);
+  }, [glbUrl, framing, framingCtx]);
 
   if (!glbUrl || glbUrl === 'about:blank') {
     return (

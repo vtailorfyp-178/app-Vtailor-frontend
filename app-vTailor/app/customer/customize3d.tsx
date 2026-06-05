@@ -9,7 +9,7 @@ import {
   type ImageSourcePropType,
 } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -22,15 +22,13 @@ import { useAuth } from '@/contexts/AuthContext';
 import { type TabId } from '@/services/dressGlbResolver';
 import {
   CASUAL_FABRIC_COLOR_FAMILIES,
-  fabricColorHexFromId,
   getDefaultShadeForFamily,
   getFamilyIdForShade,
   getShadesForFamily,
   isDarkFabricHex,
   isValidFabricShadeId,
-  usesCasualShortShirtFabricTint,
   usesCasualFabricColorFamilies,
-  usesCasualFabricRuntimeTint,
+  resolveDressFabricColorHex,
 } from '@/services/dressFabricColors';
 import { useBundledDressGlb } from '@/hooks/useBundledDressGlb';
 import {
@@ -318,6 +316,20 @@ function stripLongFrockDisallowedColors(
   return s;
 }
 
+/** Merge persisted picks into route defaults without wiping locked presets. */
+function mergeSavedSelections(
+  base: Record<TabId, string | null>,
+  saved: Record<TabId, string | null> | null | undefined,
+): Record<TabId, string | null> {
+  if (!saved) return base;
+  const merged = { ...base };
+  (Object.keys(saved) as TabId[]).forEach((key) => {
+    const value = saved[key];
+    if (value != null && value !== '') merged[key] = value;
+  });
+  return merged;
+}
+
 function isValidFrockStyleId(id: string): id is 'flared-bottom' | 'front-slit' {
   return id === 'flared-bottom' || id === 'front-slit';
 }
@@ -331,7 +343,7 @@ function isValidShalwarBottomId(id: string): boolean {
 }
 
 function isCasualShortShirtModel(modelId: string): boolean {
-  return modelId === 'shalwar-kameez-short';
+  return modelId === 'shalwar-kameez-short' || modelId === 'short-frock-shalwar';
 }
 
 function isTrouserShirtBellBottomModel(modelId: string): boolean {
@@ -596,30 +608,14 @@ export default function Customize3D() {
   })();
 
   const [selections, setSelections] = useState<Record<TabId, string | null>>(initialSelections);
+  const selectionsHydratedRef = useRef(Boolean(params.selections));
 
-  // Persist customization state so it survives navigation to AI chatbot and back
+  // Persist customization only after hydration — avoids wiping saved state on remount.
   const customizeStateKey = `vtailor_customize_state_${modelId}`;
   useEffect(() => {
+    if (!selectionsHydratedRef.current) return;
     AsyncStorage.setItem(customizeStateKey, JSON.stringify(selections)).catch(() => {});
   }, [selections, customizeStateKey]);
-
-  // Restore persisted state on mount only when no selections were passed as params
-  useEffect(() => {
-    if (params.selections) return; // params take priority
-    AsyncStorage.getItem(customizeStateKey).then((saved) => {
-      if (!saved) return;
-      try {
-        const parsed = JSON.parse(saved) as Record<TabId, string | null>;
-        setSelections((current) => {
-          // Only restore if current selections are all null (fresh mount)
-          const hasAny = Object.values(current).some((v) => v !== null);
-          if (hasAny) return current;
-          return parsed;
-        });
-      } catch { /* ignore malformed cache */ }
-    }).catch(() => {});
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   const { userId } = useAuth();
 
@@ -642,6 +638,70 @@ export default function Customize3D() {
     return fromShade ?? 'white';
   });
 
+  useEffect(() => {
+    if (params.selections) {
+      selectionsHydratedRef.current = true;
+      return;
+    }
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const saved = await AsyncStorage.getItem(customizeStateKey);
+        if (cancelled) return;
+        if (!saved) {
+          selectionsHydratedRef.current = true;
+          return;
+        }
+        const parsed = JSON.parse(saved) as Record<TabId, string | null>;
+        const merged = stripLongFrockDisallowedColors(
+          modelId,
+          mergeSavedSelections(initialSelections, parsed),
+        );
+        setSelections(merged);
+        const family = getFamilyIdForShade(merged.colors);
+        if (family) setActiveColorFamily(family);
+      } catch {
+        /* ignore malformed cache */
+      } finally {
+        if (!cancelled) selectionsHydratedRef.current = true;
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  // Restore once per model session; initialSelections captures route presets on first mount.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [customizeStateKey, modelId]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!selectionsHydratedRef.current || params.selections) return;
+      AsyncStorage.getItem(customizeStateKey)
+        .then((saved) => {
+          if (!saved) return;
+          try {
+            const parsed = JSON.parse(saved) as Record<TabId, string | null>;
+            setSelections((current) => {
+              const merged = stripLongFrockDisallowedColors(
+                modelId,
+                mergeSavedSelections(current, parsed),
+              );
+              const countSelections = (value: Record<TabId, string | null>) =>
+                Object.values(value).filter((entry) => entry != null && entry !== '').length;
+              return countSelections(merged) > countSelections(current) ? merged : current;
+            });
+            const family = getFamilyIdForShade(parsed.colors);
+            if (family) setActiveColorFamily(family);
+          } catch {
+            /* ignore malformed cache */
+          }
+        })
+        .catch(() => {});
+    }, [customizeStateKey, modelId, params.selections]),
+  );
+
   const lockedFrockStyleLabel = frockStyleOptions.find((o) => o.id === selections['frock-style'])?.name;
   const lockedSareeStyleLabel = sareeStyleOptions.find((o) => o.id === selections['saree-style'])?.name;
   const lockedShalwarBottomLabel =
@@ -663,14 +723,8 @@ export default function Customize3D() {
   );
 
   const usesFabricTint = usesCasualFabricColorFamilies(modelId, selectionsFor3d);
-  const usesCasualTint = usesCasualFabricRuntimeTint(modelId, selectionsFor3d);
   /** Base / textured GLB until customer picks a fabric shade. */
-  const fabricColorHex =
-    fabricTextureUrl
-      ? null
-      : usesCasualTint && selections.colors
-        ? fabricColorHexFromId(selections.colors)
-        : null;
+  const fabricColorHex = resolveDressFabricColorHex(modelId, selectionsFor3d);
   const activeFabricShades = useMemo(
     () => getShadesForFamily(activeColorFamily),
     [activeColorFamily],
@@ -953,6 +1007,8 @@ export default function Customize3D() {
               fabricTextureUrl={fabricTextureUrl}
               fallbackImage={imageSource}
               isUpdating={isGlbUpdating}
+              modelId={modelId}
+              selections={selectionsFor3d}
             />
           ) : canShowGlb && !hasDisplayGlbUrl && dressGlb.loading ? (
             <View style={styles.previewLoadingWrap}>
@@ -1174,7 +1230,18 @@ export default function Customize3D() {
           </View>
 
           <Pressable
-            onPress={() => (router as any).push('/customer/ai-assistant')}
+            onPress={() =>
+              router.push({
+                pathname: '/customer/ai-assistant',
+                params: {
+                  fromCustomize: '1',
+                  modelId,
+                  modelName: (params.modelName as string) || '',
+                  dressLine: dressLine || '',
+                  selections: JSON.stringify(selections),
+                },
+              } as any)
+            }
             style={({ pressed }) => [
               styles.aiFab,
               { backgroundColor: tint, borderColor: inputBorder, opacity: pressed ? 0.88 : 1 },

@@ -1,5 +1,8 @@
 import {
   DRESS_MODEL_VIEWER_ORBIT_SCALE,
+  dressCameraFieldOfView,
+  dressModelViewerOrbitScaleNumber,
+  type DressFramingContext,
   type DressViewerFramingMode,
 } from '@/services/glb/dressViewerFraming';
 
@@ -156,7 +159,7 @@ export function buildModelViewerShellHtml(): string {
             ? window.__vtailorOrbitScale
             : ${MV_ORBIT_SCALE_DEFAULT};
           mv.cameraOrbit = '0deg 88deg ' + Math.round(maxDim * orbitScale) + '%';
-          mv.fieldOfView = '22deg';
+          mv.fieldOfView = (typeof window.__vtailorFovDeg === 'number' ? window.__vtailorFovDeg : 22) + 'deg';
         }
         setTargetFromModel();
         if (typeof mv.updateFraming === 'function') mv.updateFraming();
@@ -462,9 +465,14 @@ export function injectModelViewerWeddingColorScript(hex: string | null): string 
   return `(function(){try{window.__vtailorWeddingHex=${payload};window.__vtailorSetWeddingColor&&window.__vtailorSetWeddingColor(window.__vtailorWeddingHex);}catch(e){}})();true;`;
 }
 
-export function injectModelViewerFramingScript(mode: DressViewerFramingMode): string {
-  const scale = DRESS_MODEL_VIEWER_ORBIT_SCALE[mode];
-  return `(function(){try{window.__vtailorOrbitScale=${scale};if(typeof window.__vtailorFrameDress==='function')window.__vtailorFrameDress();}catch(e){}})();true;`;
+export function injectModelViewerFramingScript(
+  mode: DressViewerFramingMode,
+  ctx?: DressFramingContext | null,
+): string {
+  const scale = dressModelViewerOrbitScaleNumber(mode, ctx);
+  const fovMatch = /(\d+)/.exec(dressCameraFieldOfView(ctx));
+  const fov = fovMatch ? Number(fovMatch[1]) : 22;
+  return `(function(){try{window.__vtailorOrbitScale=${scale};window.__vtailorFovDeg=${fov};if(typeof window.__vtailorFrameDress==='function')window.__vtailorFrameDress();}catch(e){}})();true;`;
 }
 
 /** Inline HTML for WebView fallback — preserves GLB materials via model-viewer. */
@@ -543,7 +551,7 @@ export function buildModelViewerHtml(glbUrl: string): string {
             ? window.__vtailorOrbitScale
             : ${MV_ORBIT_SCALE_DEFAULT};
           mv.cameraOrbit = '0deg 88deg ' + Math.round(maxDim * orbitScale) + '%';
-          mv.fieldOfView = '22deg';
+          mv.fieldOfView = (typeof window.__vtailorFovDeg === 'number' ? window.__vtailorFovDeg : 22) + 'deg';
         }
         if (typeof mv.updateFraming === 'function') mv.updateFraming();
       } catch (_) {}

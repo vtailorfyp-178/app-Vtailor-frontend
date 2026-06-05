@@ -4,9 +4,9 @@
     "slug": "app-vTailor",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/vTailorlogo.png",
+    "icon": "./assets/images/vTailoricon.png",
     "scheme": "appvtailor",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": true,
       "infoPlist": {

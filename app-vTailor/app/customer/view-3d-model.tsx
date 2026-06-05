@@ -1,7 +1,6 @@
 import React, { useMemo, useState } from 'react';
-import { View, Pressable, StyleSheet, Image, useWindowDimensions } from 'react-native';
+import { View, Pressable, StyleSheet, Image, useWindowDimensions, Alert } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -12,12 +11,13 @@ import { DressGlbPreview } from '@/components/DressGlbPreview';
 import { type TabId } from '@/services/dressGlbResolver';
 import { useBundledDressGlb } from '@/hooks/useBundledDressGlb';
 import {
-  fabricColorHexFromId,
-  usesCasualShortShirtFabricTint,
+  resolveDressFabricColorHex,
 } from '@/services/dressFabricColors';
 import { persistNewCustomization } from '@/services/persistCustomization';
+import { saveCustomizationProgress } from '@/services/customerOrderDraft';
 import { resolveCustomizePreviewImage } from '@/services/dressCustomizePreview';
 import { with3dPreviewDefaults } from '@/services/glb/threePreviewReadiness';
+import { TEXT_DARK } from '@/constants/ui';
 
 const defaultSelections: Record<TabId, string | null> = {
   neck: null,
@@ -42,7 +42,7 @@ export default function View3DModelScreen() {
 
   const modelId = (params.modelId as string) || '';
   const modelName = (params.modelName as string) || 'your dress';
-  /** Order timeline: model only. My Customizations: model + side edit. After customize: measurements CTA. */
+  /** Order timeline: model only. My Customizations: footer edit + measurements CTA. After customize: measurements CTA. */
   const isPreviewOnly =
     (params.fullScreen as string) === '1' || (params.flow as string) === 'preview';
   const isSavedFlow = (params.flow as string) === 'saved';
@@ -86,14 +86,8 @@ export default function View3DModelScreen() {
     [modelId, selections],
   );
   const dressGlb = useBundledDressGlb(selectionsFor3d, modelId, true);
-  const usesFabricTint = usesCasualShortShirtFabricTint(modelId, selections);
   const fabricTextureUrl = selections['fabric-print'];
-  const fabricColorHex =
-    fabricTextureUrl
-      ? null
-      : usesFabricTint
-        ? fabricColorHexFromId(selections.colors)
-        : null;
+  const fabricColorHex = resolveDressFabricColorHex(modelId, selectionsFor3d);
   const showGlb3d = dressGlb.url != null;
   const imageSource = useMemo(
     () => resolveCustomizePreviewImage(modelId, selections),
@@ -101,6 +95,7 @@ export default function View3DModelScreen() {
   );
 
   const [goingToMeasurements, setGoingToMeasurements] = useState(false);
+  const [savingDraft, setSavingDraft] = useState(false);
 
   const goMeasurements = async () => {
     setGoingToMeasurements(true);
@@ -114,6 +109,25 @@ export default function View3DModelScreen() {
       });
     } finally {
       setGoingToMeasurements(false);
+    }
+  };
+
+  const saveAndGoDashboard = async () => {
+    setSavingDraft(true);
+    try {
+      await saveCustomizationProgress({
+        userId,
+        modelId,
+        modelName,
+        dressLine: (params.dressLine as string) || '',
+        selections,
+      });
+      Alert.alert('Saved', 'Your design is saved. Continue anytime from the dashboard.');
+      (router as any).replace('/customer');
+    } catch {
+      Alert.alert('Save failed', 'Could not save your design. Please try again.');
+    } finally {
+      setSavingDraft(false);
     }
   };
 
@@ -135,11 +149,11 @@ export default function View3DModelScreen() {
             variant={isPreviewOnly || isSavedFlow ? 'light' : 'tint'}
           />
           {isSavedFlow ? (
-            <ThemedText style={[styles.headerTitleDark, { color: muted }]}>{modelName}</ThemedText>
+            <ThemedText style={[styles.headerTitleDark, { color: TEXT_DARK }]}>{modelName}</ThemedText>
           ) : !isPreviewOnly ? (
             <ThemedText style={styles.headerTitle}>Your 3D design</ThemedText>
           ) : (
-            <ThemedText style={[styles.headerTitleDark, { color: muted }]}>3D preview</ThemedText>
+            <ThemedText style={[styles.headerTitleDark, { color: TEXT_DARK }]}>3D preview</ThemedText>
           )}
           <View style={styles.headerSpacer} />
         </View>
@@ -154,22 +168,8 @@ export default function View3DModelScreen() {
       >
         {isFinalizeFlow ? (
           <View style={[styles.backOverlay, { top: insets.top + 8 }]}>
-            <AppBackButton onPress={() => router.back()} variant="tint" />
+            <AppBackButton onPress={() => router.back()} variant="light" />
           </View>
-        ) : null}
-        {isSavedFlow ? (
-          <Pressable
-            onPress={openCustomizeEditor}
-            style={({ pressed }) => [
-              styles.sideEditFab,
-              { backgroundColor: tint, bottom: footerH + 12, opacity: pressed ? 0.9 : 1 },
-            ]}
-            accessibilityRole="button"
-            accessibilityLabel="Edit design"
-          >
-            <Ionicons name="create-outline" size={18} color="#fff" />
-            <ThemedText style={styles.sideEditFabText}>Edit</ThemedText>
-          </Pressable>
         ) : null}
         {showGlb3d && dressGlb.url != null ? (
           <DressGlbPreview
@@ -182,6 +182,8 @@ export default function View3DModelScreen() {
             fallbackImage={imageSource}
             loadError={dressGlb.error}
             framing="presentation"
+            modelId={modelId}
+            selections={selectionsFor3d}
           />
         ) : imageSource ? (
           <>
@@ -211,13 +213,34 @@ export default function View3DModelScreen() {
         >
           <Pressable
             onPress={goMeasurements}
-            disabled={goingToMeasurements}
+            disabled={goingToMeasurements || savingDraft}
             style={[styles.proceed, { backgroundColor: tint, opacity: goingToMeasurements ? 0.75 : 1 }]}
           >
             <ThemedText style={styles.proceedText}>
               {goingToMeasurements ? 'Opening…' : 'Continue to measurements'}
             </ThemedText>
           </Pressable>
+          {isSavedFlow ? (
+            <Pressable
+              onPress={openCustomizeEditor}
+              style={[styles.editBtn, { borderColor: inputBorder }]}
+              accessibilityRole="button"
+              accessibilityLabel="Edit design"
+            >
+              <ThemedText style={[styles.editBtnText, { color: tint }]}>Edit design</ThemedText>
+            </Pressable>
+          ) : null}
+          {isFinalizeFlow ? (
+            <Pressable
+              onPress={saveAndGoDashboard}
+              disabled={savingDraft || goingToMeasurements}
+              style={[styles.saveDashboardBtn, { borderColor: inputBorder, opacity: savingDraft ? 0.75 : 1 }]}
+            >
+              <ThemedText style={[styles.saveDashboardText, { color: tint }]}>
+                {savingDraft ? 'Saving…' : 'Save & back to Dashboard'}
+              </ThemedText>
+            </Pressable>
+          ) : null}
           {isFinalizeFlow ? (
             <Pressable
               onPress={openCustomizeEditor}
@@ -265,29 +288,6 @@ const styles = StyleSheet.create({
     left: 12,
     zIndex: 10,
   },
-  sideEditFab: {
-    position: 'absolute',
-    right: 12,
-    zIndex: 10,
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-    paddingVertical: 12,
-    paddingHorizontal: 10,
-    borderRadius: 14,
-    minWidth: 52,
-    shadowColor: '#000',
-    shadowOpacity: 0.18,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 5,
-  },
-  sideEditFabText: {
-    color: '#fff',
-    fontSize: 11,
-    fontWeight: '800',
-  },
   previewImage: { width: '100%', height: '100%' },
   fallbackNote: { paddingHorizontal: 16, paddingBottom: 16, fontSize: 13, textAlign: 'center' },
   footer: {
@@ -297,6 +297,14 @@ const styles = StyleSheet.create({
   },
   proceed: { padding: 16, borderRadius: 12, alignItems: 'center' },
   proceedText: { color: '#fff', fontWeight: '700', fontSize: 16 },
+  saveDashboardBtn: {
+    padding: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+    backgroundColor: '#fff',
+  },
+  saveDashboardText: { fontWeight: '700', fontSize: 15 },
   editBtn: { padding: 14, borderRadius: 12, alignItems: 'center', borderWidth: 1, backgroundColor: '#fff' },
   editBtnText: { fontWeight: '700', fontSize: 15 },
 });

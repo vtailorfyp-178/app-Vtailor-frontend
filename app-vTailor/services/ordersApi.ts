@@ -42,6 +42,7 @@ export async function createOrder(
     tailor_name: string;
     description: string;
     budget: number;
+    delivery_days: number;
   }
 ): Promise<Order> {
   const res = await fetchWithApiFallback('/orders', {

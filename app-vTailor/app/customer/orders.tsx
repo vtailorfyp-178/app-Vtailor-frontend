@@ -10,6 +10,7 @@ import { ActivityIndicator, Alert, Platform, ScrollView, StyleSheet, Text, Touch
 import { DEMO_CUSTOMER_ORDERS, dressPreviewFromOrderDescription } from '@/services/orderDressPreview';
 import { useAuth } from '@/contexts/AuthContext';
 import { getOrders, confirmOrder, rejectPrice, type Order as ApiOrder } from '@/services/ordersApi';
+import { firstInitial } from '@/utils/safeDisplay';
 
 type OrderStatusFilter = 'All' | 'Active' | 'Delivered' | 'Canceled';
 
@@ -46,6 +47,7 @@ const getStatusColors = (status: string) => {
 };
 
 function apiStatusLabel(s: string) {
+  if (!s) return 'Unknown';
   if (s === 'pending')        return 'Pending';
   if (s === 'accepted')       return 'Accepted';
   if (s === 'declined')       return 'Declined';
@@ -94,9 +96,13 @@ export default function CustomerOrders() {
 
   const handleConfirm = async (order: ApiOrder) => {
     if (!token) return;
+    const daysText =
+      order.delivery_days != null && order.delivery_days > 0
+        ? `${order.delivery_days} day${order.delivery_days === 1 ? '' : 's'}`
+        : 'the proposed timeline';
     Alert.alert(
       'Approve Price',
-      `Approve Rs. ${order.proposed_price?.toLocaleString()} for "${order.description}"?\n\nThis will confirm the order.`,
+      `Approve Rs. ${order.proposed_price?.toLocaleString()} (${daysText}) for "${order.description}"?\n\nThis will confirm the order.`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -120,9 +126,13 @@ export default function CustomerOrders() {
 
   const handleRejectPrice = async (order: ApiOrder) => {
     if (!token) return;
+    const daysText =
+      order.delivery_days != null && order.delivery_days > 0
+        ? ` (${order.delivery_days} day${order.delivery_days === 1 ? '' : 's'})`
+        : '';
     Alert.alert(
       'Reject Price',
-      `Reject the Rs. ${order.proposed_price?.toLocaleString()} proposal for "${order.description}"?`,
+      `Reject the Rs. ${order.proposed_price?.toLocaleString()}${daysText} proposal for "${order.description}"?`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -273,14 +283,15 @@ export default function CustomerOrders() {
                   <View style={styles.priceProposedBanner}>
                     <Ionicons name="pricetag" size={14} color="#c2410c" />
                     <Text style={styles.priceProposedBannerText}>
-                      Tailor proposed a new price — action required!
+                      Tailor proposed Rs. {order.proposed_price?.toLocaleString()}
+                      {order.delivery_days != null ? ` · ${order.delivery_days} days` : ''} — action required!
                     </Text>
                   </View>
                 )}
                 <View style={styles.cardTop}>
                   <View style={[styles.avatar, { backgroundColor: isPriceProposed ? '#fff7ed' : '#d1fae5' }]}>
                     <Text style={[styles.avatarText, { color: isPriceProposed ? '#c2410c' : '#059669' }]}>
-                      {order.tailor_name.charAt(0).toUpperCase()}
+                      {firstInitial(order.tailor_name, 'T')}
                     </Text>
                   </View>
                   <View style={{ flex: 1 }}>
@@ -301,10 +312,11 @@ export default function CustomerOrders() {
                       <Ionicons name="pricetag-outline" size={13} color={isPriceProposed ? '#c2410c' : '#059669'} />
                       <Text style={[styles.metaChipText, { color: isPriceProposed ? '#c2410c' : '#059669' }]}>
                         Rs. {order.proposed_price.toLocaleString()}
+                        {order.delivery_days != null ? ` · ${order.delivery_days}d` : ''}
                       </Text>
                     </View>
                   )}
-                  {order.delivery_days != null && (
+                  {order.delivery_days != null && order.proposed_price == null && (
                     <View style={styles.metaChip}>
                       <Ionicons name="time-outline" size={13} color="#0e7490" />
                       <Text style={[styles.metaChipText, { color: '#0e7490' }]}>{order.delivery_days}d delivery</Text>
@@ -354,6 +366,7 @@ export default function CustomerOrders() {
                     <Ionicons name="checkmark-circle" size={16} color="#059669" />
                     <Text style={{ color: '#059669', fontWeight: '700', fontSize: 12 }}>
                       Order placed at Rs. {order.proposed_price?.toLocaleString() ?? order.budget.toLocaleString()}
+                      {order.delivery_days != null ? ` · ${order.delivery_days} days` : ''}
                     </Text>
                   </View>
                 )}

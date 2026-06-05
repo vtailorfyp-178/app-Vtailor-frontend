@@ -32,6 +32,7 @@ import {
 import { getCachedGlbBuffer } from '@/services/glb/glbModelCache';
 import {
   dressCameraFitMultiplier,
+  type DressFramingContext,
   type DressViewerFramingMode,
 } from '@/services/glb/dressViewerFraming';
 import type { JSX } from 'react';
@@ -67,6 +68,7 @@ function fitDressCamera(
   layoutW: number,
   layoutH: number,
   framing: DressViewerFramingMode = 'editor',
+  framingCtx?: DressFramingContext | null,
 ): { pivotY: number; zoom: number } {
   const box = new THREE.Box3().setFromObject(model);
   const size = box.getSize(new THREE.Vector3());
@@ -77,7 +79,7 @@ function fitDressCamera(
   const vFovRad = (camera.fov * Math.PI) / 180;
   const hFovRad = 2 * Math.atan(Math.tan(vFovRad / 2) * aspect);
   const fitFov = Math.min(vFovRad, hFovRad);
-  const dist = (maxDim / 2) / Math.tan(fitFov / 2) * dressCameraFitMultiplier(framing);
+  const dist = (maxDim / 2) / Math.tan(fitFov / 2) * dressCameraFitMultiplier(framing, framingCtx);
 
   return {
     pivotY: center.y,
@@ -258,8 +260,10 @@ type Props = {
   backgroundImage?: ImageSourcePropType | null;
   style?: StyleProp<ViewStyle>;
   isUpdating?: boolean;
-  /** `presentation` — slightly closer framing for full-screen view / My Designs. */
+  /** `presentation` — full-screen view / My Designs. */
   framing?: DressViewerFramingMode;
+  modelId?: string | null;
+  selections?: DressFramingContext['selections'];
 };
 
 export function TraditionalDressGlbViewer({
@@ -273,7 +277,13 @@ export function TraditionalDressGlbViewer({
   style,
   isUpdating = false,
   framing = 'editor',
+  modelId = null,
+  selections = null,
 }: Props): JSX.Element {
+  const framingCtx = useMemo(
+    () => (modelId ? { modelId, selections } : null),
+    [modelId, selections],
+  );
   const hasBackdrop = backgroundImage != null;
   const rotY = useRef(0);
   const zoomRef = useRef(ZOOM_DEFAULT);
@@ -393,6 +403,7 @@ export function TraditionalDressGlbViewer({
           layoutRef.current.width,
           layoutRef.current.height,
           framing,
+          framingCtx,
         );
         pivotYRef.current = pivotY;
         zoomRef.current = zoom;
@@ -407,7 +418,7 @@ export function TraditionalDressGlbViewer({
       );
       requestRender();
     },
-    [clearDressFromScene, glbUrl, requestRender],
+    [clearDressFromScene, glbUrl, requestRender, framing, framingCtx],
   );
 
   const mountModelInSceneRef = useRef(mountModelInScene);
@@ -695,6 +706,8 @@ export function TraditionalDressGlbViewer({
         style={style}
         isUpdating={isUpdating}
         framing={framing}
+        modelId={modelId}
+        selections={selections}
       />
     );
   }

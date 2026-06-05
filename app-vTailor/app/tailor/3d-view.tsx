@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { View, ScrollView, Pressable, StyleSheet, Image, useWindowDimensions } from 'react-native';
+import { View, ScrollView, Pressable, StyleSheet, Image, useWindowDimensions, Alert } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { ThemedText } from '@/components/themed-text';
@@ -9,8 +9,7 @@ import { DressGlbPreview } from '@/components/DressGlbPreview';
 import { TailorScreenShell } from '@/components/tailor/TailorScreenShell';
 import { TAILOR, tailorStyles } from '@/components/tailor/tailorUi';
 import {
-  fabricColorHexFromId,
-  usesCasualShortShirtFabricTint,
+  resolveDressFabricColorHex,
 } from '@/services/dressFabricColors';
 import { type TabId } from '@/services/dressGlbResolver';
 import { useBundledDressGlb } from '@/hooks/useBundledDressGlb';
@@ -18,6 +17,7 @@ import { with3dPreviewDefaults } from '@/services/glb/threePreviewReadiness';
 import {
   formatSelectionLines,
   getOrderById,
+  markTailorTemplateApproved,
 } from '@/services/tailor/tailorOrderCatalog';
 
 const MOCK_3D_TEMPLATES: Record<number, any> = {
@@ -87,6 +87,7 @@ export default function Tailor3DView() {
   const glViewportH = 340;
 
   const orderIdParam = (params.orderId as string) || '';
+  const designIdParam = (params.designId as string) || '';
   const customerId = String(params.customerId || '1');
   const customerNameParam = (params.customerName as string) || '';
   const modelIdParam = (params.modelId as string) || '';
@@ -110,12 +111,10 @@ export default function Tailor3DView() {
   }, [hasCustomerDesign, modelIdParam, parsedSelections]);
   const dressGlb = useBundledDressGlb(selectionsFor3d, hasCustomerDesign ? modelIdParam : '');
 
-  const customerFabricHex =
-    hasCustomerDesign && parsedSelections
-      ? usesCasualShortShirtFabricTint(modelIdParam, parsedSelections)
-        ? fabricColorHexFromId(parsedSelections.colors)
-        : null
-      : null;
+  const customerFabricHex = hasCustomerDesign
+    ? resolveDressFabricColorHex(modelIdParam, selectionsFor3d)
+    : null;
+  const customerFabricTextureUrl = parsedSelections?.['fabric-print'] ?? null;
 
   const orderFromCatalog = orderIdParam ? getOrderById(orderIdParam) : undefined;
   const template = MOCK_3D_TEMPLATES[parseInt(customerId, 10) || 1];
@@ -128,11 +127,21 @@ export default function Tailor3DView() {
     orderFromCatalog?.garment ||
     (hasCustomerDesign ? modelNameParam || modelIdParam : template?.garment);
 
-  const handleApprove = () => {
-    router.push({
-      pathname: '/tailor/measurement-detail',
-      params: { orderId: orderIdParam || orderFromCatalog?.orderId || 'ORD001' },
-    });
+  const handleApprove = async () => {
+    try {
+      const resolvedOrderId = orderIdParam || orderFromCatalog?.orderId || `DES-${designIdParam || '001'}`;
+      await markTailorTemplateApproved(resolvedOrderId);
+      router.push({
+        pathname: '/tailor/measurement-detail',
+        params: {
+          orderId: resolvedOrderId,
+          designId: designIdParam,
+          customerName: displayName,
+        },
+      });
+    } catch {
+      Alert.alert('Could not open measurements', 'Please try again from 3D Review.');
+    }
   };
 
   const handleRequestChanges = () => {
@@ -211,6 +220,9 @@ export default function Tailor3DView() {
                 width={glViewportW}
                 height={glViewportH}
                 fabricColorHex={customerFabricHex}
+                fabricTextureUrl={customerFabricTextureUrl}
+                modelId={modelIdParam}
+                selections={selectionsFor3d}
               />
             ) : hasCustomerDesign && (dressGlb.loading || dressGlb.url == null) ? (
               <View style={[styles.fallbackBox, { borderColor: '#e5e7eb' }]}>

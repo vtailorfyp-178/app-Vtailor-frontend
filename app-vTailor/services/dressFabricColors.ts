@@ -253,6 +253,17 @@ export function usesCasualFabricRuntimeTint(
   return usesCasualFabricColorFamilies(modelId, selections);
 }
 
+/** Fabric shade hex for casual runtime-tint models; null when print texture is active. */
+export function resolveDressFabricColorHex(
+  modelId: string,
+  selections: Partial<Record<TabId, string | null>>,
+): string | null {
+  if (selections['fabric-print']) return null;
+  if (!usesCasualFabricRuntimeTint(modelId, selections)) return null;
+  if (!selections.colors) return null;
+  return fabricColorHexFromId(selections.colors);
+}
+
 export function usesBellBottomOrPatiyalaFabricTint(
   modelId: string,
   selections: Partial<Record<TabId, string | null>>,

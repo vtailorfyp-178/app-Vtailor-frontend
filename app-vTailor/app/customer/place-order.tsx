@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -19,6 +19,8 @@ import { useThemeColor } from '@/hooks/use-theme-color';
 import { useAuth } from '@/contexts/AuthContext';
 import { SURFACE_MUTED, TEXT_DARK, UI } from '@/constants/ui';
 import { createOrder } from '@/services/ordersApi';
+import { finalizePlacedOrder } from '@/services/savedDesign';
+import { getCustomerOrderDraft } from '@/services/customerOrderDraft';
 
 function initials(name: string) {
   return name.split(' ').filter(Boolean).slice(0, 2).map((p) => p[0]?.toUpperCase() || '').join('');
@@ -27,7 +29,7 @@ function initials(name: string) {
 export default function PlaceOrder() {
   const router  = useRouter();
   const insets  = useSafeAreaInsets();
-  const { token } = useAuth();
+  const { token, userId } = useAuth();
   const params  = useLocalSearchParams<{
     tailorId: string;
     tailorName: string;
@@ -45,7 +47,15 @@ export default function PlaceOrder() {
 
   const [description, setDescription] = useState('');
   const [budget, setBudget]           = useState('');
+  const [days, setDays]               = useState('');
   const [submitting, setSubmitting]   = useState(false);
+
+  useEffect(() => {
+    getCustomerOrderDraft(userId).then((draft) => {
+      if (!draft?.modelName) return;
+      setDescription((prev) => (prev.trim() ? prev : draft.modelName));
+    }).catch(() => {});
+  }, [userId]);
 
   const tailorName    = params.tailorName     || 'Tailor';
   const spec          = params.specialization || '';
@@ -53,22 +63,44 @@ export default function PlaceOrder() {
   const priceFrom     = params.priceFrom      || '';
   const priceTo       = params.priceTo        || '';
 
-  const canSubmit = description.trim().length >= 3 && Number(budget) > 0 && !submitting;
+  const canSubmit =
+    description.trim().length >= 3 &&
+    Number(budget) > 0 &&
+    Number(days) > 0 &&
+    !submitting;
 
   const handleSubmit = async () => {
     if (!canSubmit || !token || !params.tailorId) return;
     setSubmitting(true);
     try {
-      await createOrder(token, {
-        tailor_id:   params.tailorId,
-        tailor_name: tailorName,
-        description: description.trim(),
-        budget:      Number(budget),
+      const created = await createOrder(token, {
+        tailor_id:     params.tailorId,
+        tailor_name:   tailorName,
+        description:   description.trim(),
+        budget:        Number(budget),
+        delivery_days: Number(days),
       });
+      await finalizePlacedOrder(
+        userId,
+        {
+          tailorId: params.tailorId,
+          tailorName,
+          specialization: spec || undefined,
+          rating: rating || undefined,
+          priceFrom: priceFrom || undefined,
+          priceTo: priceTo || undefined,
+        },
+        {
+          description: description.trim(),
+          budget: Number(budget),
+          deliveryDays: Number(days),
+        },
+        created,
+      );
+      router.replace('/customer');
       Alert.alert(
         'Request Sent! 🎉',
-        `Your order request has been sent to ${tailorName}. You'll be notified when they respond.`,
-        [{ text: 'OK', onPress: () => router.back() }]
+        `Your order has been sent to ${tailorName} and saved in My Designs.`,
       );
     } catch (err: any) {
       Alert.alert('Failed to Send', err?.message || 'Please check your connection and try again.');
@@ -152,10 +184,24 @@ export default function PlaceOrder() {
             />
           </View>
 
+          <ThemedText style={styles.sectionLabel}>Expected Delivery (days)</ThemedText>
+          <View style={[styles.inputBox, styles.inputRow, { borderColor: inputBorder, backgroundColor: card }]}>
+            <Ionicons name="calendar-outline" size={18} color={muted} style={{ marginRight: 8 }} />
+            <TextInput
+              value={days}
+              onChangeText={(v) => setDays(v.replace(/[^0-9]/g, ''))}
+              placeholder="e.g. 7"
+              placeholderTextColor={muted}
+              keyboardType="numeric"
+              style={[styles.budgetInput, { color: text }]}
+            />
+            <ThemedText style={[styles.daysSuffix, { color: muted }]}>days</ThemedText>
+          </View>
+
           <View style={[styles.infoBox, { backgroundColor: tint + '12', borderColor: tint + '33' }]}>
             <Ionicons name="information-circle-outline" size={16} color={tint} style={{ marginTop: 1 }} />
             <ThemedText style={[styles.infoText, { color: muted }]}>
-              After the tailor accepts, they will propose a final price and delivery timeline. You can then confirm or discuss further via chat.
+              Include your budget and how soon you need the order. The tailor may confirm or propose a different price and timeline.
             </ThemedText>
           </View>
 
@@ -202,6 +248,7 @@ const styles = StyleSheet.create({
   charCount:     { fontSize: 11, textAlign: 'right', marginTop: 6 },
   currencyLabel: { fontSize: 16, fontWeight: '700', marginRight: 8 },
   budgetInput:   { flex: 1, fontSize: 16, fontWeight: '600' },
+  daysSuffix:    { fontSize: 14, fontWeight: '600', marginLeft: 4 },
   infoBox:       { flexDirection: 'row', gap: 8, padding: 12, borderRadius: UI.radius.md, borderWidth: 1, marginBottom: 20 },
   infoText:      { flex: 1, fontSize: 12, lineHeight: 17 },
   submitBtn:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingVertical: 16, borderRadius: UI.radius.lg },

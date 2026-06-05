@@ -255,6 +255,7 @@ const WalletTransactionScreen = () => {
               value={amount}
               onChangeText={setAmount}
               keyboardType="numeric"
+              placeholderTextColor="#9ca3af"
               style={styles.input}
             />
           </View>
@@ -267,6 +268,7 @@ const WalletTransactionScreen = () => {
               value={phone}
               onChangeText={setPhone}
               keyboardType="phone-pad"
+              placeholderTextColor="#9ca3af"
               style={styles.input}
             />
           </View>

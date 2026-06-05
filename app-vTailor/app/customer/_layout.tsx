@@ -61,6 +61,7 @@ function shouldShowCustomerTabBar(pathname: string): boolean {
   if (pathname.includes('/customer/ai-assistant')) return false;
   if (pathname.includes('/customer/customize3d')) return false;
   if (pathname.includes('/customer/view-3d-model')) return false;
+  if (pathname.includes('/customer/design-detail')) return false;
   if (pathname.includes('/customer/measurements')) return false;
   if (pathname.includes('/customer/order-timeline')) return false;
   if (pathname.includes('/customer/find-tailors')) return false;

@@ -100,6 +100,7 @@ function resolveLongFrockByColor(s: Record<TabId, string | null>): string | null
       });
     if (s.colors === 'red')
       return resolveLongFrockSplit(s, {
+        /** Cloudinary filenames: full ↔ bell split assets are swapped for red open slit. */
         roundBell: GLB_RED_LONG_FROCK_ROUND_FULL_SPLIT,
         roundFull: GLB_RED_LONG_FROCK_ROUND_BELL_SPLIT,
         vBell: GLB_RED_LONG_FROCK_V_BELL_SPLIT,

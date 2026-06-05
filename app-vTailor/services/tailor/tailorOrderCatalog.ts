@@ -2,6 +2,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { TabId } from '@/services/dressGlbResolver';
 import { getGlobalCustomizations } from '@/services/userDataService';
 import { buildBasicMeasurementValues, type MeasurementValueMap } from '@/services/measurement/measurementLabelConfig';
+import type { SavedDesignMeasurements } from '@/services/savedDesign';
+import { normalizeSavedSelections } from '@/services/savedDesign';
 
 export type TailorOrderCustomization = {
   modelId: string;
@@ -231,6 +233,91 @@ export function getOrderById(orderId: string): TailorOrderRecord | undefined {
   return TAILOR_SAMPLE_ORDERS.find((o) => o.orderId.toLowerCase() === key);
 }
 
+function hasMeasurementData(m?: TailorOrderMeasurements | SavedDesignMeasurements | null): boolean {
+  if (!m) return false;
+  return [m.basic, m.shirt, m.trouser, m.other].some(
+    (group) => group && Object.values(group).some((v) => Boolean(String(v || '').trim())),
+  );
+}
+
+function toTailorMeasurements(
+  raw: Partial<TailorOrderMeasurements> & { updatedAt?: string },
+): TailorOrderMeasurements {
+  return {
+    basic: raw.basic || {},
+    shirt: raw.shirt || {},
+    trouser: raw.trouser || {},
+    other: raw.other || {},
+    updatedAt: raw.updatedAt,
+  };
+}
+
+function measurementsFromDesignRecord(design: Record<string, unknown>): TailorOrderMeasurements | undefined {
+  const embedded = design.measurements as SavedDesignMeasurements | undefined;
+  if (embedded && hasMeasurementData(embedded)) {
+    return toTailorMeasurements({
+      basic: embedded.basic || {},
+      shirt: embedded.shirt || {},
+      trouser: embedded.trouser || {},
+      other: embedded.other || {},
+      updatedAt: String(design.updatedAt || design.createdAt || ''),
+    });
+  }
+  return undefined;
+}
+
+function selectionsMatch(
+  a: Record<string, string | null>,
+  b: Record<string, string | null | undefined>,
+): boolean {
+  const normA = normalizeSavedSelections(a);
+  const normB = normalizeSavedSelections(b);
+  return (Object.keys(normA) as TabId[]).every((k) => normA[k] === normB[k]);
+}
+
+async function loadMeasurementSnapshots(): Promise<
+  Array<TailorOrderMeasurements & { modelId?: string; modelName?: string; selections?: Record<string, string | null> }>
+> {
+  try {
+    const raw = await AsyncStorage.getItem('CUSTOMER_MEASUREMENTS');
+    if (!raw) return [];
+    const list = JSON.parse(raw);
+    return Array.isArray(list) ? list : [];
+  } catch {
+    return [];
+  }
+}
+
+async function findMeasurementSnapshotForDesign(
+  modelId: string,
+  selections: Record<string, string | null>,
+): Promise<TailorOrderMeasurements | undefined> {
+  const snapshots = await loadMeasurementSnapshots();
+  const match =
+    snapshots.find((row) => row.modelId === modelId && selectionsMatch(selections, row.selections || {})) ||
+    snapshots.find((row) => row.modelId === modelId) ||
+    snapshots[0];
+  if (!match || !hasMeasurementData(match)) return undefined;
+  return toTailorMeasurements(match);
+}
+
+async function enrichOrderWithMeasurements(order: TailorOrderRecord): Promise<TailorOrderRecord> {
+  if (hasMeasurementData(order.measurements)) return order;
+
+  const modelId = order.customization?.modelId;
+  const selections = order.customization?.selections;
+  if (!modelId || !selections) return order;
+
+  const snapshot = await findMeasurementSnapshotForDesign(modelId, selections);
+  if (!snapshot) return order;
+
+  return {
+    ...order,
+    measurements: snapshot,
+    hasMeasurements: true,
+  };
+}
+
 function orderFromSavedDesign(design: Record<string, unknown>): TailorOrderRecord | null {
   if (!design.modelId || !design.selections) return null;
 
@@ -239,26 +326,92 @@ function orderFromSavedDesign(design: Record<string, unknown>): TailorOrderRecor
   const modelName = String(design.modelName || design.modelId);
   const selections = design.selections as Record<string, string | null>;
   const colorSlug = selections.colors;
+  const orderInfo = design.order as { description?: string; budget?: number; orderId?: string } | undefined;
+  const measurements = measurementsFromDesignRecord(design);
 
   return {
-    orderId: `DES-${String(design.id || Date.now())}`,
+    orderId: orderInfo?.orderId || `DES-${String(design.id || Date.now())}`,
     customerId: customerUserId,
-    customerName: customerUserId !== 'guest' ? `Customer ${customerUserId.slice(0, 8)}` : 'Customer',
+    customerName:
+      typeof design.customerName === 'string' && design.customerName.trim()
+        ? design.customerName.trim()
+        : customerUserId !== 'guest'
+          ? `Customer ${customerUserId.slice(0, 8)}`
+          : 'Customer',
     phone: '—',
     garment: modelName,
-    status: 'pending',
+    status: design.orderPlaced ? 'confirmed' : 'pending',
     deliveryDate: createdAt.slice(0, 10),
     deliveryLabel: new Date(createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
-    amount: 0,
-    hasMeasurements: false,
+    amount: orderInfo?.budget ?? 0,
+    hasMeasurements: Boolean(measurements),
     color: colorSlug ? colorSlug.replace(/-/g, ' ') : undefined,
+    notes: orderInfo?.description,
     customization: {
       modelId: String(design.modelId),
       modelName,
       selections: { ...defaultSelections, ...selections },
       designId: String(design.id || ''),
     },
+    measurements,
   };
+}
+
+async function findSavedDesignRecord(
+  orderId: string,
+  designId?: string,
+): Promise<Record<string, unknown> | undefined> {
+  const designs = await getGlobalCustomizations();
+  if (designId) {
+    const byDesign = designs.find((d) => String((d as Record<string, unknown>).id) === designId);
+    if (byDesign) return byDesign as Record<string, unknown>;
+  }
+
+  const trimmed = orderId.trim();
+  if (trimmed.toUpperCase().startsWith('DES-')) {
+    const rawId = trimmed.slice(4);
+    const byDes = designs.find((d) => String((d as Record<string, unknown>).id) === rawId);
+    if (byDes) return byDes as Record<string, unknown>;
+  }
+
+  return designs.find((d) => {
+    const row = d as Record<string, unknown>;
+    const linked = row.order as { orderId?: string } | undefined;
+    return linked?.orderId === trimmed || String(row.id) === trimmed;
+  }) as Record<string, unknown> | undefined;
+}
+
+/** Resolve demo orders, saved customer designs (DES-*), and API order ids. */
+export async function resolveTailorOrder(
+  orderId: string,
+  designId?: string,
+  customerNameOverride?: string,
+): Promise<TailorOrderRecord | undefined> {
+  const sample = getOrderById(orderId);
+  if (sample) {
+    const enriched = await enrichOrderWithMeasurements(sample);
+    const approved = await isTailorTemplateApproved(enriched.orderId);
+    const withStatus = approved ? { ...enriched, status: 'in progress' } : enriched;
+    if (customerNameOverride?.trim()) {
+      return { ...withStatus, customerName: customerNameOverride.trim() };
+    }
+    return withStatus;
+  }
+
+  const design = await findSavedDesignRecord(orderId, designId);
+  if (design) {
+    const fromDesign = orderFromSavedDesign(design);
+    if (!fromDesign) return undefined;
+    const enriched = await enrichOrderWithMeasurements(fromDesign);
+    const approved = await isTailorTemplateApproved(enriched.orderId);
+    const withStatus = approved ? { ...enriched, status: 'in progress' } : enriched;
+    if (customerNameOverride?.trim()) {
+      return { ...withStatus, customerName: customerNameOverride.trim() };
+    }
+    return withStatus;
+  }
+
+  return undefined;
 }
 
 /** Real customer 3D designs saved on device — no demo/mock orders. */
@@ -270,7 +423,7 @@ export async function loadTailorOrdersWithDesigns(): Promise<TailorOrderRecord[]
     for (const raw of designs) {
       if (!raw || typeof raw !== 'object') continue;
       const order = orderFromSavedDesign(raw as Record<string, unknown>);
-      if (order) orders.push(order);
+      if (order) orders.push(await enrichOrderWithMeasurements(order));
     }
 
     return orders.reverse();
@@ -279,37 +432,73 @@ export async function loadTailorOrdersWithDesigns(): Promise<TailorOrderRecord[]
   }
 }
 
-/** Orders that include customer measurements. */
+/** Orders that include customer measurements (saved designs + demo samples). */
 export async function loadTailorOrdersWithMeasurements(): Promise<TailorOrderRecord[]> {
-  const orders = await enrichMeasurementsFromStorage([...TAILOR_SAMPLE_ORDERS]);
-  return orders.filter((o) => o.hasMeasurements && o.measurements);
+  const sample = await enrichMeasurementsFromStorage([...TAILOR_SAMPLE_ORDERS]);
+  const fromSample = sample.filter((o) => o.hasMeasurements && hasMeasurementData(o.measurements));
+
+  const fromDesigns = (await loadTailorOrdersWithDesigns()).filter(
+    (o) => o.hasMeasurements && hasMeasurementData(o.measurements),
+  );
+
+  const seen = new Set<string>();
+  return [...fromDesigns, ...fromSample].filter((o) => {
+    if (seen.has(o.orderId)) return false;
+    seen.add(o.orderId);
+    return true;
+  });
 }
 
 export async function loadAllTailorOrders(): Promise<TailorOrderRecord[]> {
-  return enrichMeasurementsFromStorage([...TAILOR_SAMPLE_ORDERS]);
+  const sample = await enrichMeasurementsFromStorage([...TAILOR_SAMPLE_ORDERS]);
+  const designs = await loadTailorOrdersWithDesigns();
+  const seen = new Set(designs.map((d) => d.orderId));
+  return [...designs, ...sample.filter((o) => !seen.has(o.orderId))];
 }
 
 async function enrichMeasurementsFromStorage(orders: TailorOrderRecord[]): Promise<TailorOrderRecord[]> {
+  const enriched = await Promise.all(orders.map((o) => enrichOrderWithMeasurements(o)));
   try {
     const raw = await AsyncStorage.getItem('CUSTOMER_MEASUREMENTS');
-    if (!raw) return orders;
+    if (!raw) return enriched;
     const list = JSON.parse(raw) as TailorOrderMeasurements[];
-    if (!Array.isArray(list) || !list.length) return orders;
+    if (!Array.isArray(list) || !list.length) return enriched;
     const latest = list[0];
-    const firstWithMeasurements = orders.findIndex((o) => o.hasMeasurements && !o.measurements?.basic?.bust);
+    const firstWithMeasurements = enriched.findIndex(
+      (o) => o.hasMeasurements && !hasMeasurementData(o.measurements),
+    );
     if (firstWithMeasurements >= 0 && latest?.basic) {
-      orders[firstWithMeasurements] = {
-        ...orders[firstWithMeasurements],
-        measurements: latest,
+      enriched[firstWithMeasurements] = {
+        ...enriched[firstWithMeasurements],
+        measurements: toTailorMeasurements(latest),
         hasMeasurements: true,
       };
     }
   } catch {
     /* ignore */
   }
-  return orders;
+  return enriched;
 }
 
 export function orderProgressStorageKey(orderId: string): string {
   return `order_progress_${orderId}`;
+}
+
+export const tailorTemplateApprovedKey = (orderId: string) => `tailor_template_approved_${orderId}`;
+
+export async function markTailorTemplateApproved(orderId: string): Promise<void> {
+  try {
+    await AsyncStorage.setItem(tailorTemplateApprovedKey(orderId), new Date().toISOString());
+  } catch {
+    /* ignore */
+  }
+}
+
+export async function isTailorTemplateApproved(orderId: string): Promise<boolean> {
+  try {
+    const raw = await AsyncStorage.getItem(tailorTemplateApprovedKey(orderId));
+    return Boolean(raw);
+  } catch {
+    return false;
+  }
 }

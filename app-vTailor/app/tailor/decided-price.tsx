@@ -67,10 +67,24 @@ export default function TailorDecidedPrice() {
           ) : null}
 
           <ThemedText style={styles.label}>Set Price (Rs)</ThemedText>
-          <TextInput value={priceInput} onChangeText={setPriceInput} keyboardType="numeric" style={styles.input} placeholder="e.g., 1200" />
+          <TextInput value={priceInput} onChangeText={setPriceInput} keyboardType="numeric" style={styles.input} placeholder="e.g., 1200" placeholderTextColor="#9ca3af" />
 
           <ThemedText style={styles.label}>Estimated Completion (days)</ThemedText>
-          <TextInput value={daysInput} onChangeText={setDaysInput} keyboardType="numeric" style={styles.input} placeholder="e.g., 5" />
+          <TextInput value={daysInput} onChangeText={setDaysInput} keyboardType="numeric" style={styles.input} placeholder="e.g., 5" placeholderTextColor="#9ca3af" />
+
+          {priceInput.trim() || daysInput.trim() ? (
+            <View style={styles.previewCard}>
+              <ThemedText style={styles.previewLabel}>Proposal preview</ThemedText>
+              <ThemedText style={styles.previewPrice}>
+                Rs {Number(priceInput || 0).toLocaleString()}
+              </ThemedText>
+              <ThemedText style={styles.previewDays}>
+                {Number(daysInput) > 0
+                  ? `${daysInput} day${Number(daysInput) === 1 ? '' : 's'} for this order`
+                  : 'Enter delivery days'}
+              </ThemedText>
+            </View>
+          ) : null}
 
           {fromChange && changeMsg ? (
             <View style={{ marginTop: 12 }}>
@@ -112,5 +126,24 @@ const styles = StyleSheet.create({
   price: { fontSize: 24, fontWeight: '900', color: '#111827', marginTop: 6 },
   button: { padding: 14, borderRadius: 12, alignItems: 'center' },
   buttonOutline: { padding: 14, borderRadius: 12, alignItems: 'center', borderWidth: 1, borderColor: '#d1d5db' },
-  input: { borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 10, padding: 10, marginTop: 8 },
+  input: {
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    borderRadius: 10,
+    padding: 10,
+    marginTop: 8,
+    backgroundColor: '#fff',
+    color: '#0f172a',
+  },
+  previewCard: {
+    marginTop: 16,
+    padding: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    backgroundColor: '#f8fafc',
+  },
+  previewLabel: { color: '#6b7280', fontSize: 12, fontWeight: '700' },
+  previewPrice: { fontSize: 24, fontWeight: '900', color: '#111827', marginTop: 6 },
+  previewDays: { fontSize: 14, fontWeight: '700', color: '#0e7490', marginTop: 6 },
 });

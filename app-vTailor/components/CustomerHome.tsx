@@ -2,14 +2,20 @@ import { useAuth } from '@/contexts/AuthContext';
 import { SURFACE_MUTED, TEXT_DARK, UI, ROLE_COLORS } from '@/constants/ui';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import React, { useEffect, useMemo, useState } from 'react';
+import { useRouter, useFocusEffect } from 'expo-router';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { CustomerScreenHeader } from '@/components/customer/CustomerScreenHeader';
 import { DEMO_CUSTOMER_ORDERS, dressPreviewFromOrderDescription } from '@/services/orderDressPreview';
 import { ThemedText } from './themed-text';
 import { getUnreadCount } from '@/services/notificationsApi';
 import { searchUsers, type UserSearchResult } from '@/services/usersApi';
+import {
+  draftResumeLabel,
+  getCustomerOrderDraft,
+  resumeCustomerOrderDraft,
+  type CustomerOrderDraft,
+} from '@/services/customerOrderDraft';
 
 type SearchShortcut = {
   label: string;
@@ -29,7 +35,7 @@ const SEARCH_SHORTCUTS: SearchShortcut[] = [
 
 const CustomerHome = () => {
   const router = useRouter();
-  const { user, token } = useAuth();
+  const { user, token, userId } = useAuth();
   const tint = useThemeColor({}, 'tint');
   const muted = useThemeColor({}, 'muted');
   const card = useThemeColor({}, 'card');
@@ -40,6 +46,7 @@ const CustomerHome = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [tailorHits, setTailorHits] = useState<UserSearchResult[]>([]);
   const [searchingTailors, setSearchingTailors] = useState(false);
+  const [orderDraft, setOrderDraft] = useState<CustomerOrderDraft | null>(null);
   const customerSoft = ROLE_COLORS.customer.soft;
   const customerBorder = ROLE_COLORS.customer.border;
   const customerDark = ROLE_COLORS.customer.primaryDark;
@@ -48,6 +55,12 @@ const CustomerHome = () => {
     if (!token) return;
     getUnreadCount(token).then(setUnreadCount).catch(() => {});
   }, [token]);
+
+  useFocusEffect(
+    useCallback(() => {
+      getCustomerOrderDraft(userId).then(setOrderDraft).catch(() => setOrderDraft(null));
+    }, [userId]),
+  );
 
   useEffect(() => {
     const q = searchQuery.trim();
@@ -250,6 +263,24 @@ const CustomerHome = () => {
             <ThemedText style={{ color: tint, fontWeight: '800', fontSize: 13 }}>See all results on map</ThemedText>
           </Pressable>
         </View>
+      ) : null}
+
+      {orderDraft ? (
+        <Pressable
+          onPress={() => resumeCustomerOrderDraft(router, orderDraft)}
+          style={[styles.resumeCard, { backgroundColor: card, borderColor: inputBorder }]}
+        >
+          <View style={[styles.resumeIcon, { backgroundColor: `${tint}18` }]}>
+            <Ionicons name="bookmark-outline" size={20} color={tint} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <ThemedText style={styles.resumeTitle}>Continue your order</ThemedText>
+            <ThemedText style={{ color: muted, fontSize: 12, marginTop: 2 }} numberOfLines={2}>
+              {draftResumeLabel(orderDraft)}
+            </ThemedText>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={tint} />
+        </Pressable>
       ) : null}
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
@@ -470,6 +501,25 @@ const styles = StyleSheet.create({
   tipsIconBox: { width: 38, height: 38, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
   tipsTitle: { fontSize: 14, fontWeight: '800', marginBottom: 4, color: TEXT_DARK },
   tipsDesc: { fontSize: 11, color: '#6b7280' },
+  resumeCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: 16,
+    marginTop: 14,
+    padding: 14,
+    borderRadius: 16,
+    borderWidth: 1,
+    gap: 12,
+    ...UI.softShadow,
+  },
+  resumeIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  resumeTitle: { fontSize: 14, fontWeight: '800', color: TEXT_DARK },
   bottomPadding: { height: 100 },
 });
 

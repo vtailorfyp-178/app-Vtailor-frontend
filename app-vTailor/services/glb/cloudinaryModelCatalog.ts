@@ -74,6 +74,12 @@ function registerSlugForPath(relativePath: string, url: string): void {
   if (slug.includes('sleeeves')) {
     slugToUrlByCategory.set(`${cat}::${slug.replace(/sleeeves/g, 'sleeves')}`, url);
   }
+  if (slug.includes('flired')) {
+    slugToUrlByCategory.set(`${cat}::${slug.replace(/flired/g, 'flirred')}`, url);
+  }
+  if (slug.includes('whiite')) {
+    slugToUrlByCategory.set(`${cat}::${slug.replace(/whiite/g, 'white')}`, url);
+  }
 }
 
 function registerCatalogPath(relativePath: string, url: string): void {
@@ -216,6 +222,12 @@ function glbPathLookupVariants(relativePath: string): string[] {
   }
   if (/flarred/i.test(stem)) {
     out.add(`${stem.replace(/flarred/gi, 'flared')}.glb`);
+  }
+  if (/flired/i.test(stem)) {
+    out.add(`${stem.replace(/flired/gi, 'flirred')}.glb`);
+  }
+  if (/whiite/i.test(stem)) {
+    out.add(`${stem.replace(/whiite/gi, 'white')}.glb`);
   }
   return [...out];
 }

@@ -45,11 +45,13 @@ export default function CustomerDecidedPrice() {
             </>
           ) : null}
 
-          <ThemedText style={styles.label}>Decided Price</ThemedText>
-          <ThemedText style={[styles.price]}>Rs {price.toLocaleString()}</ThemedText>
-
-          <ThemedText style={styles.label}>Estimated Completion</ThemedText>
-          <ThemedText style={styles.value}>{days} day{days === 1 ? '' : 's'}</ThemedText>
+          <View style={styles.proposalCard}>
+            <ThemedText style={styles.label}>Tailor's Proposal</ThemedText>
+            <ThemedText style={styles.price}>Rs {price.toLocaleString()}</ThemedText>
+            <ThemedText style={styles.daysLine}>
+              {days > 0 ? `${days} day${days === 1 ? '' : 's'} for this order` : 'Delivery days not specified'}
+            </ThemedText>
+          </View>
 
           <View style={{ height: 18 }} />
 
@@ -90,6 +92,7 @@ export default function CustomerDecidedPrice() {
                 value={changeMsg}
                 onChangeText={setChangeMsg}
                 placeholder="Describe the changes you want (price/days or details)"
+                placeholderTextColor="#9ca3af"
                 style={styles.changeInput}
                 multiline
                 numberOfLines={4}
@@ -131,8 +134,27 @@ const styles = StyleSheet.create({
   content: { padding: 16 },
   label: { color: '#6b7280', fontSize: 13, fontWeight: '700', marginTop: 12 },
   value: { fontSize: 16, fontWeight: '800', color: '#111827', marginTop: 6 },
-  price: { fontSize: 24, fontWeight: '900', color: '#111827', marginTop: 6 },
+  proposalCard: {
+    marginTop: 16,
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    backgroundColor: '#f8fafc',
+  },
+  price: { fontSize: 28, fontWeight: '900', color: '#111827', marginTop: 8 },
+  daysLine: { fontSize: 15, fontWeight: '700', color: '#0e7490', marginTop: 8 },
   button: { padding: 14, borderRadius: 12, alignItems: 'center' },
   buttonOutline: { padding: 14, borderRadius: 12, alignItems: 'center', borderWidth: 1, borderColor: '#d1d5db' },
-  changeInput: { borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 10, padding: 10, minHeight: 80, marginTop: 8, textAlignVertical: 'top' },
+  changeInput: {
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    borderRadius: 10,
+    padding: 10,
+    minHeight: 80,
+    marginTop: 8,
+    textAlignVertical: 'top',
+    backgroundColor: '#fff',
+    color: '#0f172a',
+  },
 });

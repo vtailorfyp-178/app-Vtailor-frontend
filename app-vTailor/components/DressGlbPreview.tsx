@@ -6,7 +6,7 @@ import {
 } from '@/services/glb/fabricPrintSelection';
 import { TraditionalDressGlbViewer } from '@/components/TraditionalDressGlbViewer';
 import { GlbHtmlModelViewer } from '@/components/GlbHtmlModelViewer';
-import type { DressViewerFramingMode } from '@/services/glb/dressViewerFraming';
+import type { DressFramingContext, DressViewerFramingMode } from '@/services/glb/dressViewerFraming';
 
 type Props = {
   glbUrl: string;
@@ -21,6 +21,8 @@ type Props = {
   loadError?: string | null;
   isUpdating?: boolean;
   framing?: DressViewerFramingMode;
+  modelId?: string | null;
+  selections?: DressFramingContext['selections'];
 };
 
 /** Three.js when fabric print active (accurate UV tiling); else WebView on native. */
@@ -62,6 +64,8 @@ export function DressGlbPreview(props: Props): React.ReactElement {
         fallbackImage={props.fallbackImage ?? props.backgroundImage}
         isUpdating={props.isUpdating}
         framing={props.framing}
+        modelId={props.modelId}
+        selections={props.selections}
       />
     );
   }
@@ -78,6 +82,8 @@ export function DressGlbPreview(props: Props): React.ReactElement {
         fabricTextureUrl={props.fabricTextureUrl}
         isUpdating={props.isUpdating}
         framing={props.framing}
+        modelId={props.modelId}
+        selections={props.selections}
       />
     </ThreePreviewCrashBoundary>
   );
@@ -111,6 +117,8 @@ class ThreePreviewCrashBoundary extends Component<Props & { children: ReactNode 
             fallbackImage={this.props.fallbackImage ?? this.props.backgroundImage}
             isUpdating={this.props.isUpdating}
             framing={this.props.framing}
+            modelId={this.props.modelId}
+            selections={this.props.selections}
           />
         );
       }

@@ -16,7 +16,7 @@ import {
 } from '@/services/glb/dressGlbTypes';
 import { with3dPreviewDefaults } from '@/services/glb/threePreviewReadiness';
 
-const URL_CACHE_VERSION = 'display-v40-switch-perf';
+const URL_CACHE_VERSION = 'display-v41-fabric-replay';
 const MAX_WEB_MATRIX_WARMS = 6;
 const MAX_COLOR_WARMS = 4;
 

@@ -3,8 +3,8 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { ThemedText } from '@/components/themed-text';
 import { TAILOR, tailorStyles } from '@/components/tailor/tailorUi';
-import type { TailorOrderRecord } from '@/services/tailor/tailorOrderCatalog';
-import { formatSelectionLines } from '@/services/tailor/tailorOrderCatalog';
+import { firstInitial } from '@/utils/safeDisplay';
+import { formatSelectionLines, type TailorOrderRecord } from '@/services/tailor/tailorOrderCatalog';
 
 type Props = {
   order: TailorOrderRecord;
@@ -16,9 +16,9 @@ type Props = {
 
 function statusTone(status: string): { bg: string; text: string } {
   const s = status.toLowerCase();
-  if (s === 'ready') return { bg: TAILOR.successSoft, text: TAILOR.successText };
-  if (s === 'pending') return { bg: TAILOR.warningSoft, text: TAILOR.warningText };
-  if (s === 'in progress') return { bg: '#e0f2fe', text: '#075985' };
+  if (s === 'ready' || s === 'confirmed') return { bg: TAILOR.successSoft, text: TAILOR.successText };
+  if (s === 'pending' || s === 'price_proposed') return { bg: TAILOR.warningSoft, text: TAILOR.warningText };
+  if (s === 'in progress' || s === 'accepted' || s === 'processing') return { bg: '#e0f2fe', text: '#075985' };
   return { bg: TAILOR.chipBg, text: TAILOR.chipText };
 }
 
@@ -36,7 +36,7 @@ export function TailorOrderSummaryCard({
     <Pressable style={[tailorStyles.card, styles.cardPress]} onPress={onPress}>
       <View style={styles.topRow}>
         <View style={[styles.avatar, { backgroundColor: TAILOR.primary }]}>
-          <ThemedText style={styles.avatarText}>{order.customerName.charAt(0)}</ThemedText>
+          <ThemedText style={styles.avatarText}>{firstInitial(order.customerName, 'C')}</ThemedText>
         </View>
         <View style={styles.main}>
           <ThemedText style={styles.name}>{order.customerName}</ThemedText>

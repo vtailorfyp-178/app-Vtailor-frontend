@@ -19,7 +19,8 @@ import {
   type FabricPatternMeta,
 } from '@/services/glb/fabricPrintSelection';
 import { glbNeedsEmbeddedTextures } from '@/services/glb/glbMaterialPolicy';
-import type { DressViewerFramingMode } from '@/services/glb/dressViewerFraming';
+import type { DressFramingContext, DressViewerFramingMode } from '@/services/glb/dressViewerFraming';
+import { dressFramingContext } from '@/services/glb/dressViewerFraming';
 import {
   buildModelViewerShellHtml,
   injectModelViewerFabricColorScript,
@@ -49,6 +50,8 @@ type Props = {
   /** Show spinner while a new GLB is loading (previous model may stay visible underneath). */
   isUpdating?: boolean;
   framing?: DressViewerFramingMode;
+  modelId?: string | null;
+  selections?: DressFramingContext['selections'];
 };
 
 type LoadState = 'loading' | 'ready' | 'error';
@@ -73,7 +76,13 @@ export const MobileGlbWebViewer = React.memo(function MobileGlbWebViewer({
   style,
   isUpdating = false,
   framing = 'editor',
+  modelId = null,
+  selections = null,
 }: Props): React.ReactElement {
+  const framingCtx = useMemo(
+    () => dressFramingContext(modelId, selections),
+    [modelId, selections],
+  );
   const webRef = useRef<WebView>(null);
   const shellReadyRef = useRef(false);
   const glbUrlRef = useRef(glbUrl);
@@ -128,9 +137,12 @@ export const MobileGlbWebViewer = React.memo(function MobileGlbWebViewer({
     );
   }, []);
 
-  const injectFraming = useCallback((mode: DressViewerFramingMode) => {
-    webRef.current?.injectJavaScript(injectModelViewerFramingScript(mode));
-  }, []);
+  const injectFraming = useCallback(
+    (mode: DressViewerFramingMode) => {
+      webRef.current?.injectJavaScript(injectModelViewerFramingScript(mode, framingCtx));
+    },
+    [framingCtx],
+  );
 
   const injectWeddingColor = useCallback((hex: string | null, url: string) => {
     if (!webRef.current || !shellReadyRef.current) return;

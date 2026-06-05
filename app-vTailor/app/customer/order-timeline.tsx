@@ -11,9 +11,8 @@ import { getUserCustomizations } from '@/services/userDataService';
 import { type TabId } from '@/services/dressGlbResolver';
 import { useBundledDressGlb } from '@/hooks/useBundledDressGlb';
 import {
-  fabricColorHexFromId,
   fabricColorNameFromId,
-  usesCasualShortShirtFabricTint,
+  resolveDressFabricColorHex,
 } from '@/services/dressFabricColors';
 import { with3dPreviewDefaults } from '@/services/glb/threePreviewReadiness';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
@@ -278,11 +277,11 @@ export default function CustomerOrderTimelineScreen() {
     previewSelectionsFor3d,
     previewModelId != null && previewModelId.length > 0 ? previewModelId : '',
   );
-  const previewFabricHex = usesCasualShortShirtFabricTint(previewModelId ?? '', mergedPreviewSelections)
-    ? fabricColorHexFromId(mergedPreviewSelections.colors)
-    : null;
+  const previewFabricColorHex = resolveDressFabricColorHex(
+    previewModelId ?? '',
+    previewSelectionsFor3d,
+  );
   const previewFabricTextureUrl = mergedPreviewSelections['fabric-print'];
-  const previewFabricColorHex = previewFabricTextureUrl ? null : previewFabricHex;
   const preview2d = previewModelId ? imageForModel(previewModelId) : null;
   const [activeTab, setActiveTab] = useState<'tailor' | 'order'>('order');
 
@@ -771,6 +770,8 @@ export default function CustomerOrderTimelineScreen() {
                       fabricColorHex={previewFabricColorHex}
                       fabricTextureUrl={previewFabricTextureUrl}
                       fallbackImage={preview2d}
+                      modelId={previewModelId}
+                      selections={previewSelectionsFor3d}
                     />
                   ) : preview2d ? (
                     <Image source={preview2d} style={styles.preview2d} resizeMode="contain" />

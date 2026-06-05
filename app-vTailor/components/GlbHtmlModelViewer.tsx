@@ -1,6 +1,6 @@
 import type { ImageSourcePropType, StyleProp, ViewStyle } from 'react-native';
 import type { FabricPatternMeta } from '@/services/glb/fabricPrintSelection';
-import type { DressViewerFramingMode } from '@/services/glb/dressViewerFraming';
+import type { DressFramingContext, DressViewerFramingMode } from '@/services/glb/dressViewerFraming';
 import { MobileGlbWebViewer } from '@/components/MobileGlbWebViewer';
 
 type Props = {
@@ -15,6 +15,8 @@ type Props = {
   style?: StyleProp<ViewStyle>;
   isUpdating?: boolean;
   framing?: DressViewerFramingMode;
+  modelId?: string | null;
+  selections?: DressFramingContext['selections'];
 };
 
 /** Native / default: Google model-viewer inside WebView (full GLB materials). */
