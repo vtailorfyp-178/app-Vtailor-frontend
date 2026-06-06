@@ -1,5 +1,6 @@
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { ROLE_COLORS, UI } from '@/constants/ui';
+import { ADMIN_TABS, adminTabHref, type AdminTabId } from '@/components/admin/adminTabConfig';
 import { CUSTOMER_TABS, customerTabHref, type CustomerTabId } from '@/components/customer/customerTabConfig';
 import { TAILOR_TABS, tailorTabHref, type TailorTabId } from '@/components/tailor/tailorTabConfig';
 import { Ionicons } from '@expo/vector-icons';
@@ -10,7 +11,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ThemedText } from './themed-text';
 
 interface BottomTabBarProps {
-  basePath: 'customer' | 'tailor';
+  basePath: 'customer' | 'tailor' | 'admin';
   onTabChange?: (tab: string) => void;
   activeTab?: string;
 }
@@ -33,9 +34,18 @@ const BottomTabBar = ({ basePath, onTabChange, activeTab }: BottomTabBarProps) =
   }, [activeTab]);
 
   const isTailor = basePath === 'tailor';
-  const tabs: TabItem[] = isTailor ? TAILOR_TABS : CUSTOMER_TABS;
-  const accent = isTailor ? ROLE_COLORS.tailor.primary : ROLE_COLORS.customer.primary;
-  const activeBg = isTailor ? ROLE_COLORS.tailor.soft : ROLE_COLORS.customer.soft;
+  const isAdmin = basePath === 'admin';
+  const tabs: TabItem[] = isAdmin ? ADMIN_TABS : isTailor ? TAILOR_TABS : CUSTOMER_TABS;
+  const accent = isAdmin
+    ? ROLE_COLORS.admin.primary
+    : isTailor
+      ? ROLE_COLORS.tailor.primary
+      : ROLE_COLORS.customer.primary;
+  const activeBg = isAdmin
+    ? ROLE_COLORS.admin.soft
+    : isTailor
+      ? ROLE_COLORS.tailor.soft
+      : ROLE_COLORS.customer.soft;
 
   const router = useRouter();
 
@@ -44,9 +54,11 @@ const BottomTabBar = ({ basePath, onTabChange, activeTab }: BottomTabBarProps) =
     onTabChange?.(tabId);
     try {
       const target = (
-        basePath === 'customer'
-          ? customerTabHref(tabId as CustomerTabId)
-          : tailorTabHref(tabId as TailorTabId)
+        basePath === 'admin'
+          ? adminTabHref(tabId as AdminTabId)
+          : basePath === 'customer'
+            ? customerTabHref(tabId as CustomerTabId)
+            : tailorTabHref(tabId as TailorTabId)
       ) as Href;
       router.replace(target);
     } catch {

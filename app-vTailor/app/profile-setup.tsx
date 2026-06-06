@@ -131,7 +131,8 @@ export default function ProfileSetup() {
 
       await markProfileCompleted();
 
-      if (userRole === 'tailor') (router as any).replace('/tailor');
+      if (userRole === 'admin') (router as any).replace('/admin');
+      else if (userRole === 'tailor') (router as any).replace('/tailor');
       else (router as any).replace('/customer');
     } catch (error) {
       console.error('Profile save failed:', error);

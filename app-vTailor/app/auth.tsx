@@ -39,7 +39,8 @@ export default function AuthScreen() {
   const customerMain = ROLE_COLORS.customer.primary;
   const tailorMain = ROLE_COLORS.tailor.primary;
   const tailorText = ROLE_COLORS.tailor.primaryDark;
-  const authPrimary = role === 'tailor' ? tailorMain : customerMain;
+  const adminMain = ROLE_COLORS.admin.primary;
+  const authPrimary = role === 'admin' ? adminMain : role === 'tailor' ? tailorMain : customerMain;
 
   const [otpFocusedIndex, setOtpFocusedIndex] = useState<number | null>(null);
   const insets = useSafeAreaInsets();
@@ -50,14 +51,16 @@ export default function AuthScreen() {
   };
 
   const handleEmailSubmit = async () => {
-    if (!email || !email.includes('@')) {
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!normalizedEmail || !normalizedEmail.includes('@')) {
       Alert.alert('Invalid email', 'Please enter a valid email address');
       return;
     }
+    setEmail(normalizedEmail);
 
     setSendingOtp(true);
     try {
-      const res = await sendEmailOtp(email);
+      const res = await sendEmailOtp(normalizedEmail);
       setMethodId(res.method_id);
       setStep('otp');
     } catch (err) {
@@ -81,14 +84,15 @@ export default function AuthScreen() {
   };
 
   const handleResendOtp = async () => {
-    if (!email || !email.includes('@')) {
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!normalizedEmail || !normalizedEmail.includes('@')) {
       Alert.alert('Invalid email', 'Please go back and enter a valid email address.');
       return;
     }
 
     setSendingOtp(true);
     try {
-      const res = await sendEmailOtp(email);
+      const res = await sendEmailOtp(normalizedEmail);
       setMethodId(res.method_id);
       resetOtpInputs();
       Alert.alert('OTP Sent', `A new code has been sent to ${email}. Please use the latest code.`);
@@ -115,8 +119,13 @@ export default function AuthScreen() {
     });
     setOtp(newOtp);
 
+    const filledCount = newOtp.filter(Boolean).length;
     const nextIndex = Math.min(index + digits.length, 5);
-    otpRefs.current[nextIndex]?.focus();
+    if (filledCount >= 6) {
+      otpRefs.current[5]?.blur();
+    } else {
+      otpRefs.current[nextIndex]?.focus();
+    }
   };
 
   const handleOtpKeyPress = (index: number, event: NativeSyntheticEvent<TextInputKeyPressEventData>) => {
@@ -153,12 +162,20 @@ export default function AuthScreen() {
         return;
       }
 
-      const result = await verifyEmailOtp(methodId, otpValue, role);
+      const otpRole = role === 'admin' ? 'admin' : role === 'tailor' ? 'tailor' : 'customer';
+      const result = await verifyEmailOtp(methodId, otpValue, otpRole);
 
       if (result?.access_token) {
-        const resolvedRole: UserRole = result.role === 'tailor' ? 'tailor' : 'customer';
+        const resolvedRole: UserRole =
+          result.role === 'admin' ? 'admin' : result.role === 'tailor' ? 'tailor' : 'customer';
         const userId = result.user_id;
         login(result.access_token, resolvedRole, result.email ?? email, userId);
+
+        if (resolvedRole === 'admin') {
+          await markProfileCompleted('admin', userId);
+          (router as any).replace('/admin');
+          return;
+        }
 
         if (userId) {
           await migrateCustomizationsToUser(userId);
@@ -196,9 +213,16 @@ export default function AuthScreen() {
       }
     } catch (err) {
       const rawMessage = err instanceof Error ? err.message : '';
-      const message = /otp|passcode|incorrect|expired|not found|authenticated/i.test(rawMessage)
-        ? 'The OTP code is incorrect or expired. Please enter the latest code from your email, or tap Resend OTP.'
-        : 'Unable to verify OTP. Please request a new code and try again.';
+      let message = rawMessage;
+      if (/admin account not found/i.test(rawMessage)) {
+        message =
+          'This email is not registered as admin. Use vtailorfyp@gmail.com after create_admin.py has been run.';
+      } else if (/otp|passcode|incorrect|expired|authenticated/i.test(rawMessage)) {
+        message =
+          'The OTP code is incorrect or expired. Use the latest code from your email (type each digit or paste into the first box), or tap Resend OTP.';
+      } else if (!message) {
+        message = 'Unable to verify OTP. Please request a new code and try again.';
+      }
       const lastFilledIndex = otp.reduce((lastIndex, digit, digitIndex) => (digit ? digitIndex : lastIndex), -1);
       setTimeout(() => otpRefs.current[Math.max(0, lastFilledIndex)]?.focus(), 100);
       Alert.alert('Verification failed', message);
@@ -310,6 +334,26 @@ export default function AuthScreen() {
               </View>
             </Pressable>
 
+            <Pressable
+              onPress={() => handleRoleSelect('admin')}
+              style={[
+                styles.roleCard,
+                styles.roleCardAlt,
+                role === 'admin' && { borderColor: adminMain, borderWidth: 2, backgroundColor: ROLE_COLORS.admin.soft },
+              ]}
+            >
+              <View style={styles.roleInner}>
+                <View style={[styles.roleIcon, { backgroundColor: role === 'admin' ? adminMain : ROLE_COLORS.admin.soft }]}>
+                  <Ionicons name="shield-checkmark-outline" size={24} color={role === 'admin' ? '#fff' : adminMain} />
+                </View>
+
+                <View style={{ flex: 1 }}>
+                  <ThemedText type="defaultSemiBold" style={styles.roleTitle}>Admin</ThemedText>
+                  <ThemedText style={styles.small}>Manage users and platform orders</ThemedText>
+                </View>
+              </View>
+            </Pressable>
+
             <ThemedText style={styles.tiny}>
               By continuing, you agree to our Terms & Privacy Policy
             </ThemedText>
@@ -361,7 +405,9 @@ export default function AuthScreen() {
                     { borderColor: d ? authPrimary : (otpFocusedIndex === i ? authPrimary : '#e6e7eb') }
                   ]}
                   keyboardType="number-pad"
-                  maxLength={1}
+                  maxLength={i === 0 ? 6 : 1}
+                  textContentType={i === 0 ? 'oneTimeCode' : 'none'}
+                  autoComplete={i === 0 ? 'sms-otp' : 'off'}
                   value={d}
                   onFocus={() => setOtpFocusedIndex(i)}
                   onBlur={() => setOtpFocusedIndex((cur) => (cur === i ? null : cur))}

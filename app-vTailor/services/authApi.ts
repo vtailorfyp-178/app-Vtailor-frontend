@@ -119,15 +119,19 @@ export async function sendEmailOtp(email: string): Promise<EmailOtpStartResult> 
 
 // `methodId` is the value returned by sendEmailOtp (otp/start) as `method_id`.
 // The backend otp/verify endpoint only accepts { method_id, code }.
-export async function verifyEmailOtp(methodId: string, code: string, role: 'customer' | 'tailor'): Promise<VerifyOtpResult> {
+export async function verifyEmailOtp(
+  methodId: string,
+  code: string,
+  role: 'customer' | 'tailor' | 'admin',
+): Promise<VerifyOtpResult> {
   const response = await fetchWithFallback('/auth/otp/verify', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      method_id: methodId,
-      code,
+      method_id: methodId.trim(),
+      code: code.trim(),
       role,
     }),
   }, AUTH_REQUEST_TIMEOUT_MS);

@@ -6,7 +6,7 @@ import { useThemeColor } from '@/hooks/use-theme-color';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
-  requiredRole?: 'customer' | 'tailor';
+  requiredRole?: 'customer' | 'tailor' | 'admin';
 }
 
 export const ProtectedRoute = ({ children, requiredRole }: ProtectedRouteProps) => {
@@ -23,7 +23,7 @@ export const ProtectedRoute = ({ children, requiredRole }: ProtectedRouteProps) 
       return;
     }
 
-    if (!isProfileCompleted) {
+    if (userRole !== 'admin' && !isProfileCompleted) {
       (router as any).replace('/profile-setup');
       return;
     }
@@ -33,6 +33,8 @@ export const ProtectedRoute = ({ children, requiredRole }: ProtectedRouteProps) 
         (router as any).replace('/customer');
       } else if (userRole === 'tailor') {
         (router as any).replace('/tailor');
+      } else if (userRole === 'admin') {
+        (router as any).replace('/admin');
       } else {
         (router as any).replace('/auth');
       }

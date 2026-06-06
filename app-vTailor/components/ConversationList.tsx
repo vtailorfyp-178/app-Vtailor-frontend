@@ -320,6 +320,7 @@ function NewChatModal({
 export default function ConversationListScreen() {
   const router = useRouter();
   const { userId, userRole, token } = useAuth();
+  const chatRole: 'customer' | 'tailor' | null = userRole === 'admin' ? null : userRole;
   const [channels, setChannels] = useState<ChannelItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -363,12 +364,12 @@ export default function ConversationListScreen() {
 
     // Always show demo channels immediately so there's no blank screen
     if (!isRefresh && channels.length === 0) {
-      setChannels(buildDemoChannels(userId ?? "", userRole));
+      setChannels(buildDemoChannels(userId ?? "", chatRole));
     }
 
     if (!client || !userId) {
       setIsDemoMode(true);
-      setChannels(buildDemoChannels(userId ?? "", userRole));
+      setChannels(buildDemoChannels(userId ?? "", chatRole));
       setLoading(false);
       setRefreshing(false);
       return;
@@ -387,7 +388,7 @@ export default function ConversationListScreen() {
         message_limit: 1,
       });
 
-      const demos = buildDemoChannels(userId ?? "", userRole);
+      const demos = buildDemoChannels(userId ?? "", chatRole);
       if (rawChannels.length === 0) {
         setIsDemoMode(false);
         setChannels(demos);
@@ -404,7 +405,7 @@ export default function ConversationListScreen() {
               limit: 30,
               message_limit: 1,
             });
-            setChannels([...mapChannels(refreshed), ...buildDemoChannels(userId ?? "", userRole)]);
+            setChannels([...mapChannels(refreshed), ...buildDemoChannels(userId ?? "", chatRole)]);
           } catch {
             // keep current list on error
           }
@@ -413,12 +414,12 @@ export default function ConversationListScreen() {
     } catch (err) {
       console.error("[ConversationList] Stream queryChannels failed:", err);
       setIsDemoMode(true);
-      setChannels(buildDemoChannels(userId, userRole));
+      setChannels(buildDemoChannels(userId, chatRole));
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [userId, userRole, mapChannels]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [userId, chatRole, mapChannels]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!userId) return;
@@ -693,7 +694,7 @@ export default function ConversationListScreen() {
         visible={showNewChat}
         onClose={() => setShowNewChat(false)}
         onSelectUser={handleSelectUser}
-        myRole={userRole}
+        myRole={chatRole}
         token={token}
         tint={tint}
         card={card}

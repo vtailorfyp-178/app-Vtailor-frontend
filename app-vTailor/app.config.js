@@ -16,8 +16,8 @@ module.exports = ({ config }) => {
     android: {
       ...config.android,
       adaptiveIcon: {
-        foregroundImage: './assets/images/vTailorlogo.png',
-        backgroundColor: '#E6F4FE',
+        foregroundImage: './assets/images/vTailoricon.png',
+        backgroundColor: '#FFFFFF',
       },
       config: {
         ...config.android?.config,

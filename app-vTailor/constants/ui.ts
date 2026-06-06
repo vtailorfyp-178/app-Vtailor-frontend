@@ -69,4 +69,10 @@ export const ROLE_COLORS = {
     soft: '#fff1f7',
     border: '#f9c1df',
   },
+  admin: {
+    primary: '#6366f1',
+    primaryDark: '#4338ca',
+    soft: '#eef2ff',
+    border: '#c7d2fe',
+  },
 };

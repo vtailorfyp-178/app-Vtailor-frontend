@@ -3,7 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getProfile } from '@/services/authApi';
 import { connectStreamUser, disconnectStreamUser } from '@/services/streamChatService';
 
-export type UserRole = 'customer' | 'tailor' | null;
+export type UserRole = 'customer' | 'tailor' | 'admin' | null;
 
 export type UserProfile = {
   name?: string;
@@ -104,7 +104,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           ]);
           if (storedProfile) {
             const parsed = JSON.parse(storedProfile) as UserProfile;
-            role === 'customer' ? setCustomerProfile(parsed) : setTailorProfile(parsed);
+            if (role === 'customer') setCustomerProfile(parsed);
+            else if (role === 'tailor') setTailorProfile(parsed);
+            else if (role === 'admin') setIsProfileCompleted(true);
           }
           if (completed === 'true') setIsProfileCompleted(true);
         }
@@ -128,16 +130,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 description: remoteProfile.description ?? undefined,
                 avatar: remoteProfile.avatar ?? undefined,
               };
-              profileRole === 'customer' ? setCustomerProfile(profile) : setTailorProfile(profile);
-              await AsyncStorage.setItem(profileKey(profileRole, rid || storedUserId), JSON.stringify(profile));
-              if (remoteProfile.name || remoteProfile.address || remoteProfile.phone) {
+              if (profileRole === 'customer') setCustomerProfile(profile);
+              else if (profileRole === 'tailor') setTailorProfile(profile);
+              if (profileRole === 'admin') {
                 setIsProfileCompleted(true);
-                await AsyncStorage.setItem(completedKey(profileRole, rid || storedUserId), 'true');
+                await AsyncStorage.setItem(completedKey('admin', rid || storedUserId), 'true');
+              } else {
+                await AsyncStorage.setItem(profileKey(profileRole, rid || storedUserId), JSON.stringify(profile));
+                if (remoteProfile.name || remoteProfile.address || remoteProfile.phone) {
+                  setIsProfileCompleted(true);
+                  await AsyncStorage.setItem(completedKey(profileRole, rid || storedUserId), 'true');
+                }
               }
             }
-            // Connect Stream Chat after session restore
+            // Connect Stream Chat after session restore (not for admin)
             const streamUserId = rid || storedUserId;
-            if (streamUserId) {
+            if (streamUserId && profileRole !== 'admin') {
               const displayName = remoteProfile.name || remail || streamUserId;
               connectStreamUser(
                 storedToken,
@@ -185,7 +193,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoginEmail(email);
       // Pre-seed the email field in whichever profile slot this role uses
       const seed: UserProfile = { email };
-      role === 'customer' ? setCustomerProfile(seed) : setTailorProfile(seed);
+      if (role === 'customer') setCustomerProfile(seed);
+      else if (role === 'tailor') setTailorProfile(seed);
       if (role) {
         AsyncStorage.setItem(profileKey(role, newUserId), JSON.stringify(seed)).catch(() => {});
       }
@@ -197,8 +206,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // Connect Stream Chat
     const streamId = newUserId;
-    if (streamId) {
-      // Use email as a temporary placeholder only; updateProfile() will re-sync the real name
+    if (streamId && role !== 'admin') {
       const displayName = email || streamId;
       connectStreamUser(newToken, streamId, displayName, role ?? undefined, undefined, email ?? undefined).catch(
         (e) => console.warn('[Stream] login connect failed:', e)
@@ -220,11 +228,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       'authToken', 'userRole', 'loginEmail',
       'userId',
       profileKey('customer'), completedKey('customer'),
-      profileKey('tailor'),   completedKey('tailor'),
+      profileKey('tailor'), completedKey('tailor'),
+      profileKey('admin'), completedKey('admin'),
       ...(currentUserId
         ? [
             profileKey('customer', currentUserId), completedKey('customer', currentUserId),
             profileKey('tailor', currentUserId), completedKey('tailor', currentUserId),
+            profileKey('admin', currentUserId), completedKey('admin', currentUserId),
           ]
         : []),
     ]).catch(() => {});
